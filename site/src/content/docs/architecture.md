@@ -47,13 +47,23 @@ by id, and the generated traceability matrix joins on them (see
 
 In scope: study registry, DM milestone tracking, deliverable status with
 eTMF links, quality metrics from source adapters, UAT cycle and defect
-tracking, and, in later phases, training and access mirrors, lock-readiness
-scoring, and portfolio roll-up.
+tracking, an opt-in statistical programming module with study-scoped
+milestones, delivery status, and programming-work metrics read from the
+team's own repositories
+([ADR-0011](/dmops-core/reference/decisions/0011-stat-programming-as-an-opt-in-module/),
+[ADR-0012](/dmops-core/reference/decisions/0012-programming-work-frames-and-github-adapter/)),
+and, in later phases, training and access mirrors, lock-readiness scoring,
+and portfolio roll-up. The DM-only deployment is the default and complete
+on its own; a study that never enables the stat module sees none of it.
 
 Out of scope, permanently: clinical data capture (the EDC), query issuance
 and resolution (the EDC), document authoring or e-signature (QMS/eTMF), site
-payments and monitoring (CTMS), statistical analysis. Scope discipline is
-what keeps the GxP footprint small.
+payments and monitoring (CTMS), and performing or storing statistical
+analysis. Methods, outputs, and analysis datasets live in the biostat
+environment; the stat module tracks the status of that work, never its
+content. Out of scope for now: programming work not tied to a study, such
+as R packages and internal tools. Scope discipline is what keeps the GxP
+footprint small.
 
 ## Conventions that show up everywhere
 

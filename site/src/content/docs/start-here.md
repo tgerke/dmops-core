@@ -10,7 +10,10 @@ and read in order; each step says why it comes next.
 
 Every track names a demo persona from the header dropdown. If you
 [run the stack](/dmops-core/getting-started/) first, you can do each step
-yourself instead of just reading about it.
+yourself instead of just reading about it. A statistical programming track
+is on its way: the opt-in stat module is decided
+([ADR-0011](/dmops-core/reference/decisions/0011-stat-programming-as-an-opt-in-module/))
+and its pages join this router when it ships.
 
 ## DM leads {#dm-leads}
 

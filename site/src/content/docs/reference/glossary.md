@@ -61,7 +61,15 @@ while any defect is open or awaiting retest
 source system. See [Adapters](/dmops-core/guide/adapters/).
 
 **Frame**: a normalized extraction table defined by the adapter contract:
-`queries`, `subjects`, `visits`, `pages`.
+`queries`, `subjects`, `visits`, `pages`. Three programming-work frames
+(`issues`, `pull_requests`, `reviews`) are decided and arrive with the stat
+module
+([ADR-0012](/dmops-core/reference/decisions/0012-programming-work-frames-and-github-adapter/)).
+
+**Pull request**: a repository host's unit of proposed change and review.
+In the stat module it is source data, read through the `pull_requests` and
+`reviews` frames; the code and the review record stay in the repository,
+which dmops-core links to and never holds.
 
 **Capability**: an adapter's per-field honesty declaration: `native`,
 `derived` (with a note saying how), or `unsupported`. Metrics gate on
@@ -88,6 +96,33 @@ its compute function. A changed definition is a new version. See
 
 **Taxonomy**: the governed list of 38 milestone codes every study draws
 from ([ADR-0008](/dmops-core/reference/decisions/0008-governed-milestone-taxonomy/)).
+
+**Module**: the discipline a taxonomy code or metric belongs to. `dm` is
+the default and covers everything shipped today; `stat` covers statistical
+programming and arrives as an opt-in. A study that never enables a module
+sees none of it
+([ADR-0011](/dmops-core/reference/decisions/0011-stat-programming-as-an-opt-in-module/)).
+
+**SAP**: the Statistical Analysis Plan, the biostat-owned document that
+defines a study's planned analyses. In the stat module it appears as a
+deliverable status row and the `STAT.SAP.APPROVED` milestone; the document
+itself stays in the eTMF.
+
+**SDTM**: the standardized tabulation format study data is mapped into
+after collection. The stat module tracks SDTM production and QC as
+`STAT.SDTM.*` milestones; the datasets stay in the biostat environment.
+
+**ADaM**: the analysis-ready dataset format derived from SDTM, the input
+to tables and figures. Tracked as the `STAT.ADAM.*` milestones and the
+`adam_spec` deliverable type.
+
+**TLF**: tables, listings, and figures, the output package of an analysis.
+Shell approval, production, and QC are the `STAT.TLF.*` milestones.
+
+**Double programming**: independent re-programming of a dataset or output
+by a second programmer, compared against the first. The QC convention
+behind the `STAT.*.QC` milestones; the comparison evidence lives in the
+repository, linked, never stored here.
 
 **Assignment**: a person's role on a specific study, the unit all
 authorization derives from. See

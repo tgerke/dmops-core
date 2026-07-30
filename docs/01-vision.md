@@ -13,6 +13,14 @@ inspection evidence is reconstructed retrospectively.
 dmops-core's job is to make DM's work legible to every other domain without
 adding a second data-entry burden to DM.
 
+Statistical programming teams carry a parallel load: SDTM and ADaM
+production, QC programming, TLF delivery, analysis handoffs. That work is
+tracked today in repository issues and standup memory, and it is just as
+invisible to everyone else. An opt-in stat module (ADR-0011) gives it the
+same treatment. The DM-only deployment stays the default and is complete on
+its own; an organization that never enables the module sees a traditional
+DM workbench and nothing else.
+
 ## Design principles
 
 These are the system's requirement tokens (`DM-P1`…`DM-P6`); tests cite them
@@ -37,13 +45,19 @@ by id, and the traceability matrix in `docs/validation/` joins on them.
 
 In scope: study registry, DM milestone tracking, deliverable status with eTMF
 links, quality metrics from source adapters, UAT cycle and defect tracking
-(ADR-0010), and — in later phases — training and access mirrors,
-lock-readiness scoring, and portfolio roll-up.
+(ADR-0010), an opt-in statistical programming module with study-scoped
+milestones, delivery status, and programming-work metrics read from the
+team's own repositories (ADR-0011, ADR-0012), and — in later phases —
+training and access mirrors, lock-readiness scoring, and portfolio roll-up.
 
 Out of scope, permanently: clinical data capture (the EDC), query issuance and
 resolution (the EDC), document authoring or e-signature (QMS/eTMF), site
-payments and monitoring (CTMS), statistical analysis. Scope discipline is what
-keeps the GxP footprint small.
+payments and monitoring (CTMS), and performing or storing statistical
+analysis. Methods, outputs, and analysis datasets live in the biostat
+environment; the stat module tracks the status of that work, never its
+content. Out of scope for now: programming work not tied to a study, such as
+R packages and internal tools (ADR-0011 keeps the model study-scoped). Scope
+discipline is what keeps the GxP footprint small.
 
 ## The ecosystem
 

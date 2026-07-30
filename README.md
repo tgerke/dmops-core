@@ -5,6 +5,8 @@ work is planned, executed, evidenced, and reported. It sits beside the EDC,
 never inside it. Milestone boards, deliverable status with eTMF links, and
 quality metrics computed from source systems through capability-declaring
 adapters, with every published number traceable to a checksummed extract.
+An opt-in module extends the same treatment to statistical programming
+teams; a DM-only deployment never sees it (ADR-0011).
 
 **Documentation: https://tgerke.github.io/dmops-core/** covers a guided
 tour, role-based reading tracks, the full user guide with screenshots, and
@@ -36,6 +38,11 @@ reference home for the regulated records this portal links to but never holds.
 - Milestone dates and deliverable status are inspection-facing, so every write
   lands in a hash-chained audit trail written by database triggers; the API
   runs as a role that cannot alter it (ADR-0003).
+- Statistical programming teams already run their work through GitHub. The
+  opt-in stat module reads that exhaust (issues, pull requests, reviews)
+  through the same capability-declaring adapter contract instead of asking
+  anyone to re-enter status, and organizations that skip the module never
+  see it (ADR-0011, ADR-0012).
 
 ## Layout
 
@@ -90,10 +97,19 @@ through the adapter pipeline into an immutable snapshot warehouse with trend
 and per-site drill-downs, governed re-baselining with an append-only history
 (ADR-0009), business-day metric calendars as v1.1 of the elapsed-time
 definitions (the version machinery of ADR-0004, exercised once for real),
-and the CSV + edc-core adapters. What does not exist yet: training and
-access mirrors, lock-readiness scoring, portfolio roll-up views, exports and
-KPI packs, holiday-aware metric calendars, and Medrio/Rave adapters (the
-contract is designed for them; see `docs/adapters/writing-an-adapter.md`).
+and the CSV + edc-core adapters. What comes next, in order:
+
+1. The stat programming module: module opt-in machinery, the STAT milestone
+   codes, the phase-scoped write posture, and the analysis deliverable
+   types (ADR-0011).
+2. Programming-work frames, the GitHub adapter, and the DS metric starter
+   set (ADR-0012).
+3. Training and access mirrors.
+4. Lock-readiness scoring.
+5. Portfolio roll-up views, over every module's metrics.
+6. Exports and KPI packs, and holiday-aware metric calendars.
+7. Medrio and Rave adapters (the contract is designed for them; see
+   [Writing an adapter](https://tgerke.github.io/dmops-core/guide/writing-an-adapter/)).
 
 This is not validated software. The IQ script, OQ report, and traceability
 matrix are generated raw material for a validation program; running that
