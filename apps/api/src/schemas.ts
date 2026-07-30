@@ -55,6 +55,8 @@ export const BoardRowSchema = z.object({
   evidence_uri: z.string().nullable(),
   forecast_slip_days: z.number().nullable(),
   actual_slip_days: z.number().nullable(),
+  rebaseline_count: z.number(),
+  last_rebaselined_at: z.string().nullable(),
   updated_at: z.string(),
 });
 
@@ -75,6 +77,32 @@ export const MilestonePatchSchema = z
     owner_id: z.string().uuid().nullable().optional(),
   })
   .strict();
+
+// The only path that can move planned_date (ADR-0009). baseline_date has no
+// write path at all.
+export const RebaselinePostSchema = z
+  .object({
+    planned_date: z.string().date(),
+    reason: z.string().min(10).max(2000),
+    reference_uri: z.string().url().nullable().optional(),
+  })
+  .strict();
+
+// reason is optional because the sponsor serialization omits it entirely
+// (DM-P5) — a curated view, not a blanked field.
+export const RebaselineRecordSchema = z.object({
+  rebaseline_number: z.number(),
+  previous_planned_date: z.string().nullable(),
+  new_planned_date: z.string(),
+  reason: z.string().optional(),
+  reference_uri: z.string().nullable(),
+  created_at: z.string(),
+});
+
+export const RebaselineResultSchema = z.object({
+  milestone: BoardRowSchema,
+  rebaseline: RebaselineRecordSchema,
+});
 
 export const SnapshotSchema = z.object({
   metric_id: z.string(),

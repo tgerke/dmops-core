@@ -46,6 +46,13 @@ describe("append-only warehouse and audit trail (DM-P3)", () => {
     );
     await expect(sql`DELETE FROM metric_definition`).rejects.toThrow(/immutable/);
   });
+
+  it("rejects UPDATE and DELETE on milestone_rebaseline (a re-baseline is history, ADR-0009)", async () => {
+    await expect(sql`UPDATE milestone_rebaseline SET reason = 'rewritten'`).rejects.toThrow(
+      /immutable/,
+    );
+    await expect(sql`DELETE FROM milestone_rebaseline`).rejects.toThrow(/immutable/);
+  });
 });
 
 describe("audit trail (ADR-0003)", () => {

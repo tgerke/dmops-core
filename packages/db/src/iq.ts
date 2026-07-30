@@ -25,8 +25,15 @@ const ok = (cond: boolean, check: string, detail: string) =>
 // cannot audit itself.
 const AUDIT_EXEMPT = new Set(["metric_snapshot", "source_extract", "audit_event"]);
 
-// Append-only warehouse + audit trail (DM-P3, ADR-0007).
-const IMMUTABLE_TABLES = ["audit_event", "metric_snapshot", "source_extract", "metric_definition"];
+// Append-only warehouse + audit trail + governance records (DM-P3, ADR-0007,
+// ADR-0009).
+const IMMUTABLE_TABLES = [
+  "audit_event",
+  "metric_snapshot",
+  "source_extract",
+  "metric_definition",
+  "milestone_rebaseline",
+];
 
 async function main() {
   const { sql } = createDb();

@@ -24,10 +24,18 @@ commitment and survives re-baselining. `planned_date` is the current plan.
 happened. Slip is computed, not entered: forecast versus planned while in
 flight, actual versus baseline once complete.
 
-The API deliberately refuses to write `baseline_date` and `planned_date`.
-Re-baselining is a governance action with an approval trail, not an edit; that
-workflow is future work, and until it exists baselines are immutable through
-the API.
+The API deliberately refuses to write `baseline_date` and `planned_date`
+through the milestone PATCH. Moving the plan is a governance action with its
+own endpoint (ADR-0009): a re-baseline appends an immutable record — the new
+planned date, the previous one, a required reason, and an optional reference
+URI such as an eTMF pointer to the protocol amendment — and updates the
+current plan in the same audited transaction. It requires a `dm_manager`
+assignment on the study or `admin`; a `dm_lead` moves forecasts but not the
+plan. Milestones already complete or N/A cannot be re-baselined.
+`baseline_date` has no write path at all: the original commitment survives
+every re-plan, which is what keeps slip analysis honest. The board shows how
+often a milestone has been re-baselined, and the full history is queryable —
+sponsors see the dates but not the internal reasons.
 
 ## Repeating milestones
 

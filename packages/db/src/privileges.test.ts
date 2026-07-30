@@ -28,6 +28,13 @@ describe("runtime role privilege ceilings (ADR-0003, DM-P3)", () => {
     await expect(app`DELETE FROM metric_snapshot`).rejects.toThrow(/permission denied/);
   });
 
+  it("cannot UPDATE or DELETE milestone_rebaseline even before the trigger fires (ADR-0009)", async () => {
+    await expect(app`UPDATE milestone_rebaseline SET reason = 'x'`).rejects.toThrow(
+      /permission denied/,
+    );
+    await expect(app`DELETE FROM milestone_rebaseline`).rejects.toThrow(/permission denied/);
+  });
+
   it("cannot disable triggers (requires table ownership)", async () => {
     await expect(
       app`ALTER TABLE audit_event DISABLE TRIGGER audit_event_immutable`,

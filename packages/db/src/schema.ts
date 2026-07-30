@@ -177,6 +177,26 @@ export const studyMilestone = pgTable(
   (t) => [uniqueIndex("study_milestone_occurrence_idx").on(t.studyId, t.code, t.occurrence)],
 );
 
+// Append-only re-baseline record (ADR-0009): the governance history of every
+// planned-date change; study_milestone.planned_date is the projection.
+// Hand-written SQL in migrations/0003 is the source of truth.
+export const milestoneRebaseline = pgTable(
+  "milestone_rebaseline",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    studyMilestoneId: uuid("study_milestone_id")
+      .notNull()
+      .references(() => studyMilestone.id),
+    rebaselineNumber: integer("rebaseline_number").notNull(),
+    previousPlannedDate: date("previous_planned_date"),
+    newPlannedDate: date("new_planned_date").notNull(),
+    reason: text("reason").notNull(),
+    referenceUri: text("reference_uri"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("milestone_rebaseline_seq_idx").on(t.studyMilestoneId, t.rebaselineNumber)],
+);
+
 // Status + eTMF pointer only. Structurally incapable of being the approval
 // record: no signature columns, ever (ADR-0006).
 export const deliverable = pgTable("deliverable", {

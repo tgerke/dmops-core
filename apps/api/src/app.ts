@@ -1,11 +1,16 @@
 import { getAdapter } from "@dmops/adapters";
 import {
+  type BoardRow,
   MilestoneError,
+  type RebaselineRecord,
   canReadStudy,
+  canRebaseline,
   canWriteMilestones,
   hasPortfolioRead,
   isSponsorOnly,
   milestoneBoard,
+  rebaselineHistory,
+  rebaselineMilestone,
   updateMilestone,
 } from "@dmops/core";
 import type { Sql } from "@dmops/db";
@@ -19,6 +24,9 @@ import {
   HealthSchema,
   MilestoneBoardSchema,
   MilestonePatchSchema,
+  RebaselinePostSchema,
+  RebaselineRecordSchema,
+  RebaselineResultSchema,
   SnapshotSchema,
   StudyDetailSchema,
   StudyMetricsSchema,
@@ -186,12 +194,8 @@ export function buildApp(sql: Sql) {
       const rows = await milestoneBoard(sql, studyId);
       const sponsorView = isSponsorOnly(assignments, studyId);
       const milestones = rows.map((row) => {
-        const { study_id: _studyId, blocker_note, updated_at, ...rest } = row;
-        return {
-          ...rest,
-          ...(sponsorView ? {} : { blocker_note }),
-          updated_at: new Date(updated_at).toISOString(),
-        };
+        const { blocker_note, ...rest } = serializeBoardRow(row);
+        return { ...rest, ...(sponsorView ? {} : { blocker_note }) };
       });
       return c.json({ study_id: studyId, milestones }, 200);
     },
@@ -209,7 +213,11 @@ export function buildApp(sql: Sql) {
       },
       responses: {
         200: json(BoardRowSchema, "Updated milestone (write audited via withActor, ADR-0003)"),
-        400: json(ErrorSchema, "Invalid patch"),
+        400: json(
+          ErrorSchema,
+          "Invalid patch — planned_date and baseline_date are not writable here; " +
+            "the plan moves only via POST .../rebaseline (ADR-0008, ADR-0009)",
+        ),
         403: json(ErrorSchema, "Milestone writes require DM leadership on the study"),
         404: json(ErrorSchema, "No such milestone on this study"),
       },
@@ -231,14 +239,111 @@ export function buildApp(sql: Sql) {
           occurrence,
           patch: c.req.valid("json"),
         });
-        const { study_id: _studyId, updated_at, ...rest } = row;
-        return c.json({ ...rest, updated_at: new Date(updated_at).toISOString() }, 200);
+        return c.json(serializeBoardRow(row), 200);
       } catch (e) {
         if (e instanceof MilestoneError) {
           return c.json({ error: e.message }, e.code === "not_found" ? 404 : 400);
         }
         throw e;
       }
+    },
+  );
+
+  // --- re-baselining (ADR-0009) ---------------------------------------------
+
+  app.openapi(
+    createRoute({
+      method: "post",
+      path: "/studies/{studyId}/milestones/{code}/rebaseline",
+      security,
+      request: {
+        params: z.object({ studyId: z.string().uuid(), code: z.string() }),
+        query: z.object({ occurrence: z.coerce.number().int().positive().default(1) }),
+        body: {
+          content: { "application/json": { schema: RebaselinePostSchema } },
+          required: true,
+        },
+      },
+      responses: {
+        201: json(
+          RebaselineResultSchema,
+          "Re-baseline applied: an immutable governance record appended and " +
+            "planned_date moved in the same audited transaction (ADR-0009, ADR-0003). " +
+            "baseline_date never moves.",
+        ),
+        400: json(ErrorSchema, "Milestone is complete/na, or the reason is not substantive"),
+        403: json(ErrorSchema, "Re-baselining requires dm_manager on the study, or admin"),
+        404: json(ErrorSchema, "No such milestone on this study"),
+      },
+    }),
+    async (c) => {
+      const { studyId, code } = c.req.valid("param");
+      const { occurrence } = c.req.valid("query");
+      if (!canRebaseline(c.get("assignments"), studyId)) {
+        return c.json(
+          { error: "re-baselining requires a dm_manager assignment on the study, or admin" },
+          403,
+        );
+      }
+      const body = c.req.valid("json");
+      try {
+        const { milestone, rebaseline } = await rebaselineMilestone(sql, c.get("actor"), {
+          studyId,
+          code,
+          occurrence,
+          newPlannedDate: body.planned_date,
+          reason: body.reason,
+          referenceUri: body.reference_uri ?? null,
+        });
+        return c.json(
+          { milestone: serializeBoardRow(milestone), rebaseline: serializeRebaseline(rebaseline) },
+          201,
+        );
+      } catch (e) {
+        if (e instanceof MilestoneError) {
+          return c.json({ error: e.message }, e.code === "not_found" ? 404 : 400);
+        }
+        throw e;
+      }
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: "get",
+      path: "/studies/{studyId}/milestones/{code}/rebaselines",
+      security,
+      request: {
+        params: z.object({ studyId: z.string().uuid(), code: z.string() }),
+        query: z.object({ occurrence: z.coerce.number().int().positive().default(1) }),
+      },
+      responses: {
+        200: json(
+          z.array(RebaselineRecordSchema),
+          "Re-baseline history, ascending (sponsor serialization omits reasons, DM-P5)",
+        ),
+        403: json(ErrorSchema, "Not assigned to this study"),
+        404: json(ErrorSchema, "No such milestone on this study"),
+      },
+    }),
+    async (c) => {
+      const { studyId, code } = c.req.valid("param");
+      const { occurrence } = c.req.valid("query");
+      const assignments = c.get("assignments");
+      const denied = requireRead(assignments, studyId);
+      if (denied) return c.json(denied, 403);
+      const records = await rebaselineHistory(sql, studyId, code, occurrence);
+      if (records === null) {
+        return c.json({ error: `milestone ${code} (occurrence ${occurrence}) not found` }, 404);
+      }
+      const sponsorView = isSponsorOnly(assignments, studyId);
+      return c.json(
+        records.map((r) => {
+          const { reason, ...rest } = serializeRebaseline(r);
+          return { ...rest, ...(sponsorView ? {} : { reason }) };
+        }),
+        200,
+      );
     },
   );
 
@@ -362,6 +467,27 @@ function summarize(row: Record<string, unknown>) {
     next_milestone_code: row.next_milestone_code as string | null,
     next_milestone_label: row.next_milestone_label as string | null,
     next_milestone_planned: row.next_milestone_planned as string | null,
+  };
+}
+
+function serializeBoardRow(row: BoardRow) {
+  const { study_id: _studyId, updated_at, last_rebaselined_at, rebaseline_count, ...rest } = row;
+  return {
+    ...rest,
+    rebaseline_count: Number(rebaseline_count),
+    last_rebaselined_at: last_rebaselined_at ? new Date(last_rebaselined_at).toISOString() : null,
+    updated_at: new Date(updated_at).toISOString(),
+  };
+}
+
+function serializeRebaseline(r: RebaselineRecord) {
+  return {
+    rebaseline_number: Number(r.rebaseline_number),
+    previous_planned_date: r.previous_planned_date,
+    new_planned_date: r.new_planned_date,
+    reason: r.reason,
+    reference_uri: r.reference_uri,
+    created_at: new Date(r.created_at).toISOString(),
   };
 }
 

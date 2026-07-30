@@ -37,6 +37,12 @@ const patch = (path: string, token: string, body: unknown) =>
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
     body: JSON.stringify(body),
   });
+const post = (path: string, token: string, body: unknown) =>
+  app.request(path, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
 
 describe("authentication", () => {
   it("rejects missing and unknown tokens", async () => {
@@ -49,7 +55,7 @@ describe("authentication", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.audit_chain_verified).toBe(true);
-    expect(body.migrations).toBe(3);
+    expect(body.migrations).toBe(4);
   });
 });
 
@@ -154,15 +160,123 @@ describe("milestone writes (ADR-0003, ADR-0008)", () => {
   });
 });
 
+describe("re-baselining governance (ADR-0009, ADR-0003)", () => {
+  // milestone_rebaseline is append-only, so records accumulate across local
+  // runs without a re-seed; assertions are relative to the pre-test history.
+  it("re-baselining is above routine edits: dm_lead, clinops, and sponsor get 403", async () => {
+    const body = { planned_date: "2027-05-01", reason: "should never be applied" };
+    for (const token of ["dev-dmlead-token", "dev-clinops-token", "dev-sponsor-token"]) {
+      const res = await post(`/studies/${study1}/milestones/CLOSE.SDV/rebaseline`, token, body);
+      expect(res.status).toBe(403);
+    }
+  });
+
+  it("DM-P6: the dm_manager's re-baseline moves planned_date, never baseline_date, and both writes are audit-attributed (ADR-0003)", async () => {
+    const before = await (
+      await get(`/studies/${study1}/milestones/CLOSE.SDV/rebaselines`, "dev-manager-token")
+    ).json();
+    const n = before.length;
+
+    const res = await post(
+      `/studies/${study1}/milestones/CLOSE.SDV/rebaseline`,
+      "dev-manager-token",
+      {
+        planned_date: "2027-05-01",
+        reason: "protocol amendment 3 extends enrollment by six weeks",
+        reference_uri: "https://ctms.example/tmf/amendment-3",
+      },
+    );
+    expect(res.status).toBe(201);
+    const { milestone, rebaseline } = await res.json();
+    expect(milestone.planned_date).toBe("2027-05-01");
+    expect(milestone.baseline_date).toBe("2027-04-12"); // survives, always
+    expect(milestone.rebaseline_count).toBe(n + 1);
+    expect(rebaseline.rebaseline_number).toBe(n + 1);
+    expect(rebaseline.reason).toMatch(/amendment 3/);
+
+    const events = await owner`
+      SELECT * FROM audit_event
+      WHERE action IN ('milestone_rebaseline.insert', 'study_milestone.update')
+      ORDER BY id DESC LIMIT 2`;
+    for (const event of events) {
+      expect(event.actor_label).toMatch(/Daniel Reyes/);
+    }
+    expect(events.map((e) => e.action).sort()).toEqual([
+      "milestone_rebaseline.insert",
+      "study_milestone.update",
+    ]);
+
+    // restore the plan for repeatable local runs — itself a governed,
+    // history-preserving re-baseline, not an edit
+    const restore = await post(
+      `/studies/${study1}/milestones/CLOSE.SDV/rebaseline`,
+      "dev-manager-token",
+      { planned_date: "2027-04-12", reason: "restore seed plan after automated test run" },
+    );
+    expect(restore.status).toBe(201);
+  });
+
+  it("a complete milestone cannot be re-baselined; nor can one with a throwaway reason", async () => {
+    const complete = await post(
+      `/studies/${study1}/milestones/SPEC.DMP.APPROVED/rebaseline`,
+      "dev-manager-token",
+      { planned_date: "2026-03-01", reason: "trying to rewrite finished history" },
+    );
+    expect(complete.status).toBe(400);
+
+    const flimsy = await post(
+      `/studies/${study1}/milestones/CLOSE.SDV/rebaseline`,
+      "dev-manager-token",
+      { planned_date: "2027-05-01", reason: "because" },
+    );
+    expect(flimsy.status).toBe(400);
+  });
+
+  it("DM-P5: re-baseline history serves dates to everyone; reasons are omitted from the sponsor serialization", async () => {
+    const dm = await (
+      await get(`/studies/${study1}/milestones/CLOSE.SDV/rebaselines`, "dev-dmlead-token")
+    ).json();
+    expect(dm.length).toBeGreaterThanOrEqual(2);
+    expect(dm[0].rebaseline_number).toBe(1);
+    expect(typeof dm[0].reason).toBe("string");
+
+    const sponsor = await (
+      await get(`/studies/${study1}/milestones/CLOSE.SDV/rebaselines`, "dev-sponsor-token")
+    ).json();
+    expect(sponsor.length).toBe(dm.length);
+    for (const record of sponsor) {
+      expect(record.new_planned_date).toBeTruthy();
+      expect("reason" in record).toBe(false);
+    }
+  });
+
+  it("404s on a milestone the study does not have", async () => {
+    const res = await post(
+      `/studies/${study1}/milestones/COND.AMEND/rebaseline?occurrence=9`,
+      "dev-manager-token",
+      { planned_date: "2027-05-01", reason: "no such occurrence to re-baseline" },
+    );
+    expect(res.status).toBe(404);
+  });
+});
+
 describe("metrics surface (DM-P1, DM-P2, DM-P3)", () => {
   it("DM-P2: every dictionary metric appears with its version and availability", async () => {
     const res = await get(`/studies/${study1}/metrics`, "dev-dmlead-token");
     const body = await res.json();
     const ids = body.metrics.map((m: { metric_id: string }) => m.metric_id).sort();
     expect(ids).toEqual(["entry_lag", "milestone_slip", "query_open_aging", "query_tat_median"]);
+    // The engine-current version per metric: the two elapsed-time metrics
+    // moved to business-day clocks as v1.1 (ADR-0004).
+    const versions: Record<string, string> = {
+      query_tat_median: "1.1",
+      query_open_aging: "1.0",
+      entry_lag: "1.1",
+      milestone_slip: "1.0",
+    };
     for (const m of body.metrics) {
       expect(m.availability).toBe("computed");
-      expect(m.latest.metric_version).toBe("1.0");
+      expect(m.latest.metric_version).toBe(versions[m.metric_id]);
     }
   });
 
@@ -184,7 +298,7 @@ describe("metrics surface (DM-P1, DM-P2, DM-P3)", () => {
     const rows = await res.json();
     expect(rows.length).toBe(2);
     for (const row of rows) {
-      expect(row.metric_version).toBe("1.0");
+      expect(row.metric_version).toBe("1.1");
       expect(row.grain).toBe("site");
     }
   });
