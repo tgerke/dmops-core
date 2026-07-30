@@ -4,17 +4,28 @@ description: Capability-declaring connectors to the systems where data lives
 ---
 
 dmops-core never asks anyone to retype a number that already exists in the
-EDC, the CTMS, or the safety database. Source adapters read those systems
-and return normalized data frames; everything downstream, from metrics to
-the board, works from what the adapters honestly declare they can supply.
+EDC, the CTMS, the safety database, or the team's repository host. Source
+adapters read those systems and return normalized data frames; everything
+downstream, from metrics to the board, works from what the adapters honestly
+declare they can supply.
 
 ## The contract
 
-A source adapter extracts normalized frames (`queries`, `subjects`,
-`visits`, `pages`) from the system where clinical-operations data already
-lives. The contract (`@dmops/adapter-contract`) depends only on zod: frame
-schemas, a capability model, and a checksum helper so every adapter's
-extraction provenance is comparable.
+A source adapter extracts normalized frames from the system where the data
+already lives: the EDC frames (`queries`, `subjects`, `visits`, `pages`) and
+the repository-work frames (`issues`, `pull_requests`, `reviews`,
+[ADR-0012](/dmops-core/reference/decisions/0012-programming-work-frames-and-github-adapter/)).
+The frames are vocabulary owned by dmops-core, not a mirror of any vendor
+payload, and an adapter that does not declare a frame is unsupported for it,
+so adding a frame never disturbs existing adapters. The contract
+(`@dmops/adapter-contract`) depends only on zod: frame schemas, a capability
+model, and a checksum helper so every adapter's extraction provenance is
+comparable.
+
+A study can wire more than one source. Each metric is fed by the first
+active source whose declared capabilities cover its required fields, so an
+EDC supplies the query metrics while a repository host supplies the DS
+metrics on the same study.
 
 Adapters are read-only. They never write to the source.
 
@@ -43,6 +54,16 @@ approximates around source gaps publishes numbers nobody can defend.
   study-scoped API key (env indirection, never a key in the database), maps
   query threads to the queries frame, and derives `first_response_at` from
   the first thread message not authored by the query opener.
+- **github**: the repository-host adapter
+  ([ADR-0012](/dmops-core/reference/decisions/0012-programming-work-frames-and-github-adapter/)).
+  Reads the repositories named in the study's source config (token via env
+  indirection, like edc-core) and emits the `issues`, `pull_requests`, and
+  `reviews` frames. Every capability claim cites the GitHub documentation
+  version and date it was verified against, and the honest wrinkles are
+  declared, not papered over: GitHub's own PR state is only open or closed,
+  so the three-valued state (open, merged, closed) is `derived` from
+  `merged_at`; unsubmitted (pending) reviews carry no timestamp and are
+  excluded.
 
 ## Writing your own
 

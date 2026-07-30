@@ -6,6 +6,7 @@
     ".": "./src/index.ts",
     "./csv": "./src/csv/index.ts",
     "./edc-core": "./src/edc-core/index.ts",
+    "./github": "./src/github/index.ts",
     "./registry": "./src/registry.ts"
   },
   "scripts": {

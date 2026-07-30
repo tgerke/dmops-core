@@ -1,0 +1,10 @@
+source_pr_id,repo_key,state,opened_at,merged_at,closed_at
+PR-1,meridian/dmops-001-analysis,merged,2026-06-01T09:00:00Z,2026-06-04T15:00:00Z,2026-06-04T15:00:00Z
+PR-2,meridian/dmops-001-analysis,merged,2026-06-05T10:00:00Z,2026-06-08T11:00:00Z,2026-06-08T11:00:00Z
+PR-3,meridian/dmops-001-analysis,merged,2026-06-08T09:30:00Z,2026-06-17T16:00:00Z,2026-06-17T16:00:00Z
+PR-4,meridian/dmops-001-analysis,merged,2026-06-10T14:00:00Z,2026-06-12T10:00:00Z,2026-06-12T10:00:00Z
+PR-5,meridian/dmops-001-analysis,merged,2026-05-20T09:00:00Z,2026-05-28T12:00:00Z,2026-05-28T12:00:00Z
+PR-6,meridian/dmops-001-analysis,open,2026-06-18T11:00:00Z,,
+PR-7,meridian/dmops-001-analysis,closed,2026-06-22T09:00:00Z,,2026-06-25T10:00:00Z
+PR-8,meridian/dmops-001-analysis,open,2026-06-24T10:00:00Z,,
+PR-9,meridian/dmops-001-analysis,open,2026-05-29T15:00:00Z,,

@@ -54,11 +54,12 @@ and reported as unavailable, never approximated
 or `portfolio`.
 
 A definition may also carry `module` (`dm` or `stat`, defaulting to `dm`
-when omitted, as every shipped metric does today). A metric tagged for a
-module a study has not enabled is filtered out of that study's strip and
-compute runs entirely, rather than sitting permanently unavailable
+when omitted). A metric tagged for a module a study has not enabled is
+filtered out of that study's strip and compute runs entirely, rather than
+sitting permanently unavailable
 ([ADR-0011](/dmops-core/reference/decisions/0011-stat-programming-as-an-opt-in-module/)).
-The first `stat` metrics arrive with the repository frames
+The four DS metrics carry `module: stat` and compute from the repository
+frames
 ([ADR-0012](/dmops-core/reference/decisions/0012-programming-work-frames-and-github-adapter/)).
 
 ## The version rule
@@ -80,9 +81,10 @@ numerator, denominator, and record count per grain.
 Qualification is a test, not a ceremony: each metric version is verified
 against expected values on the fixture study
 (`fixtures/study-DMOPS-001`), where the expected numbers were computed from
-the CSVs by hand. The test names carry `DM-Q*` tokens, which join them into
-the generated traceability matrix. Renaming a test away from its token
-silently drops it from the matrix, so don't.
+the CSVs by hand. The test names carry `DM-Q*` tokens (`DS-Q*` for the
+stat-module dictionary), which join them into the generated traceability
+matrix. Renaming a test away from its token silently drops it from the
+matrix, so don't.
 
 ## Checklist
 

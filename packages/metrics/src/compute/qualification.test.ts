@@ -1,8 +1,9 @@
 /**
- * Metric qualification (DM-Q*): every compute function verified against
+ * Metric qualification (DM-Q* for the DM suite, DS-Q* for the stat-module
+ * starter set, ADR-0012): every compute function verified against
  * hand-computed expected values on the DMOPS-001 fixture study. This suite
  * is the qualification evidence — the traceability matrix joins on the
- * DM-Q tokens in the test names (docs/03-compliance.md).
+ * DM-Q/DS-Q tokens in the test names (docs/03-compliance.md).
  */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -11,7 +12,11 @@ import { csvAdapter } from "@dmops/adapters/csv";
 import { beforeAll, describe, expect, it } from "vitest";
 import { type MilestoneFact, type SnapshotValue, businessDaysBetween } from "../types.js";
 import { entryLag, entryLagV1_1 } from "./entry_lag.js";
+import { issueClosureLagMedian } from "./issue_closure_lag_median.js";
+import { issueOpenAging } from "./issue_open_aging.js";
 import { milestoneSlip } from "./milestone_slip.js";
+import { prCycleTimeMedian } from "./pr_cycle_time_median.js";
+import { prReviewTatMedian } from "./pr_review_tat_median.js";
 import { queryOpenAging } from "./query_open_aging.js";
 import { queryTatMedian, queryTatMedianV1_1 } from "./query_tat_median.js";
 
@@ -29,7 +34,7 @@ let frames: NormalizedFrames;
 beforeAll(async () => {
   const extraction = await csvAdapter.extract({
     sourceStudyKey: "DMOPS-001",
-    frames: ["queries", "subjects", "visits", "pages"],
+    frames: ["queries", "subjects", "visits", "pages", "issues", "pull_requests", "reviews"],
     config: { dir: "fixtures/study-DMOPS-001" },
   });
   frames = extraction.frames as NormalizedFrames;
@@ -88,6 +93,29 @@ describe("metric qualification against hand-computed fixtures", () => {
   it("DM-Q4: milestone_slip returns null with zero records when nothing completed in period", () => {
     const rows = milestoneSlip(frames, { ...ctx, milestones: [] });
     expect(byGrain(rows, "study")).toMatchObject({ value: null, n_records: 0 });
+  });
+});
+
+describe("DS metric qualification against hand-computed fixtures (stat module, ADR-0012)", () => {
+  it("DS-Q1: pr_review_tat_median v1.0 (business days) matches hand-computed truth for DMOPS-001", () => {
+    const rows = prReviewTatMedian(frames, ctx);
+    expect(byGrain(rows, "study")).toMatchObject(expected.pr_review_tat_median.study);
+    expect(rows).toHaveLength(1); // study grain only — no site rows for repository work
+  });
+
+  it("DS-Q2: pr_cycle_time_median v1.0 (business days) matches hand-computed truth for DMOPS-001", () => {
+    const rows = prCycleTimeMedian(frames, ctx);
+    expect(byGrain(rows, "study")).toMatchObject(expected.pr_cycle_time_median.study);
+  });
+
+  it("DS-Q3: issue_closure_lag_median v1.0 (calendar days) matches hand-computed truth for DMOPS-001", () => {
+    const rows = issueClosureLagMedian(frames, ctx);
+    expect(byGrain(rows, "study")).toMatchObject(expected.issue_closure_lag_median.study);
+  });
+
+  it("DS-Q4: issue_open_aging v1.0 matches hand-computed truth for DMOPS-001", () => {
+    const rows = issueOpenAging(frames, ctx);
+    expect(byGrain(rows, "study")).toMatchObject(expected.issue_open_aging.study);
   });
 });
 

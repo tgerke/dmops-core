@@ -1,0 +1,26 @@
+# Governed metric definition (ADR-0004; DS starter set, ADR-0012).
+id: issue_open_aging
+label: Open issues aged over 30 days
+owner: Statistical Programming
+module: stat
+version: "1.0"
+grain: [study]
+definition: >
+  Count of issues still open as of the period end whose age from creation
+  exceeds 30 calendar days. The denominator is all open issues at period end,
+  so the value reads as the size of the actionable tail — the
+  query_open_aging pattern applied to repository work. Finer aging buckets
+  (0-7 / 8-14 / 15-30) are the same deferred versioned extension noted
+  there.
+clock_start: issues.opened_at
+clock_stop: period_end
+calendar: calendar_days
+include:
+  - open issues
+exclude:
+  - closed issues
+source_frames: [issues]
+required_fields:
+  issues: [state, opened_at]
+refresh: daily
+target: "0"

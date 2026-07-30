@@ -75,6 +75,23 @@ export const csvAdapter: SourceAdapter = {
           "first_entered_at",
           "sdv_status",
         ]),
+        issues: allNative(["source_issue_id", "repo_key", "state", "opened_at", "closed_at"]),
+        pull_requests: allNative([
+          "source_pr_id",
+          "repo_key",
+          "state",
+          "opened_at",
+          "merged_at",
+          "closed_at",
+        ]),
+        reviews: allNative([
+          "source_review_id",
+          "source_pr_id",
+          "repo_key",
+          "reviewer_key",
+          "state",
+          "submitted_at",
+        ]),
       },
     };
   },

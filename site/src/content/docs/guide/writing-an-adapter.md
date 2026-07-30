@@ -4,8 +4,9 @@ description: The SourceAdapter contract and its three obligations
 ---
 
 A source adapter connects dmops-core to the system where clinical-operations
-data already lives: an EDC, a CTMS, a safety database. Adapters are
-read-only: they extract normalized frames; they never write to the source
+data already lives: an EDC, a CTMS, a safety database, a repository host.
+Adapters are read-only: they extract normalized frames; they never write to
+the source
 ([ADR-0005](/dmops-core/reference/decisions/0005-adapter-capability-contract/)).
 
 ## The contract
@@ -26,8 +27,13 @@ export const myAdapter: SourceAdapter = {
 Three obligations:
 
 1. **Normalized frames.** `extract` returns rows conforming to the zod
-   schemas in `@dmops/adapter-contract`: `queries`, `subjects`, `visits`,
-   `pages`. Keys are snake_case, timestamps are ISO 8601 strings, dates are
+   schemas in `@dmops/adapter-contract`: the EDC frames `queries`,
+   `subjects`, `visits`, `pages`, and the repository-work frames `issues`,
+   `pull_requests`, `reviews`
+   ([ADR-0012](/dmops-core/reference/decisions/0012-programming-work-frames-and-github-adapter/)).
+   Declare only the frames your source honestly supplies; an undeclared
+   frame is unsupported, which is the fail-closed default working as
+   intended. Keys are snake_case, timestamps are ISO 8601 strings, dates are
    ISO dates. Use `checksumFrames()` so your extraction checksum is
    comparable to every other adapter's, and `validateExtraction()` will be
    run on your output before anything is written.
@@ -55,6 +61,14 @@ Three obligations:
   timestamps), and declares `visits` unsupported because edc-core does not
   expose visit dates through its API. That declaration is the capability
   model working as intended.
+- `packages/adapters/src/github/`: the repository-host adapter
+  ([ADR-0012](/dmops-core/reference/decisions/0012-programming-work-frames-and-github-adapter/)):
+  reads the repositories named in `study_source.config` and emits the three
+  repository-work frames. Its header documents the GitHub documentation
+  version and date every capability claim was verified against, the same bar
+  vendor EDC adapters carry, including the derived three-valued PR state
+  (GitHub's own state is only open or closed) and the exclusion of pending
+  reviews.
 
 ## Where adapters live
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { validateExtraction } from "./adapter.js";
 import { type AdapterCapabilities, fieldSupport } from "./capabilities.js";
 import { checksumFrames } from "./checksum.js";
-import { queryRow } from "./frames.js";
+import { pullRequestRow, queryRow, reviewRow } from "./frames.js";
 
 const validQuery = {
   source_query_id: "Q-1",
@@ -27,6 +27,36 @@ describe("frame schemas (DM-P1: one normalized shape per fact)", () => {
 
   it("rejects non-ISO timestamps", () => {
     expect(() => queryRow.parse({ ...validQuery, opened_at: "05/01/2026" })).toThrow();
+  });
+});
+
+describe("repository-work frame schemas (ADR-0012)", () => {
+  const validPr = {
+    source_pr_id: "43",
+    repo_key: "acme/analysis",
+    state: "merged",
+    opened_at: "2026-06-12T09:00:00Z",
+    merged_at: "2026-06-15T10:00:00Z",
+    closed_at: "2026-06-15T10:00:00Z",
+  };
+
+  it("accepts a conforming pull request row and rejects vendor states", () => {
+    expect(pullRequestRow.parse(validPr)).toEqual(validPr);
+    expect(() => pullRequestRow.parse({ ...validPr, state: "MERGED" })).toThrow();
+  });
+
+  it("requires a submitted timestamp on reviews — pending reviews have no place here", () => {
+    const validReview = {
+      source_review_id: "5001",
+      source_pr_id: "43",
+      repo_key: "acme/analysis",
+      reviewer_key: "omar-h",
+      state: "approved",
+      submitted_at: "2026-06-13T10:00:00Z",
+    };
+    expect(reviewRow.parse(validReview)).toEqual(validReview);
+    expect(() => reviewRow.parse({ ...validReview, submitted_at: null })).toThrow();
+    expect(() => reviewRow.parse({ ...validReview, state: "pending" })).toThrow();
   });
 });
 

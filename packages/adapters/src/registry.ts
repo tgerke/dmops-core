@@ -1,6 +1,7 @@
 import type { SourceAdapter } from "@dmops/adapter-contract";
 import { csvAdapter } from "./csv/index.js";
 import { edcCoreAdapter } from "./edc-core/index.js";
+import { githubAdapter } from "./github/index.js";
 
 /**
  * In-tree adapters, keyed by study_source.adapter. External adapters
@@ -11,6 +12,7 @@ import { edcCoreAdapter } from "./edc-core/index.js";
 const adapters = new Map<string, SourceAdapter>([
   [csvAdapter.id, csvAdapter],
   [edcCoreAdapter.id, edcCoreAdapter],
+  [githubAdapter.id, githubAdapter],
 ]);
 
 export function getAdapter(id: string): SourceAdapter {

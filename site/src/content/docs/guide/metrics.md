@@ -26,19 +26,19 @@ authoring path.
 
 ## Reading the strip
 
-![The metrics strip on DMOPS-001: four KPI cards showing visit-to-entry lag, milestone slip, open query aging, and query turnaround, each with its reporting period and target](../../../assets/screenshots/metrics-strip.png)
+![The metrics strip on DMOPS-001: eight KPI cards spanning the DM suite (visit-to-entry lag, milestone slip, open query aging, query turnaround) and the DS suite (issue closure lag, open issue aging, PR cycle time, PR review turnaround), each with its reporting period and target](../../../assets/screenshots/metrics-strip.png)
 
 Each card is one metric's latest computed value for the most recent
 reporting period, with its target from the dictionary. Clicking a card opens
 the detail: the trend across reporting periods, and the by-site drill-down
 for metrics computed at site grain.
 
-The strip serves the metrics for the study's enabled modules. All four
-shipped metrics belong to the `dm` base module, so today every study shows
-the same four cards; when metrics tagged `stat` arrive
-([ADR-0012](/dmops-core/reference/decisions/0012-programming-work-frames-and-github-adapter/)),
-they will appear only on studies that run the stat module, never as
-permanent "unavailable" cards on studies that don't
+The strip serves the metrics for the study's enabled modules. The DM suite
+belongs to the `dm` base module and shows on every study; the four `stat`
+metrics
+([ADR-0012](/dmops-core/reference/decisions/0012-programming-work-frames-and-github-adapter/))
+appear only on studies that run the stat module, never as permanent
+"unavailable" cards on studies that don't
 ([ADR-0011](/dmops-core/reference/decisions/0011-stat-programming-as-an-opt-in-module/)).
 
 ![The expanded query turnaround card: a trend sparkline across two reporting periods next to a by-site table listing two US sites with their values and record counts](../../../assets/screenshots/metric-drilldown.png)
@@ -61,8 +61,9 @@ That behavior comes from the adapter capability model; see
 Every compute function is verified against hand-computed expected values on a
 small fixture study (`fixtures/study-DMOPS-001`). The expected values were
 computed from the CSVs by hand, not by the code under test, and the tests
-carry `DM-Q*` tokens that join them into the generated traceability matrix.
-Qualification evidence and CI are the same artifact.
+carry `DM-Q*` tokens (`DS-Q*` for the stat-module dictionary) that join them
+into the generated traceability matrix. Qualification evidence and CI are the
+same artifact.
 
 ## Snapshots are history, not state
 
@@ -76,6 +77,8 @@ Current state is a view over history.
 
 ## The starter dictionary
 
+The DM suite, on every study:
+
 | Metric | Current | Definition in short |
 | --- | --- | --- |
 | `query_tat_median` | 1.1 | Median business days, issuance to closure, closed in period |
@@ -83,9 +86,23 @@ Current state is a view over history.
 | `entry_lag` | 1.1 | Median business days from visit date to first data entry |
 | `milestone_slip` | 1.0 | Median days, baseline to actual, completed in period |
 
-The version story has now been exercised once: the two elapsed-time metrics
-moved from calendar days (v1.0) to a Monday–Friday business-day clock (v1.1).
-The v1.0 compute functions stay in the codebase and stay qualification-tested,
-so historical snapshots remain reproducible under the definition that
-computed them. Per-country holiday calendars are the next planned versioned
-change.
+The DS suite, on stat-module studies, computed from the repository frames at
+study grain (site and country are EDC concepts with no meaning for
+repository work,
+[ADR-0012](/dmops-core/reference/decisions/0012-programming-work-frames-and-github-adapter/)):
+
+| Metric | Current | Definition in short |
+| --- | --- | --- |
+| `pr_review_tat_median` | 1.0 | Median business days, PR opened to earliest submitted review |
+| `pr_cycle_time_median` | 1.0 | Median business days, PR opened to merged, merged in period |
+| `issue_closure_lag_median` | 1.0 | Median calendar days, issue opened to closed, closed in period |
+| `issue_open_aging` | 1.0 | Open issues older than 30 days at period end |
+
+`release_cadence` is named and deferred until a `releases` frame exists.
+
+The version story has now been exercised once: the two elapsed-time DM
+metrics moved from calendar days (v1.0) to a Monday–Friday business-day
+clock (v1.1). The v1.0 compute functions stay in the codebase and stay
+qualification-tested, so historical snapshots remain reproducible under the
+definition that computed them. Per-country holiday calendars are the next
+planned versioned change.

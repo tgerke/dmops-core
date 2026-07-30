@@ -8,9 +8,10 @@
  *                                       mapping table and the suite itself
  *
  * The join key is the requirement token (DM-P1..P6 design principles,
- * DM-Q* metric qualification cases) appearing verbatim in test names, so the
- * matrix can never silently drift from the suite: an untested requirement
- * shows an empty cell, a renamed test drops out.
+ * DM-Q* metric qualification cases, DS-Q* for the stat-module metric
+ * dictionary, ADR-0012) appearing verbatim in test names, so the matrix can
+ * never silently drift from the suite: an untested requirement shows an
+ * empty cell, a renamed test drops out.
  *
  * These files are generated only — never hand-edited (see CLAUDE.md).
  *
@@ -22,7 +23,7 @@ import { join } from "node:path";
 
 const ROOT = join(import.meta.dirname, "..");
 const OUT = join(ROOT, "docs", "validation");
-const REQUIREMENT_TOKEN = /DM-[PQ]\d+/g;
+const REQUIREMENT_TOKEN = /D[MS]-[PQ]\d+/g;
 
 interface TestCase {
   file: string;
@@ -89,10 +90,12 @@ function parseComplianceTable(): Requirement[] {
   if (requirements.length === 0) {
     throw new Error("no requirement rows found in docs/03-compliance.md — table format changed?");
   }
-  // DM-Q* qualification cases: one per (metric, version) in the governed
-  // dictionary — past or present — enumerated here so a metric version
-  // without a fixture test shows as a hole. Tokens are permanent: a retired
-  // version keeps its token and its history-pinning test (ADR-0004).
+  // DM-Q*/DS-Q* qualification cases: one per (metric, version) in the
+  // governed dictionary — past or present — enumerated here so a metric
+  // version without a fixture test shows as a hole. Tokens are permanent: a
+  // retired version keeps its token and its history-pinning test (ADR-0004).
+  // DS-Q is its own series (ADR-0012): the stat-module dictionary stays
+  // legible in the matrix and DM-Q remains a closed enumeration.
   const qualification: Requirement[] = (
     [
       ["DM-Q1", "query_tat_median", "v1.0 (calendar days)"],
@@ -101,6 +104,10 @@ function parseComplianceTable(): Requirement[] {
       ["DM-Q4", "milestone_slip", "v1.0"],
       ["DM-Q5", "query_tat_median", "v1.1 (business days)"],
       ["DM-Q6", "entry_lag", "v1.1 (business days)"],
+      ["DS-Q1", "pr_review_tat_median", "v1.0 (business days)"],
+      ["DS-Q2", "pr_cycle_time_median", "v1.0 (business days)"],
+      ["DS-Q3", "issue_closure_lag_median", "v1.0 (calendar days)"],
+      ["DS-Q4", "issue_open_aging", "v1.0"],
     ] as const
   ).map(([id, metric, version]) => ({
     id,

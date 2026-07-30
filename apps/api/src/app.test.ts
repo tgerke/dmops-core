@@ -618,11 +618,28 @@ describe("stat module (ADR-0011)", () => {
     expect(denied.status).toBe(403);
   });
 
-  it("DM-P1: every dictionary metric on a stat-module study is still the dm set — no stat metrics exist until ADR-0012 ships", async () => {
+  it("DM-P1: a stat-module study serves the dm set plus the DS starter set (ADR-0012)", async () => {
     const res = await get(`/studies/${study1}/metrics`, "dev-biostat-token");
     expect(res.status).toBe(200);
     const ids = (await res.json()).metrics.map((m: { metric_id: string }) => m.metric_id).sort();
-    expect(ids).toEqual(["entry_lag", "milestone_slip", "query_open_aging", "query_tat_median"]);
+    expect(ids).toEqual([
+      "entry_lag",
+      "issue_closure_lag_median",
+      "issue_open_aging",
+      "milestone_slip",
+      "pr_cycle_time_median",
+      "pr_review_tat_median",
+      "query_open_aging",
+      "query_tat_median",
+    ]);
+  });
+
+  it("DM-P1: the module boundary hides stat metrics from a dm-only study entirely (ADR-0011)", async () => {
+    const res = await get(`/studies/${study2}/metrics`, "dev-dmlead-token");
+    expect(res.status).toBe(200);
+    const ids = (await res.json()).metrics.map((m: { metric_id: string }) => m.metric_id);
+    expect(ids).not.toContain("pr_review_tat_median");
+    expect(ids).not.toContain("issue_open_aging");
   });
 });
 
@@ -631,14 +648,28 @@ describe("metrics surface (DM-P1, DM-P2, DM-P3)", () => {
     const res = await get(`/studies/${study1}/metrics`, "dev-dmlead-token");
     const body = await res.json();
     const ids = body.metrics.map((m: { metric_id: string }) => m.metric_id).sort();
-    expect(ids).toEqual(["entry_lag", "milestone_slip", "query_open_aging", "query_tat_median"]);
-    // The engine-current version per metric: the two elapsed-time metrics
-    // moved to business-day clocks as v1.1 (ADR-0004).
+    expect(ids).toEqual([
+      "entry_lag",
+      "issue_closure_lag_median",
+      "issue_open_aging",
+      "milestone_slip",
+      "pr_cycle_time_median",
+      "pr_review_tat_median",
+      "query_open_aging",
+      "query_tat_median",
+    ]);
+    // The engine-current version per metric: the two elapsed-time DM metrics
+    // moved to business-day clocks as v1.1 (ADR-0004); the DS starter set
+    // ships at 1.0 (ADR-0012).
     const versions: Record<string, string> = {
       query_tat_median: "1.1",
       query_open_aging: "1.0",
       entry_lag: "1.1",
       milestone_slip: "1.0",
+      pr_review_tat_median: "1.0",
+      pr_cycle_time_median: "1.0",
+      issue_closure_lag_median: "1.0",
+      issue_open_aging: "1.0",
     };
     for (const m of body.metrics) {
       expect(m.availability).toBe("computed");

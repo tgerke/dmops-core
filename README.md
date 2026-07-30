@@ -88,28 +88,30 @@ report), `pnpm metrics:refresh` (cron-friendly snapshot computation).
 
 ## Status
 
-A working slice 4, not a product. What exists: the study registry, the full
+A working slice 5, not a product. What exists: the study registry, the full
 DM milestone taxonomy with a role-scoped board and audited writes, a
 deliverables surface with eTMF pointers and audited status updates, UAT
 cycle and defect tracking with a completion gate ("UAT complete" refuses to
-land while defects are open, ADR-0010), four qualified metrics flowing
+land while defects are open, ADR-0010), eight qualified metrics flowing
 through the adapter pipeline into an immutable snapshot warehouse with trend
 and per-site drill-downs, governed re-baselining with an append-only history
 (ADR-0009), business-day metric calendars as v1.1 of the elapsed-time
 definitions (the version machinery of ADR-0004, exercised once for real),
-the CSV + edc-core adapters, and the opt-in stat programming module: 12
-governed STAT milestone codes in an Analysis & Reporting phase, per-study
-module opt-in that filters the board and the metrics strip, a phase-scoped
-write posture for programmer and biostat seats, and the analysis
-deliverable types (ADR-0011). What comes next, in order:
+the CSV + edc-core + GitHub adapters, and the opt-in stat programming
+module: 12 governed STAT milestone codes in an Analysis & Reporting phase,
+per-study module opt-in that filters the board and the metrics strip, a
+phase-scoped write posture for programmer and biostat seats, the analysis
+deliverable types (ADR-0011), and repository work flowing through the same
+pipeline: issues, pull requests, and reviews as normalized frames, a
+capability-declaring GitHub adapter, the DS metric starter set, and
+multi-source studies so an EDC and a repository host can feed one study side
+by side (ADR-0012). What comes next, in order:
 
-1. Programming-work frames, the GitHub adapter, and the DS metric starter
-   set (ADR-0012).
-2. Training and access mirrors.
-3. Lock-readiness scoring.
-4. Portfolio roll-up views, over every module's metrics.
-5. Exports and KPI packs, and holiday-aware metric calendars.
-6. Medrio and Rave adapters (the contract is designed for them; see
+1. Training and access mirrors.
+2. Lock-readiness scoring.
+3. Portfolio roll-up views, over every module's metrics.
+4. Exports and KPI packs, and holiday-aware metric calendars.
+5. Medrio and Rave adapters (the contract is designed for them; see
    [Writing an adapter](https://tgerke.github.io/dmops-core/guide/writing-an-adapter/)).
 
 This is not validated software. The IQ script, OQ report, and traceability

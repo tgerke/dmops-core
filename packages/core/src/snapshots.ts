@@ -1,4 +1,4 @@
-import { type NormalizedFrames, validateExtraction } from "@dmops/adapter-contract";
+import { type FrameName, type NormalizedFrames, validateExtraction } from "@dmops/adapter-contract";
 import { getAdapter } from "@dmops/adapters";
 import type { Sql } from "@dmops/db";
 import {
@@ -12,7 +12,9 @@ import {
 
 export interface RefreshResult {
   studyId: string;
-  extractId: string | null;
+  /** One entry per source that extracted this run (ADR-0012: a study can
+   * have several — e.g. an EDC source and a repository source). */
+  extracts: { adapter: string; extractId: string }[];
   computed: { metricId: string; version: string; rows: number }[];
   skipped: { metricId: string; reason: string }[];
   warnings: string[];
@@ -38,44 +40,65 @@ export async function refreshStudyMetrics(
   );
   const result: RefreshResult = {
     studyId,
-    extractId: null,
+    extracts: [],
     computed: [],
     skipped: [],
     warnings: [],
   };
 
-  const [source] = await sql`
+  // A study can have several active sources (ADR-0012): each metric is
+  // assigned to the first source (in adapter order, deterministic) whose
+  // capabilities make it available; sources feed disjoint metric sets.
+  const sources = await sql`
     SELECT adapter, source_study_key, config FROM study_source
-    WHERE study_id = ${studyId} AND active`;
+    WHERE study_id = ${studyId} AND active
+    ORDER BY adapter`;
 
   // Split metrics into adapter-fed and dmops-native (empty source_frames).
   const adapterSpecs = specs.filter((s) => s.spec.source_frames.length > 0);
   const nativeSpecs = specs.filter((s) => s.spec.source_frames.length === 0);
 
-  let frames: NormalizedFrames = {};
-  if (source) {
-    const adapter = getAdapter(source.adapter as string);
-    const capabilities = adapter.capabilities();
-
-    const runnable: LoadedSpec[] = [];
+  if (sources.length === 0) {
     for (const loaded of adapterSpecs) {
-      const availability = metricAvailability(loaded.spec, capabilities);
-      if (availability.available) runnable.push(loaded);
-      else {
+      result.skipped.push({ metricId: loaded.spec.id, reason: "no active study_source" });
+    }
+  } else {
+    const adapters = sources.map((s) => getAdapter(s.adapter as string));
+    const capabilities = adapters.map((a) => a.capabilities());
+
+    const runnableBySource = new Map<number, LoadedSpec[]>();
+    for (const loaded of adapterSpecs) {
+      const gaps: string[] = [];
+      let assigned = false;
+      for (let i = 0; i < sources.length; i++) {
+        const availability = metricAvailability(loaded.spec, capabilities[i]!);
+        if (availability.available) {
+          runnableBySource.set(i, [...(runnableBySource.get(i) ?? []), loaded]);
+          assigned = true;
+          break;
+        }
+        gaps.push(`source '${adapters[i]!.id}' missing ${availability.missing.join(", ")}`);
+      }
+      if (!assigned) {
         result.skipped.push({
           metricId: loaded.spec.id,
-          reason: `unavailable: source '${adapter.id}' missing ${availability.missing.join(", ")}`,
+          reason: `unavailable: ${gaps.join("; ")}`,
         });
       }
     }
 
-    if (runnable.length > 0) {
-      const neededFrames = [...new Set(runnable.flatMap((l) => l.spec.source_frames))] as (
-        | "queries"
-        | "subjects"
-        | "visits"
-        | "pages"
-      )[];
+    const siteRows = await sql`
+      SELECT id, site_number FROM site WHERE study_id = ${studyId}`;
+    const siteIdByKey = new Map(siteRows.map((r) => [r.site_number as string, r.id as string]));
+
+    for (const [i, runnable] of runnableBySource) {
+      const source = sources[i]!;
+      const adapter = adapters[i]!;
+      const neededFrames = [
+        ...new Set(runnable.flatMap((l) => l.spec.source_frames)),
+      ] as FrameName[];
+      let extractId: string | null = null;
+      let frames: NormalizedFrames = {};
       try {
         const extraction = await adapter.extract({
           sourceStudyKey: source.source_study_key as string,
@@ -88,7 +111,8 @@ export async function refreshStudyMetrics(
           VALUES (${studyId}, ${adapter.id}, ${extraction.extracted_at},
                   ${JSON.stringify(extraction.row_counts)}::jsonb, ${extraction.checksum}, 'ok')
           RETURNING id`;
-        result.extractId = extractRow!.id as string;
+        extractId = extractRow!.id as string;
+        result.extracts.push({ adapter: adapter.id, extractId });
         frames = extraction.frames as NormalizedFrames;
       } catch (e) {
         const detail = e instanceof Error ? e.message : String(e);
@@ -98,22 +122,22 @@ export async function refreshStudyMetrics(
         for (const loaded of runnable) {
           result.skipped.push({ metricId: loaded.spec.id, reason: `extract failed: ${detail}` });
         }
-        // dmops-native metrics still compute below.
-        frames = {};
+        // Other sources and dmops-native metrics still compute.
+        continue;
       }
 
-      if (result.extractId) {
-        const siteRows = await sql`
-          SELECT id, site_number FROM site WHERE study_id = ${studyId}`;
-        const siteIdByKey = new Map(siteRows.map((r) => [r.site_number as string, r.id as string]));
-        for (const loaded of runnable) {
-          await computeAndInsert(sql, studyId, loaded, frames, period, result, siteIdByKey);
-        }
+      for (const loaded of runnable) {
+        await computeAndInsert(
+          sql,
+          studyId,
+          loaded,
+          frames,
+          period,
+          result,
+          siteIdByKey,
+          extractId,
+        );
       }
-    }
-  } else {
-    for (const loaded of adapterSpecs) {
-      result.skipped.push({ metricId: loaded.spec.id, reason: "no active study_source" });
     }
   }
 
@@ -124,7 +148,7 @@ export async function refreshStudyMetrics(
       FROM study_milestone WHERE study_id = ${studyId}`;
     const milestones = milestoneRows as unknown as MilestoneFact[];
     for (const loaded of nativeSpecs) {
-      await computeAndInsert(sql, studyId, loaded, {}, period, result, new Map(), milestones);
+      await computeAndInsert(sql, studyId, loaded, {}, period, result, new Map(), null, milestones);
     }
   }
 
@@ -139,6 +163,7 @@ async function computeAndInsert(
   period: { periodStart: string; periodEnd: string },
   result: RefreshResult,
   siteIdByKey: Map<string, string>,
+  extractId: string | null,
   milestones?: MilestoneFact[],
 ): Promise<void> {
   const { spec } = loaded;
@@ -163,7 +188,7 @@ async function computeAndInsert(
       VALUES
         (${spec.id}, ${spec.version}, ${studyId}, ${siteId}, ${v.grain},
          ${period.periodStart}, ${period.periodEnd},
-         ${v.value}, ${v.numerator}, ${v.denominator}, ${v.n_records}, ${result.extractId})`;
+         ${v.value}, ${v.numerator}, ${v.denominator}, ${v.n_records}, ${extractId})`;
     inserted++;
   }
   result.computed.push({ metricId: spec.id, version: spec.version, rows: inserted });

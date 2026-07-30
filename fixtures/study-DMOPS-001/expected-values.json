@@ -20,7 +20,20 @@
     "site 002 [1,4,5,5] (e.g. Q-202 opened Sat 6/6, closed Thu 6/11 → 4;",
     "Q-204 opened Fri 6/12, closed Sat 6/20 → 5).",
     "entry_lag v1.1: lags [2,3,3,5,5] (e.g. 001-001 V3 visit Wed 6/10,",
-    "entered Mon 6/15 → 3; 002-001 V1 visit Fri 6/5, entered Sun 6/14 → 5)."
+    "entered Mon 6/15 → 3; 002-001 V1 visit Fri 6/5, entered Sun 6/14 → 5).",
+    "DS starter set (ADR-0012; issues/pull_requests/reviews CSVs, study grain",
+    "only). pr_review_tat_median: earliest-review business-day TATs by PR are",
+    "PR-1→2 (opened Mon 6/1, RV-1 Wed 6/3; RV-2 is later), PR-2→2 (Fri 6/5 →",
+    "Tue 6/9 spans a weekend), PR-3→6, PR-4→1, PR-6→1, PR-7→1 (dismissed",
+    "still completes the clock), PR-8→2, PR-9→2 (opened Fri 5/29, reviewed",
+    "Tue 6/2 — clock starts before the period); PR-5's only review is in May,",
+    "excluded. [1,1,1,2,2,2,2,6] → median 2.0. pr_cycle_time_median: merged",
+    "in June are PR-1→3, PR-2→1 (Fri→Mon), PR-3→7, PR-4→2; PR-5 merged in",
+    "May and unmerged PR-7 excluded. [1,2,3,7] → median 2.5.",
+    "issue_closure_lag_median: closed in June are IS-5 4.0d, IS-6 9.0d,",
+    "IS-7 32.0d, IS-9 2.0d; IS-8 closed in May excluded. [2,4,9,32] → 6.5.",
+    "issue_open_aging as of 6/30: open are IS-1 (70.6d), IS-2 (35.6d),",
+    "IS-3 (19.6d), IS-4 (4.4d) → 2 aged of 4 open."
   ],
   "period": { "start": "2026-06-01", "end": "2026-06-30" },
   "query_tat_median": {
@@ -49,5 +62,17 @@
   },
   "entry_lag_v1_1": {
     "study": { "value": 3.0, "n_records": 5 }
+  },
+  "pr_review_tat_median": {
+    "study": { "value": 2.0, "n_records": 8 }
+  },
+  "pr_cycle_time_median": {
+    "study": { "value": 2.5, "n_records": 4 }
+  },
+  "issue_closure_lag_median": {
+    "study": { "value": 6.5, "n_records": 4 }
+  },
+  "issue_open_aging": {
+    "study": { "value": 2, "numerator": 2, "denominator": 4, "n_records": 4 }
   }
 }

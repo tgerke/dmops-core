@@ -1,0 +1,29 @@
+# Governed metric definition (ADR-0004; DS starter set, ADR-0012).
+id: pr_review_tat_median
+label: PR review turnaround (median)
+owner: Statistical Programming
+module: stat
+version: "1.0"
+grain: [study]
+definition: >
+  Median elapsed business days from pull request opened to its earliest
+  completed review, across pull requests whose earliest review was submitted
+  within the reporting period. The clock starts at pull request creation even
+  when that predates the period. A submitted review of any state (approved,
+  changes requested, commented, dismissed) completes the clock; pending
+  reviews are unsubmitted and never enter the reviews frame. Business days
+  are Monday through Friday by UTC date, the same rule as query_tat_median
+  v1.1; no holiday calendar.
+clock_start: pull_requests.opened_at
+clock_stop: reviews.submitted_at (earliest per pull request)
+calendar: business_days
+include:
+  - pull requests whose earliest submitted review falls in the period
+exclude:
+  - pull requests with no submitted review
+source_frames: [pull_requests, reviews]
+required_fields:
+  pull_requests: [source_pr_id, repo_key, opened_at]
+  reviews: [source_pr_id, repo_key, submitted_at]
+refresh: daily
+target: "<= 2 business days"

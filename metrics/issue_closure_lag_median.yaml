@@ -1,0 +1,24 @@
+# Governed metric definition (ADR-0004; DS starter set, ADR-0012).
+id: issue_closure_lag_median
+label: Issue closure lag (median)
+owner: Statistical Programming
+module: stat
+version: "1.0"
+grain: [study]
+definition: >
+  Median elapsed calendar days from issue opened to issue closed, across
+  issues closed within the reporting period. The clock starts at issue
+  creation even when that predates the period. Calendar days, not business
+  days: issue latency is measured as the requester experiences it.
+clock_start: issues.opened_at
+clock_stop: issues.closed_at
+calendar: calendar_days
+include:
+  - issues closed in the period
+exclude:
+  - open issues
+source_frames: [issues]
+required_fields:
+  issues: [state, opened_at, closed_at]
+refresh: daily
+target: "<= 14 calendar days"

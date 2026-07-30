@@ -13,7 +13,9 @@ join key for generated validation evidence: they appear verbatim in test
 names, and `pnpm validation:artifacts` builds the traceability matrix from a
 live test run. `DM-Q*` ids are per-metric qualification cases: each metric's
 compute function is verified against hand-computed expected values on a fixture
-study.
+study. `DS-Q*` is the same mechanism for the stat-module metric dictionary
+(ADR-0012), kept as its own series so the two dictionaries stay legible in
+the matrix.
 
 ## Requirement → mechanism
 

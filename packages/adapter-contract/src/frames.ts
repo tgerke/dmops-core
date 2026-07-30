@@ -52,11 +52,55 @@ export const pageRow = z
   })
   .strict();
 
+/**
+ * Repository-work frames (ADR-0012): normalized vocabulary owned by
+ * dmops-core, not a mirror of any host's payload — exactly as `queries` is
+ * not a Medrio or Rave shape. Source ids are strings even when the host uses
+ * integers; `repo_key` scopes them, since issue and PR numbers repeat across
+ * repositories.
+ */
+export const issueRow = z
+  .object({
+    source_issue_id: z.string().min(1),
+    repo_key: z.string().min(1),
+    state: z.enum(["open", "closed"]),
+    opened_at: isoDateTime,
+    closed_at: isoDateTime.nullable(),
+  })
+  .strict();
+
+export const pullRequestRow = z
+  .object({
+    source_pr_id: z.string().min(1),
+    repo_key: z.string().min(1),
+    state: z.enum(["open", "merged", "closed"]),
+    opened_at: isoDateTime,
+    merged_at: isoDateTime.nullable(),
+    closed_at: isoDateTime.nullable(),
+  })
+  .strict();
+
+// Only submitted reviews: a pending (unsubmitted) review is not review
+// activity and has no submitted timestamp, so it never enters the frame.
+export const reviewRow = z
+  .object({
+    source_review_id: z.string().min(1),
+    source_pr_id: z.string().min(1),
+    repo_key: z.string().min(1),
+    reviewer_key: z.string().min(1),
+    state: z.enum(["approved", "changes_requested", "commented", "dismissed"]),
+    submitted_at: isoDateTime,
+  })
+  .strict();
+
 export const frameSchemas = {
   queries: queryRow,
   subjects: subjectRow,
   visits: visitRow,
   pages: pageRow,
+  issues: issueRow,
+  pull_requests: pullRequestRow,
+  reviews: reviewRow,
 } as const;
 
 export type FrameName = keyof typeof frameSchemas;
@@ -66,10 +110,16 @@ export type QueryRow = z.infer<typeof queryRow>;
 export type SubjectRow = z.infer<typeof subjectRow>;
 export type VisitRow = z.infer<typeof visitRow>;
 export type PageRow = z.infer<typeof pageRow>;
+export type IssueRow = z.infer<typeof issueRow>;
+export type PullRequestRow = z.infer<typeof pullRequestRow>;
+export type ReviewRow = z.infer<typeof reviewRow>;
 
 export interface NormalizedFrames {
   queries?: QueryRow[];
   subjects?: SubjectRow[];
   visits?: VisitRow[];
   pages?: PageRow[];
+  issues?: IssueRow[];
+  pull_requests?: PullRequestRow[];
+  reviews?: ReviewRow[];
 }

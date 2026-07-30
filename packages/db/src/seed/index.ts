@@ -9,8 +9,10 @@
  * blocked — and wired to the CSV fixture study so the metrics strip is live
  * on first boot. It also runs the stat module (ADR-0011): analysis work is
  * in flight toward the September interim, so the phase-scoped write posture
- * is demoable. DMOPS-002 is DM-only and in startup with almost nothing done,
- * so the board's early-life state and the module-off posture are visible too.
+ * is demoable, and the fixture dir carries repository frames (issues, pull
+ * requests, reviews) so the DS metrics compute too (ADR-0012). DMOPS-002 is
+ * DM-only and in startup with almost nothing done, so the board's
+ * early-life state and the module-off posture are visible too.
  *
  * All writes are audit-attributed to 'seed' (ADR-0003). Person and study ids
  * regenerate on every run.
