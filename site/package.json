@@ -3,13 +3,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
+    "sync": "node scripts/sync-generated.mjs",
+    "dev": "pnpm sync && astro dev",
+    "build": "pnpm sync && astro build",
     "preview": "astro preview"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.41.4",
     "astro": "^7.1.3",
-    "sharp": "^0.35.3"
+    "remark-heading-id": "^1.0.1",
+    "sharp": "^0.35.3",
+    "starlight-links-validator": "^0.25.2",
+    "yaml": "^2.8.2"
   }
 }

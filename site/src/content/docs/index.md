@@ -27,6 +27,6 @@ compliance enforced by the database, derived-over-stored status, validation
 evidence generated from live runs, and integration over plain HTTP.
 
 Start with [Getting started](/dmops-core/getting-started/), then the guide
-pages on [milestones](/dmops-core/milestones/), [UAT](/dmops-core/uat/),
-[metrics](/dmops-core/metrics/), [adapters](/dmops-core/adapters/), and
+pages on [milestones](/dmops-core/guide/milestones/), [UAT](/dmops-core/guide/uat/),
+[metrics](/dmops-core/guide/metrics/), [adapters](/dmops-core/guide/adapters/), and
 [compliance](/dmops-core/compliance/).
