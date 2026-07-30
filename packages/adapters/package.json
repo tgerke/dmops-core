@@ -1,0 +1,21 @@
+{
+  "name": "@dmops/adapters",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./csv": "./src/csv/index.ts",
+    "./edc-core": "./src/edc-core/index.ts",
+    "./registry": "./src/registry.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@dmops/adapter-contract": "workspace:*",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

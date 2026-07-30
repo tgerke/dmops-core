@@ -1,0 +1,23 @@
+# Governed metric definition (ADR-0004).
+id: entry_lag
+label: Visit-to-entry lag (median)
+owner: DM Operations
+version: "1.0"
+grain: [study]
+definition: >
+  Median elapsed time in calendar days from visit date to first data entry
+  (first save) of the visit's CRF pages, across pages first entered within
+  the reporting period. Visit-to-first-save, not visit-to-page-complete.
+clock_start: visits.visit_date
+clock_stop: pages.first_entered_at
+calendar: calendar_days
+include:
+  - pages first entered within the reporting period whose visit occurred
+exclude:
+  - pages whose visit has no recorded visit date
+source_frames: [visits, pages]
+required_fields:
+  visits: [visit_date]
+  pages: [first_entered_at]
+refresh: daily
+target: "<= 7 calendar days"

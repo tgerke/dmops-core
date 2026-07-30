@@ -1,0 +1,9 @@
+subject_key,visit_key,form_key,status,first_entered_at,sdv_status
+001-001,V1,DM,complete,2026-05-20T00:00:00Z,verified
+001-001,V2,DM,complete,2026-06-03T00:00:00Z,verified
+001-001,V2,AE,complete,2026-06-04T00:00:00Z,pending
+001-001,V3,DM,in_progress,2026-06-15T00:00:00Z,pending
+001-002,V1,DM,complete,2026-06-10T00:00:00Z,not_required
+002-001,V1,DM,complete,2026-06-14T00:00:00Z,pending
+002-001,V1,VS,not_started,,
+001-003,V1,DM,not_started,,

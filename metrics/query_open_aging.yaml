@@ -1,0 +1,26 @@
+# Governed metric definition (ADR-0004).
+id: query_open_aging
+label: Open queries aged over 30 days
+owner: DM Operations
+version: "1.0"
+grain: [study, site]
+definition: >
+  Count of queries still open or answered (not closed, not cancelled) as of
+  the period end whose age from issuance exceeds 30 calendar days. The
+  denominator is all open queries at period end, so the value reads as the
+  size of the actionable tail. Finer aging buckets (0-7 / 8-14 / 15-30) are a
+  planned versioned extension once the snapshot schema grows a dimension.
+clock_start: queries.opened_at
+clock_stop: period_end
+calendar: calendar_days
+include:
+  - open queries
+  - answered queries awaiting closure
+exclude:
+  - closed queries
+  - cancelled queries
+source_frames: [queries]
+required_fields:
+  queries: [opened_at, status]
+refresh: daily
+target: "0"

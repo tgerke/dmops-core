@@ -1,0 +1,34 @@
+{
+  "_comment": [
+    "Hand-computed expected values for the DMOPS-001 fixture study — the",
+    "known-truth side of the metric qualification tests (DM-Q*). The fixture",
+    "is deliberately small enough to verify by hand; every number below was",
+    "computed from the CSVs, not from the code under test.",
+    "Reporting period: 2026-06-01 .. 2026-06-30 inclusive.",
+    "query_tat_median: closed-in-June TATs are site 001 [2,3,4,6,10] and",
+    "site 002 [1,5,7,8]; Q-090/Q-091 closed in May and cancelled Q-092 are",
+    "excluded. query_open_aging as of 2026-06-30: open/answered are Q-301",
+    "(aged 44.6d), Q-302 (32.4d), Q-303 (9.6d), Q-304 (4.6d).",
+    "entry_lag: pages first entered in June with a dated, occurred visit give",
+    "lags [2,3,5,7,9]; the May-entered page and never-entered pages are",
+    "excluded."
+  ],
+  "period": { "start": "2026-06-01", "end": "2026-06-30" },
+  "query_tat_median": {
+    "study": { "value": 5.0, "n_records": 9 },
+    "site": {
+      "001": { "value": 4.0, "n_records": 5 },
+      "002": { "value": 6.0, "n_records": 4 }
+    }
+  },
+  "query_open_aging": {
+    "study": { "value": 2, "numerator": 2, "denominator": 4, "n_records": 4 },
+    "site": {
+      "001": { "value": 2, "numerator": 2, "denominator": 3, "n_records": 3 },
+      "002": { "value": 0, "numerator": 0, "denominator": 1, "n_records": 1 }
+    }
+  },
+  "entry_lag": {
+    "study": { "value": 5.0, "n_records": 5 }
+  }
+}

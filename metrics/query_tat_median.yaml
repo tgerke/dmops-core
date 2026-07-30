@@ -1,0 +1,24 @@
+# Governed metric definition (ADR-0004). Changing anything here requires a
+# version bump; registration rejects a changed file with an unchanged version.
+id: query_tat_median
+label: Query turnaround time (median)
+owner: DM Operations
+version: "1.0"
+grain: [study, site]
+definition: >
+  Median elapsed time in calendar days from query issuance to query closure,
+  across queries closed within the reporting period. Issue-to-close, not
+  issue-to-first-response.
+clock_start: queries.opened_at
+clock_stop: queries.closed_at
+calendar: calendar_days # business-day clocks with holidays are a versioned change (v1.1)
+include:
+  - manual queries
+  - system-generated queries requiring site response
+exclude:
+  - cancelled queries
+source_frames: [queries]
+required_fields:
+  queries: [opened_at, closed_at, status]
+refresh: daily
+target: "<= 5 calendar days"

@@ -1,0 +1,20 @@
+{
+  "name": "@dmops/core",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@dmops/adapter-contract": "workspace:*",
+    "@dmops/adapters": "workspace:*",
+    "@dmops/db": "workspace:*",
+    "@dmops/metrics": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

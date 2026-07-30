@@ -1,0 +1,203 @@
+# The governed DM milestone taxonomy (ADR-0008). Codes are stable identifiers;
+# labels can be re-worded. Studies may mark milestones N/A but may not invent
+# codes outside this file. Changes are PRs, reviewed like code, and are
+# upserted by `pnpm db:sync-taxonomy` (never deleted; retire with active: false).
+milestones:
+  # --- Startup: specification -------------------------------------------------
+  - code: SPEC.DMP.DRAFT
+    label: Data Management Plan drafted
+    phase_group: startup_spec
+    sequence: 10
+  - code: SPEC.DMP.APPROVED
+    label: DMP approved
+    phase_group: startup_spec
+    sequence: 20
+    depends_on: [SPEC.DMP.DRAFT]
+  - code: SPEC.CRF.DRAFT
+    label: CRF / eCRF design drafted
+    phase_group: startup_spec
+    sequence: 30
+  - code: SPEC.CRF.APPROVED
+    label: CRF design approved
+    phase_group: startup_spec
+    sequence: 40
+    depends_on: [SPEC.CRF.DRAFT]
+  - code: SPEC.CCG
+    label: CRF Completion Guidelines released
+    phase_group: startup_spec
+    sequence: 50
+    depends_on: [SPEC.CRF.APPROVED]
+  - code: SPEC.EDIT.DRAFT
+    label: Edit check specification drafted
+    phase_group: startup_spec
+    sequence: 60
+    depends_on: [SPEC.CRF.DRAFT]
+  - code: SPEC.EDIT.APPROVED
+    label: Edit check specification approved
+    phase_group: startup_spec
+    sequence: 70
+    depends_on: [SPEC.EDIT.DRAFT]
+  - code: SPEC.EXT.AGREED
+    label: External data transfer agreements executed
+    phase_group: startup_spec
+    sequence: 80
+  - code: SPEC.CODING
+    label: Coding conventions and dictionary versions confirmed
+    phase_group: startup_spec
+    sequence: 90
+  - code: SPEC.SDTM
+    label: SDTM annotation / mapping spec approved
+    phase_group: startup_spec
+    sequence: 100
+    depends_on: [SPEC.CRF.APPROVED]
+
+  # --- Startup: build ---------------------------------------------------------
+  - code: BUILD.DB.START
+    label: Database build started
+    phase_group: startup_build
+    sequence: 110
+    default_owner_role: programmer
+    depends_on: [SPEC.CRF.APPROVED]
+  - code: BUILD.DB.COMPLETE
+    label: Database build complete
+    phase_group: startup_build
+    sequence: 120
+    default_owner_role: programmer
+    depends_on: [BUILD.DB.START]
+  - code: BUILD.EDIT.COMPLETE
+    label: Edit checks programmed
+    phase_group: startup_build
+    sequence: 130
+    default_owner_role: programmer
+    depends_on: [SPEC.EDIT.APPROVED, BUILD.DB.COMPLETE]
+  - code: BUILD.EXT.CONFIG
+    label: External data pipelines configured
+    phase_group: startup_build
+    sequence: 140
+    default_owner_role: programmer
+    depends_on: [SPEC.EXT.AGREED]
+  - code: BUILD.REPORTS
+    label: Operational reports programmed
+    phase_group: startup_build
+    sequence: 150
+    default_owner_role: programmer
+  - code: BUILD.DATASETS
+    label: Analysis dataset programming complete
+    phase_group: startup_build
+    sequence: 160
+    default_owner_role: programmer
+    depends_on: [SPEC.SDTM]
+
+  # --- Startup: validation & release ------------------------------------------
+  - code: UAT.START
+    label: UAT started
+    phase_group: startup_release
+    sequence: 170
+    default_owner_role: analyst
+    depends_on: [BUILD.EDIT.COMPLETE]
+  - code: UAT.COMPLETE
+    label: UAT complete, defects resolved
+    phase_group: startup_release
+    sequence: 180
+    default_owner_role: analyst
+    depends_on: [UAT.START]
+  - code: VAL.SUMMARY
+    label: Validation summary approved
+    phase_group: startup_release
+    sequence: 190
+    depends_on: [UAT.COMPLETE]
+  - code: REL.GOLIVE
+    label: Production go-live
+    phase_group: startup_release
+    sequence: 200
+    depends_on: [VAL.SUMMARY]
+  - code: REL.TRAIN
+    label: Site / user training complete
+    phase_group: startup_release
+    sequence: 210
+    depends_on: [REL.GOLIVE]
+  - code: REL.ACCESS
+    label: Production access provisioned
+    phase_group: startup_release
+    sequence: 220
+    depends_on: [REL.GOLIVE]
+
+  # --- Conduct ----------------------------------------------------------------
+  - code: COND.FPI
+    label: First patient in — first data entered
+    phase_group: conduct
+    sequence: 230
+    depends_on: [REL.GOLIVE]
+  - code: COND.RECON.FIRST
+    label: First external data reconciliation complete
+    phase_group: conduct
+    sequence: 240
+    depends_on: [BUILD.EXT.CONFIG]
+  - code: COND.REVIEW.FIRST
+    label: First data review cycle complete
+    phase_group: conduct
+    sequence: 250
+    depends_on: [COND.FPI]
+  - code: COND.AMEND
+    label: Protocol amendment implemented in DB
+    phase_group: conduct
+    sequence: 260
+    is_repeating: true
+  - code: COND.INTERIM
+    label: Interim lock / data cut
+    phase_group: conduct
+    sequence: 270
+    is_repeating: true
+
+  # --- Closeout ---------------------------------------------------------------
+  - code: CLOSE.LPO
+    label: Last patient out
+    phase_group: closeout
+    sequence: 280
+  - code: CLOSE.ENTRY
+    label: All data entered
+    phase_group: closeout
+    sequence: 290
+    depends_on: [CLOSE.LPO]
+  - code: CLOSE.QUERY
+    label: All queries resolved
+    phase_group: closeout
+    sequence: 300
+    depends_on: [CLOSE.ENTRY]
+  - code: CLOSE.SAE
+    label: SAE reconciliation complete
+    phase_group: closeout
+    sequence: 310
+  - code: CLOSE.CODE
+    label: Coding complete and approved
+    phase_group: closeout
+    sequence: 320
+    depends_on: [CLOSE.ENTRY]
+  - code: CLOSE.EXT
+    label: Final external data received and reconciled
+    phase_group: closeout
+    sequence: 330
+  - code: CLOSE.SDV
+    label: SDV complete
+    phase_group: closeout
+    sequence: 340
+  - code: CLOSE.SOFTLOCK
+    label: Soft lock
+    phase_group: closeout
+    sequence: 350
+    depends_on: [CLOSE.QUERY, CLOSE.SAE, CLOSE.CODE, CLOSE.EXT, CLOSE.SDV]
+  - code: CLOSE.LOCK
+    label: Database lock
+    phase_group: closeout
+    sequence: 360
+    depends_on: [CLOSE.SOFTLOCK]
+  - code: CLOSE.TRANSFER
+    label: Final transfer to Biostats
+    phase_group: closeout
+    sequence: 370
+    depends_on: [CLOSE.LOCK]
+  - code: CLOSE.ARCHIVE
+    label: Database archived
+    phase_group: closeout
+    sequence: 380
+    depends_on: [CLOSE.TRANSFER]

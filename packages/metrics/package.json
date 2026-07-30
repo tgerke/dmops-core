@@ -1,0 +1,20 @@
+{
+  "name": "@dmops/metrics",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@dmops/adapter-contract": "workspace:*",
+    "yaml": "^2.6.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@dmops/adapters": "workspace:*",
+    "typescript": "^5.6.0"
+  }
+}

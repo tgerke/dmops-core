@@ -1,0 +1,273 @@
+/**
+ * Demo seed — DESTRUCTIVE. Truncates every table (including the audit trail
+ * and the metric warehouse) and rebuilds the demo portfolio from scratch.
+ * Never point this at a real deployment.
+ *
+ * Narrative: two studies for the fictional sponsor Meridian Oncology.
+ * DMOPS-001 is mid-conduct — startup complete (with honest slips), an
+ * amendment in flight, interim lock on the horizon, SAE reconciliation
+ * blocked — and wired to the CSV fixture study so the metrics strip is live
+ * on first boot. DMOPS-002 is in startup with almost nothing done, so the
+ * board's early-life state is visible too.
+ *
+ * All writes are audit-attributed to 'seed' (ADR-0003). Person and study ids
+ * regenerate on every run.
+ */
+import { registerMetrics, refreshStudyMetrics } from "@dmops/core";
+import { createDb, type Sql } from "../client.js";
+import { loadTaxonomy, syncTaxonomy } from "../sync-taxonomy.js";
+
+// The fixture study's reporting period (see fixtures/study-DMOPS-001).
+const PERIOD = { periodStart: "2026-06-01", periodEnd: "2026-06-30" };
+
+const { sql } = createDb();
+
+console.log("seeding dmops demo data (DESTRUCTIVE: all existing rows are removed)");
+
+await sql.begin(async (t) => {
+  const tx = t as unknown as Sql;
+  await tx`SELECT set_config('dmops.actor_label', 'seed', true)`;
+  await tx`
+    TRUNCATE audit_event, metric_snapshot, source_extract, metric_definition,
+             study_milestone, deliverable, study_source, study_assignment,
+             site, study, sponsor, person, milestone_definition
+    RESTART IDENTITY CASCADE`;
+});
+
+await syncTaxonomy(sql);
+await registerMetrics(sql, "seed");
+
+interface Person {
+  id: string;
+  name: string;
+}
+
+async function insertPerson(name: string, email: string, org: string): Promise<Person> {
+  const [row] = await withSeedActor(
+    (tx) => tx`
+      INSERT INTO person (name, email, org) VALUES (${name}, ${email}, ${org})
+      RETURNING id, name`,
+  );
+  return row as unknown as Person;
+}
+
+async function withSeedActor<T>(fn: (tx: Sql) => Promise<T>): Promise<T> {
+  return sql.begin(async (t) => {
+    const tx = t as unknown as Sql;
+    await tx`SELECT set_config('dmops.actor_label', 'seed', true)`;
+    return fn(tx);
+  }) as Promise<T>;
+}
+
+// --- people -----------------------------------------------------------------
+
+const maya = await insertPerson("Maya Okafor", "maya.okafor@pmo.example", "PMO");
+const daniel = await insertPerson("Daniel Reyes", "daniel.reyes@pmo.example", "PMO");
+const priya = await insertPerson("Priya Natarajan", "priya.natarajan@pmo.example", "PMO");
+const tomas = await insertPerson("Tomas Lindqvist", "tomas.lindqvist@pmo.example", "PMO");
+const grace = await insertPerson("Grace Liu", "grace.liu@pmo.example", "PMO");
+const omar = await insertPerson("Omar Haddad", "omar.haddad@pmo.example", "PMO");
+const sylvia = await insertPerson("Sylvia Tran", "sylvia.tran@meridian.example", "Meridian Oncology");
+const ruth = await insertPerson("Ruth Adler", "ruth.adler@gcpaudit.example", "GCP Audit Partners");
+const admin = await insertPerson("Alex Admin", "alex.admin@pmo.example", "PMO");
+
+// --- sponsor, studies, sites ------------------------------------------------
+
+const [meridian] = await withSeedActor(
+  (tx) => tx`INSERT INTO sponsor (name) VALUES ('Meridian Oncology') RETURNING id`,
+);
+
+const [study1] = await withSeedActor(
+  (tx) => tx`
+    INSERT INTO study
+      (protocol_number, short_title, sponsor_id, phase, indication, therapeutic_area, status, dm_lead_id)
+    VALUES
+      ('DMOPS-001', 'Abiraterone combination in metastatic prostate cancer',
+       ${meridian!.id}, '2', 'Metastatic prostate cancer', 'Oncology', 'enrolling', ${maya.id})
+    RETURNING id`,
+);
+const [study2] = await withSeedActor(
+  (tx) => tx`
+    INSERT INTO study
+      (protocol_number, short_title, sponsor_id, phase, indication, therapeutic_area, status, dm_lead_id)
+    VALUES
+      ('DMOPS-002', 'Adjuvant biomarker registry in high-risk localized disease',
+       ${meridian!.id}, '2', 'Localized prostate cancer', 'Oncology', 'startup', ${maya.id})
+    RETURNING id`,
+);
+const study1Id = study1!.id as string;
+const study2Id = study2!.id as string;
+
+await withSeedActor(
+  (tx) => tx`
+    INSERT INTO site (study_id, site_number, name, country, pi_name, activation_date) VALUES
+      (${study1Id}, '001', 'General Clinical Research Center', 'US', 'Dr. H. Whitfield', '2026-02-10'),
+      (${study1Id}, '002', 'Memorial Cancer Institute', 'US', 'Dr. S. Park', '2026-02-24')`,
+);
+
+const assignments: [string, string, string][] = [
+  [study1Id, maya.id, "dm_lead"],
+  [study1Id, daniel.id, "dm_manager"],
+  [study1Id, priya.id, "analyst"],
+  [study1Id, tomas.id, "programmer"],
+  [study1Id, grace.id, "clinops"],
+  [study1Id, omar.id, "biostat"],
+  [study1Id, sylvia.id, "sponsor_user"],
+  [study1Id, ruth.id, "qa"],
+  [study1Id, admin.id, "admin"],
+  [study2Id, maya.id, "dm_lead"],
+  [study2Id, daniel.id, "dm_manager"],
+  [study2Id, tomas.id, "programmer"],
+  [study2Id, ruth.id, "qa"],
+];
+for (const [studyId, personId, role] of assignments) {
+  await withSeedActor(
+    (tx) => tx`
+      INSERT INTO study_assignment (study_id, person_id, role, start_date)
+      VALUES (${studyId}, ${personId}, ${role}::assignment_role, '2026-01-05')`,
+  );
+}
+
+// --- milestones -------------------------------------------------------------
+
+const ownerByRole: Record<string, string> = {
+  dm_lead: maya.id,
+  dm_manager: daniel.id,
+  analyst: priya.id,
+  programmer: tomas.id,
+};
+
+interface MilestoneSeed {
+  baseline?: string;
+  planned?: string;
+  forecast?: string;
+  actual?: string;
+  status?: "not_started" | "in_progress" | "complete" | "blocked" | "na";
+  blocker?: string;
+  evidence?: string;
+}
+
+// DMOPS-001: startup done with honest slips; June completions feed the
+// milestone_slip demo number (slips +4, +5, -2 → median 4).
+const study1Milestones: Record<string, MilestoneSeed> = {
+  "SPEC.DMP.DRAFT": { baseline: "2026-01-12", actual: "2026-01-12", status: "complete", evidence: "https://ctms.example/tmf/DMOPS-001/dmp-draft" },
+  "SPEC.DMP.APPROVED": { baseline: "2026-01-26", actual: "2026-01-30", status: "complete", evidence: "https://ctms.example/tmf/DMOPS-001/dmp" },
+  "SPEC.CRF.DRAFT": { baseline: "2026-01-19", actual: "2026-01-16", status: "complete" },
+  "SPEC.CRF.APPROVED": { baseline: "2026-02-02", actual: "2026-02-06", status: "complete", evidence: "https://ctms.example/tmf/DMOPS-001/crf-spec" },
+  "SPEC.CCG": { baseline: "2026-02-16", actual: "2026-02-16", status: "complete" },
+  "SPEC.EDIT.DRAFT": { baseline: "2026-02-09", actual: "2026-02-13", status: "complete" },
+  "SPEC.EDIT.APPROVED": { baseline: "2026-02-23", actual: "2026-02-27", status: "complete", evidence: "https://ctms.example/tmf/DMOPS-001/edit-checks" },
+  "SPEC.EXT.AGREED": { baseline: "2026-02-16", actual: "2026-03-06", status: "complete" },
+  "SPEC.CODING": { baseline: "2026-02-09", actual: "2026-02-09", status: "complete" },
+  "SPEC.SDTM": { baseline: "2026-03-02", actual: "2026-03-09", status: "complete" },
+  "BUILD.DB.START": { baseline: "2026-02-09", actual: "2026-02-09", status: "complete" },
+  "BUILD.DB.COMPLETE": { baseline: "2026-03-02", actual: "2026-03-06", status: "complete" },
+  "BUILD.EDIT.COMPLETE": { baseline: "2026-03-09", actual: "2026-03-19", status: "complete" },
+  "BUILD.EXT.CONFIG": { baseline: "2026-03-16", actual: "2026-03-27", status: "complete" },
+  "BUILD.REPORTS": { baseline: "2026-03-23", actual: "2026-03-23", status: "complete" },
+  "BUILD.DATASETS": { baseline: "2026-04-06", actual: "2026-04-10", status: "complete" },
+  "UAT.START": { baseline: "2026-03-23", actual: "2026-03-25", status: "complete" },
+  "UAT.COMPLETE": { baseline: "2026-04-06", actual: "2026-04-09", status: "complete" },
+  "VAL.SUMMARY": { baseline: "2026-04-13", actual: "2026-04-15", status: "complete", evidence: "https://ctms.example/tmf/DMOPS-001/validation-summary" },
+  "REL.GOLIVE": { baseline: "2026-04-20", actual: "2026-04-21", status: "complete" },
+  "REL.TRAIN": { baseline: "2026-06-01", actual: "2026-06-05", status: "complete" },
+  "REL.ACCESS": { baseline: "2026-04-27", actual: "2026-04-27", status: "complete" },
+  "COND.FPI": { baseline: "2026-05-04", actual: "2026-05-08", status: "complete" },
+  "COND.RECON.FIRST": { baseline: "2026-06-15", actual: "2026-06-20", status: "complete" },
+  "COND.REVIEW.FIRST": { baseline: "2026-06-27", actual: "2026-06-25", status: "complete" },
+  "COND.AMEND": { baseline: "2026-08-03", forecast: "2026-08-14", status: "in_progress" },
+  "COND.INTERIM": { baseline: "2026-09-15", forecast: "2026-09-15", status: "not_started" },
+  "CLOSE.LPO": { baseline: "2027-03-01", status: "not_started" },
+  "CLOSE.ENTRY": { baseline: "2027-03-22", status: "not_started" },
+  "CLOSE.QUERY": { baseline: "2027-04-05", status: "not_started" },
+  "CLOSE.SAE": {
+    baseline: "2026-09-01",
+    forecast: "2026-09-22",
+    status: "blocked",
+    blocker:
+      "Safety DB reconciliation for the interim cut is stalled: 14 SAE discrepancies open with the vendor since 2026-07-06",
+  },
+  "CLOSE.CODE": { baseline: "2027-04-05", status: "not_started" },
+  "CLOSE.EXT": { baseline: "2027-04-12", status: "not_started" },
+  "CLOSE.SDV": { baseline: "2027-04-12", status: "not_started" },
+  "CLOSE.SOFTLOCK": { baseline: "2027-04-19", status: "not_started" },
+  "CLOSE.LOCK": { baseline: "2027-04-26", status: "not_started" },
+  "CLOSE.TRANSFER": { baseline: "2027-04-28", status: "not_started" },
+  "CLOSE.ARCHIVE": { baseline: "2027-06-01", status: "not_started" },
+};
+
+// DMOPS-002: startup barely begun.
+const study2Milestones: Record<string, MilestoneSeed> = {
+  "SPEC.DMP.DRAFT": { baseline: "2026-08-10", forecast: "2026-08-10", status: "in_progress" },
+  "SPEC.CRF.DRAFT": { baseline: "2026-08-24", status: "not_started" },
+};
+
+async function instantiateMilestones(
+  studyId: string,
+  seeds: Record<string, MilestoneSeed>,
+): Promise<void> {
+  for (const def of loadTaxonomy()) {
+    const s = seeds[def.code] ?? {};
+    const baseline = s.baseline ?? null;
+    await withSeedActor(
+      (tx) => tx`
+        INSERT INTO study_milestone
+          (study_id, code, occurrence, baseline_date, planned_date, forecast_date,
+           actual_date, status, owner_id, blocker_note, evidence_uri)
+        VALUES
+          (${studyId}, ${def.code}, 1, ${baseline}, ${s.planned ?? baseline},
+           ${s.forecast ?? null}, ${s.actual ?? null},
+           ${s.status ?? "not_started"}::milestone_status,
+           ${ownerByRole[def.default_owner_role] ?? maya.id},
+           ${s.blocker ?? null}, ${s.evidence ?? null})`,
+    );
+  }
+}
+
+await instantiateMilestones(study1Id, study1Milestones);
+await instantiateMilestones(study2Id, study2Milestones);
+
+// --- deliverables (status + eTMF pointer only, ADR-0006) ---------------------
+
+await withSeedActor(
+  (tx) => tx`
+    INSERT INTO deliverable (study_id, type, title, version, status, approved_date, etmf_uri, owner_id) VALUES
+      (${study1Id}, 'dmp', 'Data Management Plan', '2.0', 'approved', '2026-01-30',
+       'https://ctms.example/tmf/DMOPS-001/dmp', ${maya.id}),
+      (${study1Id}, 'edit_check_spec', 'Edit Check Specification', '1.3', 'approved', '2026-02-27',
+       'https://ctms.example/tmf/DMOPS-001/edit-checks', ${priya.id}),
+      (${study1Id}, 'sdtm_spec', 'SDTM Mapping Specification', '0.9', 'in_review', NULL,
+       'https://ctms.example/tmf/DMOPS-001/sdtm-spec', ${tomas.id}),
+      (${study2Id}, 'dmp', 'Data Management Plan', '0.2', 'draft', NULL, NULL, ${maya.id})`,
+);
+
+// --- source wiring + first snapshot run --------------------------------------
+
+await withSeedActor(
+  (tx) => tx`
+    INSERT INTO study_source (study_id, adapter, source_study_key, config)
+    VALUES (${study1Id}, 'csv', 'DMOPS-001',
+            ${JSON.stringify({ dir: "fixtures/study-DMOPS-001" })}::jsonb)`,
+);
+
+for (const [protocol, studyId] of [
+  ["DMOPS-001", study1Id],
+  ["DMOPS-002", study2Id],
+] as const) {
+  const result = await refreshStudyMetrics(sql, studyId, PERIOD);
+  console.log(
+    `${protocol}: ${result.computed.length} metrics computed, ${result.skipped.length} skipped` +
+      (result.skipped.length
+        ? ` (${result.skipped.map((s) => `${s.metricId}: ${s.reason}`).join("; ")})`
+        : ""),
+  );
+  for (const warning of result.warnings) console.log(`  warning: ${warning}`);
+}
+
+const [chain] = await sql`SELECT count(*)::int AS n FROM dmops_verify_audit_chain()`;
+if (chain!.n !== 0) throw new Error("audit chain verification failed after seed");
+
+console.log("seed complete — audit chain verifies clean");
+console.log("dev tokens: dev-dmlead-token (Maya), dev-manager-token (Daniel), dev-clinops-token (Grace),");
+console.log("            dev-sponsor-token (Sylvia), dev-qa-token (Ruth), dev-admin-token (Alex)");
+await sql.end();

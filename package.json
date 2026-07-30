@@ -1,0 +1,30 @@
+{
+  "name": "dmops-core",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.9.0",
+  "scripts": {
+    "db:up": "docker compose up -d --wait",
+    "db:migrate": "pnpm --filter @dmops/db migrate",
+    "db:seed": "pnpm --filter @dmops/db seed",
+    "db:sync-taxonomy": "pnpm --filter @dmops/db sync-taxonomy",
+    "db:reset": "docker compose down -v && docker compose up -d --wait && pnpm db:migrate && pnpm db:seed",
+    "dev": "pnpm --parallel --filter @dmops/api --filter @dmops/web dev",
+    "build": "pnpm -r build",
+    "test": "vitest run",
+    "lint": "biome check .",
+    "typecheck": "pnpm -r typecheck",
+    "metrics:refresh": "tsx tools/refresh-metrics.ts",
+    "validation:iq": "pnpm --filter @dmops/db iq",
+    "validation:artifacts": "tsx tools/validation-artifacts.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@dmops/core": "workspace:*",
+    "@dmops/db": "workspace:*",
+    "@types/node": "^22.20.1",
+    "tsx": "^4.23.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

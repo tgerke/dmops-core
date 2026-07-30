@@ -1,0 +1,7 @@
+subject_key,visit_key,visit_date,occurred
+001-001,V1,2026-05-18,true
+001-001,V2,2026-06-01,true
+001-001,V3,2026-06-10,true
+001-002,V1,2026-06-03,true
+001-003,V1,,false
+002-001,V1,2026-06-05,true

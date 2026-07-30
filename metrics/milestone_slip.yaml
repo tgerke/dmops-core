@@ -1,0 +1,24 @@
+# Governed metric definition (ADR-0004). Source is dmops-core's own
+# study_milestone facts — the engine is not EDC-only.
+id: milestone_slip
+label: Milestone slip vs baseline (median)
+owner: DM Operations
+version: "1.0"
+grain: [study]
+definition: >
+  Median elapsed time in calendar days between the baseline planned date and
+  the actual completion date, across milestones completed within the
+  reporting period. Positive values are late, negative early. Baseline is the
+  first approved plan; it is preserved across re-baselining (ADR-0008), so
+  this metric always measures against the original commitment.
+clock_start: study_milestone.baseline_date
+clock_stop: study_milestone.actual_date
+calendar: calendar_days
+include:
+  - milestones with an actual date within the reporting period and a baseline date
+exclude:
+  - milestones marked not applicable
+source_frames: []
+required_fields: {}
+refresh: daily
+target: "<= 0 calendar days"

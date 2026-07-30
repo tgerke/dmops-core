@@ -1,0 +1,30 @@
+{
+  "name": "@dmops/db",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.ts"
+  },
+  "scripts": {
+    "migrate": "tsx src/migrate.ts",
+    "seed": "tsx src/seed/index.ts",
+    "sync-taxonomy": "tsx src/sync-taxonomy.ts",
+    "iq": "tsx src/iq.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.36.4",
+    "postgres": "^3.4.5",
+    "yaml": "^2.6.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@dmops/adapter-contract": "workspace:*",
+    "@dmops/adapters": "workspace:*",
+    "@dmops/core": "workspace:*",
+    "@dmops/metrics": "workspace:*",
+    "tsx": "^4.23.0",
+    "typescript": "^5.6.0"
+  }
+}
