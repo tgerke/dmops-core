@@ -89,16 +89,22 @@ function parseComplianceTable(): Requirement[] {
   if (requirements.length === 0) {
     throw new Error("no requirement rows found in docs/03-compliance.md — table format changed?");
   }
-  // DM-Q* qualification cases: one per metric in the governed dictionary,
-  // enumerated here so a metric without a fixture test shows as a hole.
-  const qualification: Requirement[] = [
-    "query_tat_median",
-    "query_open_aging",
-    "entry_lag",
-    "milestone_slip",
-  ].map((metric, i) => ({
-    id: `DM-Q${i + 1}`,
-    requirement: `DM-Q${i + 1} — ${metric} matches hand-computed expected values`,
+  // DM-Q* qualification cases: one per (metric, version) in the governed
+  // dictionary — past or present — enumerated here so a metric version
+  // without a fixture test shows as a hole. Tokens are permanent: a retired
+  // version keeps its token and its history-pinning test (ADR-0004).
+  const qualification: Requirement[] = (
+    [
+      ["DM-Q1", "query_tat_median", "v1.0 (calendar days)"],
+      ["DM-Q2", "query_open_aging", "v1.0"],
+      ["DM-Q3", "entry_lag", "v1.0 (calendar days)"],
+      ["DM-Q4", "milestone_slip", "v1.0"],
+      ["DM-Q5", "query_tat_median", "v1.1 (business days)"],
+      ["DM-Q6", "entry_lag", "v1.1 (business days)"],
+    ] as const
+  ).map(([id, metric, version]) => ({
+    id,
+    requirement: `${id} — ${metric} ${version} matches hand-computed expected values`,
     mechanism: "Pure compute function tested against fixtures/study-DMOPS-001/expected-values.json",
     where: `metrics/${metric}.yaml, packages/metrics/src/compute/${metric}.ts`,
   }));

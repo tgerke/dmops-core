@@ -1,4 +1,4 @@
-import { refreshStudyMetrics } from "@dmops/core";
+import { refreshStudyMetrics, registerMetrics } from "@dmops/core";
 /**
  * Metric refresh CLI: run the snapshot pipeline for one study or the whole
  * portfolio. Stateless and cron-friendly — schedule it with cron or your
@@ -53,6 +53,12 @@ if (studies.length === 0) {
   console.error(protocol ? `no study ${protocol}` : "no studies");
   process.exit(1);
 }
+
+// Register any new (id, version) definitions before computing, so a version
+// bump can't FK-violate on a live DB. Idempotent; hard-errors on an illegal
+// change (ADR-0004), which is the desired failure mode.
+const reg = await registerMetrics(sql);
+if (reg.registered > 0) console.log(`registered ${reg.registered} new metric definition(s)`);
 
 console.log(`refreshing metrics for ${period.periodStart} .. ${period.periodEnd}`);
 for (const study of studies) {

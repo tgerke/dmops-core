@@ -8,6 +8,7 @@ export {
   type MetricSpec,
 } from "./spec.js";
 export {
+  businessDaysBetween,
   daysBetween,
   inPeriod,
   median,

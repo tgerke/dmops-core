@@ -9,11 +9,11 @@ import { fileURLToPath } from "node:url";
 import type { NormalizedFrames } from "@dmops/adapter-contract";
 import { csvAdapter } from "@dmops/adapters/csv";
 import { beforeAll, describe, expect, it } from "vitest";
-import type { MilestoneFact, SnapshotValue } from "../types.js";
-import { entryLag } from "./entry_lag.js";
+import { type MilestoneFact, type SnapshotValue, businessDaysBetween } from "../types.js";
+import { entryLag, entryLagV1_1 } from "./entry_lag.js";
 import { milestoneSlip } from "./milestone_slip.js";
 import { queryOpenAging } from "./query_open_aging.js";
-import { queryTatMedian } from "./query_tat_median.js";
+import { queryTatMedian, queryTatMedianV1_1 } from "./query_tat_median.js";
 
 const expected = JSON.parse(
   readFileSync(
@@ -39,7 +39,7 @@ const byGrain = (rows: SnapshotValue[], grain: string, siteKey: string | null = 
   rows.find((r) => r.grain === grain && r.site_key === siteKey);
 
 describe("metric qualification against hand-computed fixtures", () => {
-  it("DM-Q1: query_tat_median matches hand-computed truth for DMOPS-001", () => {
+  it("DM-Q1: query_tat_median v1.0 (calendar days, history-pinned) matches hand-computed truth for DMOPS-001", () => {
     const rows = queryTatMedian(frames, ctx);
     expect(byGrain(rows, "study")).toMatchObject(expected.query_tat_median.study);
     expect(byGrain(rows, "site", "001")).toMatchObject(expected.query_tat_median.site["001"]);
@@ -53,9 +53,21 @@ describe("metric qualification against hand-computed fixtures", () => {
     expect(byGrain(rows, "site", "002")).toMatchObject(expected.query_open_aging.site["002"]);
   });
 
-  it("DM-Q3: entry_lag matches hand-computed truth for DMOPS-001", () => {
+  it("DM-Q3: entry_lag v1.0 (calendar days, history-pinned) matches hand-computed truth for DMOPS-001", () => {
     const rows = entryLag(frames, ctx);
     expect(byGrain(rows, "study")).toMatchObject(expected.entry_lag.study);
+  });
+
+  it("DM-Q5: query_tat_median v1.1 (business days) matches hand-computed truth for DMOPS-001", () => {
+    const rows = queryTatMedianV1_1(frames, ctx);
+    expect(byGrain(rows, "study")).toMatchObject(expected.query_tat_median_v1_1.study);
+    expect(byGrain(rows, "site", "001")).toMatchObject(expected.query_tat_median_v1_1.site["001"]);
+    expect(byGrain(rows, "site", "002")).toMatchObject(expected.query_tat_median_v1_1.site["002"]);
+  });
+
+  it("DM-Q6: entry_lag v1.1 (business days) matches hand-computed truth for DMOPS-001", () => {
+    const rows = entryLagV1_1(frames, ctx);
+    expect(byGrain(rows, "study")).toMatchObject(expected.entry_lag_v1_1.study);
   });
 
   it("DM-Q4: milestone_slip matches hand-computed truth on constructed milestone facts", () => {
@@ -76,6 +88,29 @@ describe("metric qualification against hand-computed fixtures", () => {
   it("DM-Q4: milestone_slip returns null with zero records when nothing completed in period", () => {
     const rows = milestoneSlip(frames, { ...ctx, milestones: [] });
     expect(byGrain(rows, "study")).toMatchObject({ value: null, n_records: 0 });
+  });
+});
+
+describe("businessDaysBetween (the v1.1 day-counting rule, ADR-0004)", () => {
+  it("counts weekdays strictly after the start date through the end date", () => {
+    expect(businessDaysBetween("2026-06-01", "2026-06-05")).toBe(4); // Mon → Fri
+    expect(businessDaysBetween("2026-06-02T10:00:00Z", "2026-06-04T10:00:00Z")).toBe(2);
+  });
+
+  it("skips weekends: Friday to Monday is one business day", () => {
+    expect(businessDaysBetween("2026-06-05", "2026-06-08")).toBe(1);
+    expect(businessDaysBetween("2026-06-05", "2026-06-15")).toBe(6); // spans two weekends
+  });
+
+  it("weekend endpoints contribute nothing", () => {
+    expect(businessDaysBetween("2026-06-06", "2026-06-07")).toBe(0); // Sat → Sun
+    expect(businessDaysBetween("2026-06-06", "2026-06-11")).toBe(4); // Sat → Thu
+    expect(businessDaysBetween("2026-06-12", "2026-06-20")).toBe(5); // Fri → Sat
+  });
+
+  it("same-day is zero and reversed inputs negate", () => {
+    expect(businessDaysBetween("2026-06-03", "2026-06-03")).toBe(0);
+    expect(businessDaysBetween("2026-06-08", "2026-06-05")).toBe(-1);
   });
 });
 

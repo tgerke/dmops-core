@@ -11,7 +11,16 @@
     "(aged 44.6d), Q-302 (32.4d), Q-303 (9.6d), Q-304 (4.6d).",
     "entry_lag: pages first entered in June with a dated, occurred visit give",
     "lags [2,3,5,7,9]; the May-entered page and never-entered pages are",
-    "excluded."
+    "excluded.",
+    "v1.1 (business days, Mon–Fri UTC; weekends in June 2026 are 6–7, 13–14,",
+    "20–21, 27–28): a business day counts if it is a weekday strictly after",
+    "the clock-start date, up to and including the clock-stop date.",
+    "query_tat_median v1.1: site 001 [2,1,4,4,8] (e.g. Q-102 opened Fri 6/5,",
+    "closed Mon 6/8 → 1; Q-105 opened Mon 6/8, closed Thu 6/18 → 8) and",
+    "site 002 [1,4,5,5] (e.g. Q-202 opened Sat 6/6, closed Thu 6/11 → 4;",
+    "Q-204 opened Fri 6/12, closed Sat 6/20 → 5).",
+    "entry_lag v1.1: lags [2,3,3,5,5] (e.g. 001-001 V3 visit Wed 6/10,",
+    "entered Mon 6/15 → 3; 002-001 V1 visit Fri 6/5, entered Sun 6/14 → 5)."
   ],
   "period": { "start": "2026-06-01", "end": "2026-06-30" },
   "query_tat_median": {
@@ -30,5 +39,15 @@
   },
   "entry_lag": {
     "study": { "value": 5.0, "n_records": 5 }
+  },
+  "query_tat_median_v1_1": {
+    "study": { "value": 4.0, "n_records": 9 },
+    "site": {
+      "001": { "value": 4.0, "n_records": 5 },
+      "002": { "value": 4.5, "n_records": 4 }
+    }
+  },
+  "entry_lag_v1_1": {
+    "study": { "value": 3.0, "n_records": 5 }
   }
 }
