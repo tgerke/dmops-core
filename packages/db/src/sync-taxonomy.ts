@@ -22,10 +22,12 @@ const milestoneSchema = z
       "startup_release",
       "conduct",
       "closeout",
+      "analysis",
     ]),
+    module: z.enum(["dm", "stat"]).default("dm"),
     sequence: z.number().int().positive(),
     default_owner_role: z
-      .enum(["dm_lead", "dm_manager", "analyst", "programmer"])
+      .enum(["dm_lead", "dm_manager", "analyst", "programmer", "biostat"])
       .default("dm_lead"),
     depends_on: z.array(z.string()).default([]),
     is_repeating: z.boolean().default(false),
@@ -78,14 +80,15 @@ export async function syncTaxonomy(sql: Sql): Promise<{ upserted: number }> {
     for (const m of milestones) {
       await tx`
         INSERT INTO milestone_definition
-          (code, label, phase_group, sequence, default_owner_role,
+          (code, label, phase_group, module, sequence, default_owner_role,
            depends_on, is_repeating, active, version)
         VALUES
-          (${m.code}, ${m.label}, ${m.phase_group}, ${m.sequence}, ${m.default_owner_role},
-           ${m.depends_on}, ${m.is_repeating}, ${m.active}, ${m.version})
+          (${m.code}, ${m.label}, ${m.phase_group}, ${m.module}, ${m.sequence},
+           ${m.default_owner_role}, ${m.depends_on}, ${m.is_repeating}, ${m.active}, ${m.version})
         ON CONFLICT (code) DO UPDATE SET
           label = EXCLUDED.label,
           phase_group = EXCLUDED.phase_group,
+          module = EXCLUDED.module,
           sequence = EXCLUDED.sequence,
           default_owner_role = EXCLUDED.default_owner_role,
           depends_on = EXCLUDED.depends_on,
@@ -93,11 +96,12 @@ export async function syncTaxonomy(sql: Sql): Promise<{ upserted: number }> {
           active = EXCLUDED.active,
           version = EXCLUDED.version
         WHERE (milestone_definition.label, milestone_definition.phase_group,
+               milestone_definition.module,
                milestone_definition.sequence, milestone_definition.default_owner_role,
                milestone_definition.depends_on, milestone_definition.is_repeating,
                milestone_definition.active, milestone_definition.version)
           IS DISTINCT FROM
-              (EXCLUDED.label, EXCLUDED.phase_group, EXCLUDED.sequence,
+              (EXCLUDED.label, EXCLUDED.phase_group, EXCLUDED.module, EXCLUDED.sequence,
                EXCLUDED.default_owner_role, EXCLUDED.depends_on,
                EXCLUDED.is_repeating, EXCLUDED.active, EXCLUDED.version)`;
     }

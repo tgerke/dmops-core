@@ -16,15 +16,22 @@ you see, never the numbers themselves (DM-P5).
 | --- | --- |
 | Read the whole portfolio | `qa`, `admin` |
 | Read an assigned study | any active assignment on that study |
-| Write milestones (forecast, actual, status, blockers) | `dm_lead`, `dm_manager` on the study; `admin` |
-| Write deliverable status | same rule as milestones |
+| Write DM-phase milestones (forecast, actual, status, blockers) | `dm_lead`, `dm_manager` on the study; `admin` |
+| Write analysis-phase milestones (stat-module studies) | milestone writers plus `programmer` or `biostat` on the study |
+| Write deliverable status | same rule as milestones; analysis types (`sap`, `adam_spec`, `tlf_shells`) follow the analysis-phase rule |
 | Write UAT cycles and defects | milestone writers plus `analyst` on the study |
 | Re-baseline a plan | `dm_manager` on the study; `admin` (deliberately stricter than milestone writes) |
 | Curated sponsor serialization | a person whose only role on the study is `sponsor_user` |
 
-Two asymmetries are deliberate. UAT writes are wider than milestone writes
-because analysts run UAT and data entry belongs where the work happens
+Three asymmetries are deliberate. UAT writes are wider than milestone
+writes because analysts run UAT and data entry belongs where the work
+happens
 ([ADR-0010](/dmops-core/reference/decisions/0010-uat-cycles-and-defects-not-test-evidence/)).
+Analysis-phase writes are wider for the same reason: programmers and
+biostatisticians own the STAT milestones, so they record their own status
+on studies that run the stat module, while DM-phase milestones stay a
+leadership assertion
+([ADR-0011](/dmops-core/reference/decisions/0011-stat-programming-as-an-opt-in-module/)).
 Re-baselining is narrower because moving the plan is governance, not an
 edit: a `dm_lead` moves forecasts, but only a `dm_manager` or admin moves
 the plan

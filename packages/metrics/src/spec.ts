@@ -15,6 +15,9 @@ export const metricSpec = z
     id: z.string().regex(/^[a-z][a-z0-9_]*$/),
     label: z.string().min(1),
     owner: z.string().min(1),
+    // Discipline module (ADR-0011): metrics for a module a study has not
+    // enabled are filtered out, not reported unavailable.
+    module: z.enum(["dm", "stat"]).default("dm"),
     version: z.string().regex(/^\d+\.\d+$/),
     grain: z.array(z.enum(["study", "site", "country", "portfolio"])).min(1),
     definition: z

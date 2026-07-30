@@ -12,13 +12,16 @@ overwritten so slip stays honest.
 ## One taxonomy, every study
 
 The DM milestone taxonomy lives in `taxonomy/milestone_definitions.yaml`:
-stable dotted codes (`SPEC.DMP.APPROVED`, `CLOSE.LOCK`) grouped into five
-phases: specification, build, validation and release, conduct, closeout.
-Studies instantiate milestones from the taxonomy and may mark any of them
-N/A, but cannot invent codes outside it
+stable dotted codes (`SPEC.DMP.APPROVED`, `CLOSE.LOCK`) grouped into six
+phases: specification, build, validation and release, conduct, closeout,
+and analysis and reporting. Studies instantiate milestones from the
+taxonomy and may mark any of them N/A, but cannot invent codes outside it
 ([ADR-0008](/dmops-core/reference/decisions/0008-governed-milestone-taxonomy/)).
+The analysis phase belongs to the opt-in stat module: its `STAT.*` codes
+are instantiated only on studies that enable it
+([ADR-0011](/dmops-core/reference/decisions/0011-stat-programming-as-an-opt-in-module/)).
 Cross-study roll-up only works when every study speaks the same milestone
-language. The full 38-code list is in the
+language. The full 50-code list is in the
 [milestone taxonomy reference](/dmops-core/reference/milestone-taxonomy/).
 
 Taxonomy changes are pull requests against one YAML file, reviewed like code.

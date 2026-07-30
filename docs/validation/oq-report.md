@@ -1,8 +1,8 @@
 # Operational Qualification report
 
-Environment: commit 0d451f1, node v23.11.0, 2026-07-30T18:29:29.497Z
+Environment: commit bd7ab38, node v23.11.0, 2026-07-30T20:35:19.513Z
 
-Suite result: **PASSED** — 83/83 tests passed.
+Suite result: **PASSED** — 94/94 tests passed.
 
 ## packages/adapter-contract/src/contract.test.ts
 
@@ -24,11 +24,21 @@ Suite result: **PASSED** — 83/83 tests passed.
 | Result | Test | ms |
 | --- | --- | ---: |
 | PASS | csv adapter (the reference implementation) extracts all four frames from the fixture study and passes contract validation | 4 |
-| PASS | csv adapter (the reference implementation) produces a deterministic checksum for the same fixture (extract provenance) | 1 |
-| PASS | edc-core adapter (reference EDC, recorded fixtures) maps query threads to the queries frame, deriving first_response_at from the thread | 3 |
+| PASS | csv adapter (the reference implementation) produces a deterministic checksum for the same fixture (extract provenance) | 0 |
+| PASS | edc-core adapter (reference EDC, recorded fixtures) maps query threads to the queries frame, deriving first_response_at from the thread | 2 |
 | PASS | edc-core adapter (reference EDC, recorded fixtures) does not pass record creation off as an enrollment date (DM-P1) | 0 |
 | PASS | edc-core adapter (reference EDC, recorded fixtures) declares visits unsupported and refuses to extract them (DM-P1: no silent approximation) | 0 |
 | PASS | edc-core adapter (reference EDC, recorded fixtures) fails with an actionable message when the key env var is missing | 0 |
+
+## packages/core/src/authz.test.ts
+
+| Result | Test | ms |
+| --- | --- | ---: |
+| PASS | canWriteAnalysis (ADR-0011) DM-P6: programmer and biostat assigned to the study can write analysis-phase work | 1 |
+| PASS | canWriteAnalysis (ADR-0011) DM-P5: the posture is study-scoped — the same roles on another study cannot | 0 |
+| PASS | canWriteAnalysis (ADR-0011) DM leadership and admin keep their write everywhere the milestone predicate grants it | 0 |
+| PASS | canWriteAnalysis (ADR-0011) read seats and the analyst stay out: analysis entry belongs to the analysis team | 0 |
+| PASS | canWriteAnalysis (ADR-0011) the analysis deliverable types are exactly the ADR-0011 set; sdtm_spec stays DM | 0 |
 
 ## packages/metrics/src/engine.test.ts
 
@@ -44,24 +54,24 @@ Suite result: **PASSED** — 83/83 tests passed.
 
 | Result | Test | ms |
 | --- | --- | ---: |
-| PASS | append-only warehouse and audit trail (DM-P3) rejects UPDATE on audit_event at the database level | 24 |
+| PASS | append-only warehouse and audit trail (DM-P3) rejects UPDATE on audit_event at the database level | 19 |
 | PASS | append-only warehouse and audit trail (DM-P3) rejects DELETE on audit_event | 1 |
 | PASS | append-only warehouse and audit trail (DM-P3) rejects UPDATE and DELETE on metric_snapshot | 2 |
-| PASS | append-only warehouse and audit trail (DM-P3) rejects UPDATE and DELETE on source_extract | 3 |
-| PASS | append-only warehouse and audit trail (DM-P3) rejects UPDATE and DELETE on metric_definition (a changed definition is a new version) | 2 |
+| PASS | append-only warehouse and audit trail (DM-P3) rejects UPDATE and DELETE on source_extract | 2 |
+| PASS | append-only warehouse and audit trail (DM-P3) rejects UPDATE and DELETE on metric_definition (a changed definition is a new version) | 3 |
 | PASS | append-only warehouse and audit trail (DM-P3) rejects UPDATE and DELETE on milestone_rebaseline (a re-baseline is history, ADR-0009) | 2 |
-| PASS | audit trail (ADR-0003) writes an attributed, chained event for every domain mutation | 7 |
-| PASS | audit trail (ADR-0003) verifies clean on untampered data | 4 |
-| PASS | audit trail (ADR-0003) detects tampering when a row is altered with triggers disabled | 8 |
-| PASS | display-only posture (DM-P4) has no signature columns anywhere in the schema | 5 |
+| PASS | audit trail (ADR-0003) writes an attributed, chained event for every domain mutation | 5 |
+| PASS | audit trail (ADR-0003) verifies clean on untampered data | 2 |
+| PASS | audit trail (ADR-0003) detects tampering when a row is altered with triggers disabled | 5 |
+| PASS | display-only posture (DM-P4) has no signature columns anywhere in the schema | 3 |
 | PASS | display-only posture (DM-P4) stores deliverable evidence as an eTMF pointer, not content | 2 |
 
 ## packages/db/src/privileges.test.ts
 
 | Result | Test | ms |
 | --- | --- | ---: |
-| PASS | runtime role privilege ceilings (ADR-0003, DM-P3) cannot create tables (no DDL) | 23 |
-| PASS | runtime role privilege ceilings (ADR-0003, DM-P3) cannot INSERT audit_event directly (cannot fabricate audit) | 1 |
+| PASS | runtime role privilege ceilings (ADR-0003, DM-P3) cannot create tables (no DDL) | 24 |
+| PASS | runtime role privilege ceilings (ADR-0003, DM-P3) cannot INSERT audit_event directly (cannot fabricate audit) | 2 |
 | PASS | runtime role privilege ceilings (ADR-0003, DM-P3) cannot TRUNCATE domain tables | 1 |
 | PASS | runtime role privilege ceilings (ADR-0003, DM-P3) cannot UPDATE or DELETE metric_snapshot even before the trigger fires (DM-P3) | 2 |
 | PASS | runtime role privilege ceilings (ADR-0003, DM-P3) cannot UPDATE or DELETE milestone_rebaseline even before the trigger fires (ADR-0009) | 2 |
@@ -88,35 +98,41 @@ Suite result: **PASSED** — 83/83 tests passed.
 
 | Result | Test | ms |
 | --- | --- | ---: |
-| PASS | authentication rejects missing and unknown tokens | 6 |
-| PASS | authentication health is public and reports a verified audit chain | 11 |
-| PASS | role-scoped views over one set of facts (DM-P5) DM-P5: qa sees the whole portfolio; the sponsor seat sees only its study | 14 |
-| PASS | role-scoped views over one set of facts (DM-P5) DM-P5: the sponsor serialization carries no blocker notes; the DM lead's does | 9 |
+| PASS | authentication rejects missing and unknown tokens | 5 |
+| PASS | authentication health is public and reports a verified audit chain | 9 |
+| PASS | role-scoped views over one set of facts (DM-P5) DM-P5: qa sees the whole portfolio; the sponsor seat sees only its study | 26 |
+| PASS | role-scoped views over one set of facts (DM-P5) DM-P5: the sponsor serialization carries no blocker notes; the DM lead's does | 6 |
 | PASS | role-scoped views over one set of facts (DM-P5) DM-P6: the board is one read; planned/forecast/actual arrive as the triple, never collapsed | 3 |
 | PASS | milestone writes (ADR-0003, ADR-0008) read-only roles cannot write: clinops and sponsor get 403 | 4 |
-| PASS | milestone writes (ADR-0003, ADR-0008) the DM lead's write lands, returns the board row, and is audit-attributed to them | 29 |
+| PASS | milestone writes (ADR-0003, ADR-0008) the DM lead's write lands, returns the board row, and is audit-attributed to them | 19 |
 | PASS | milestone writes (ADR-0003, ADR-0008) ADR-0008: baseline_date and planned_date are not writable through the API | 1 |
 | PASS | milestone writes (ADR-0003, ADR-0008) 404s on a milestone occurrence the study does not have | 2 |
 | PASS | deliverable surface (ADR-0006) DM-P4: deliverables serve status and an eTMF pointer, never content or signatures | 2 |
-| PASS | deliverable surface (ADR-0006) DM-P5: deliverable reads are row-scoped; the sponsor seat sees its study only | 3 |
+| PASS | deliverable surface (ADR-0006) DM-P5: deliverable reads are row-scoped; the sponsor seat sees its study only | 2 |
 | PASS | deliverable surface (ADR-0006) DM-P6: read-only roles cannot write deliverable status; the DM lead's write is audit-attributed (ADR-0003) | 9 |
-| PASS | deliverable surface (ADR-0006) approving without an approved_date is rejected: approvals are dated facts (ADR-0006) | 2 |
-| PASS | deliverable surface (ADR-0006) ADR-0006: identity fields are not writable and unknown fields are rejected | 1 |
+| PASS | deliverable surface (ADR-0006) approving without an approved_date is rejected: approvals are dated facts (ADR-0006) | 3 |
+| PASS | deliverable surface (ADR-0006) ADR-0006: identity fields are not writable and unknown fields are rejected | 2 |
 | PASS | re-baselining governance (ADR-0009, ADR-0003) re-baselining is above routine edits: dm_lead, clinops, and sponsor get 403 | 2 |
 | PASS | re-baselining governance (ADR-0009, ADR-0003) DM-P6: the dm_manager's re-baseline moves planned_date, never baseline_date, and both writes are audit-attributed (ADR-0003) | 10 |
 | PASS | re-baselining governance (ADR-0009, ADR-0003) a complete milestone cannot be re-baselined; nor can one with a throwaway reason | 2 |
 | PASS | re-baselining governance (ADR-0009, ADR-0003) DM-P5: re-baseline history serves dates to everyone; reasons are omitted from the sponsor serialization | 2 |
 | PASS | re-baselining governance (ADR-0009, ADR-0003) 404s on a milestone the study does not have | 1 |
-| PASS | UAT cycles and defects (ADR-0010) DM-P4: UAT serves cycle status, counts, and an evidence pointer — never scripts, screenshots, or signatures | 4 |
-| PASS | UAT cycles and defects (ADR-0010) DM-P5: defect reads are row-scoped; the sponsor serialization omits resolution notes | 4 |
+| PASS | UAT cycles and defects (ADR-0010) DM-P4: UAT serves cycle status, counts, and an evidence pointer — never scripts, screenshots, or signatures | 3 |
+| PASS | UAT cycles and defects (ADR-0010) DM-P5: defect reads are row-scoped; the sponsor serialization omits resolution notes | 3 |
 | PASS | UAT cycles and defects (ADR-0010) DM-P6: the analyst's defect write lands and is audit-attributed (ADR-0003) | 10 |
-| PASS | UAT cycles and defects (ADR-0010) read-only roles cannot write UAT: clinops and sponsor get 403; the analyst is study-scoped | 2 |
-| PASS | UAT cycles and defects (ADR-0010) UAT.COMPLETE means defects resolved: completing a cycle with open defects is rejected (ADR-0010) | 14 |
-| PASS | UAT cycles and defects (ADR-0010) endings are dated facts: resolved without a date and closed without a substantive note are rejected | 5 |
-| PASS | UAT cycles and defects (ADR-0010) ADR-0010: identity fields are not writable, and a finished cycle takes no new defects | 2 |
-| PASS | metrics surface (DM-P1, DM-P2, DM-P3) DM-P2: every dictionary metric appears with its version and availability | 14 |
+| PASS | UAT cycles and defects (ADR-0010) read-only roles cannot write UAT: clinops and sponsor get 403; the analyst is study-scoped | 3 |
+| PASS | UAT cycles and defects (ADR-0010) UAT.COMPLETE means defects resolved: completing a cycle with open defects is rejected (ADR-0010) | 15 |
+| PASS | UAT cycles and defects (ADR-0010) endings are dated facts: resolved without a date and closed without a substantive note are rejected | 4 |
+| PASS | UAT cycles and defects (ADR-0010) ADR-0010: identity fields are not writable, and a finished cycle takes no new defects | 3 |
+| PASS | stat module (ADR-0011) DM-P5: the board serves analysis rows only where the module is enabled | 4 |
+| PASS | stat module (ADR-0011) DM-P6: the programmer's analysis-phase write lands and is audit-attributed (ADR-0003) | 6 |
+| PASS | stat module (ADR-0011) DM-P6: the biostatistician writes analysis milestones, but DM-phase milestones stay leadership-only | 5 |
+| PASS | stat module (ADR-0011) DM-P6: the analysis posture does not leak sideways — the analyst gets 403 on analysis milestones | 1 |
+| PASS | stat module (ADR-0011) analysis deliverable types accept the analysis posture; DM types do not (ADR-0011) | 6 |
+| PASS | stat module (ADR-0011) DM-P1: every dictionary metric on a stat-module study is still the dm set — no stat metrics exist until ADR-0012 ships | 13 |
+| PASS | metrics surface (DM-P1, DM-P2, DM-P3) DM-P2: every dictionary metric appears with its version and availability | 5 |
 | PASS | metrics surface (DM-P1, DM-P2, DM-P3) DM-P1: a study without a source reports adapter metrics unavailable, not zero | 4 |
-| PASS | metrics surface (DM-P1, DM-P2, DM-P3) DM-P3: snapshot history is served from immutable rows with extract lineage | 1 |
+| PASS | metrics surface (DM-P1, DM-P2, DM-P3) DM-P3: snapshot history is served from immutable rows with extract lineage | 2 |
 | PASS | metrics surface (DM-P1, DM-P2, DM-P3) DM-P3: study-grain history spans reporting periods, newest first | 1 |
 | PASS | metrics surface (DM-P1, DM-P2, DM-P3) DM-P2: the site drill-down serves the same versioned metric at site grain | 1 |
 | PASS | metrics surface (DM-P1, DM-P2, DM-P3) DM-P5: the site drill-down is row-scoped like every other read | 1 |

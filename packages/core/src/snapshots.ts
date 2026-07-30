@@ -29,7 +29,13 @@ export async function refreshStudyMetrics(
   studyId: string,
   period: { periodStart: string; periodEnd: string },
 ): Promise<RefreshResult> {
-  const specs = assertRegistryMatchesSpecs(loadSpecs());
+  // Metrics for a module the study has not enabled are out of scope, not
+  // skipped-with-reason: the module boundary hides them entirely (ADR-0011).
+  const [studyRow] = await sql`SELECT modules FROM study WHERE id = ${studyId}`;
+  const modules = (studyRow?.modules ?? ["dm"]) as string[];
+  const specs = assertRegistryMatchesSpecs(loadSpecs()).filter(({ spec }) =>
+    modules.includes(spec.module),
+  );
   const result: RefreshResult = {
     studyId,
     extractId: null,

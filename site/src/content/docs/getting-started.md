@@ -34,7 +34,7 @@ reconciliation blocked with a visible blocker note, and a CSV fixture source
 feeding four computed metrics. DMOPS-002 is in early startup with no source
 system, so its adapter metrics report unavailable instead of showing zeros.
 
-![The studies page: a portfolio table listing DMOPS-001 enrolling at 25 of 38 milestones with one blocked, and DMOPS-002 in startup, each with a progress bar and its next upcoming milestone](../../assets/screenshots/studies.png)
+![The studies page: a portfolio table listing DMOPS-001 enrolling at 27 of 50 milestones with one blocked, and DMOPS-002 in startup, each with a progress bar and its next upcoming milestone](../../assets/screenshots/studies.png)
 
 Re-seeding is destructive and regenerates every UUID, so treat the demo
 database as disposable. `pnpm db:reset` gets you back to this exact state.
@@ -47,6 +47,8 @@ their study assignments:
 | `dev-dmlead-token` | Maya Okafor, DM lead | Full board, can edit |
 | `dev-manager-token` | Daniel Reyes, DM manager | Full board, can edit, can re-baseline |
 | `dev-analyst-token` | Priya Natarajan, analyst | Full board, writes UAT but not milestones |
+| `dev-programmer-token` | Tomas Lindqvist, programmer | Writes analysis-phase milestones on stat-module studies |
+| `dev-biostat-token` | Omar Haddad, biostatistician | Writes analysis-phase milestones and analysis deliverables |
 | `dev-clinops-token` | Grace Liu, ClinOps | Read-only |
 | `dev-sponsor-token` | Sylvia Tran, sponsor | Curated view, no internal notes |
 | `dev-qa-token` | Ruth Adler, QA | Whole portfolio, read-only |

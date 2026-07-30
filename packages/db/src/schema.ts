@@ -57,7 +57,12 @@ export const phaseGroup = pgEnum("phase_group", [
   "startup_release",
   "conduct",
   "closeout",
+  "analysis",
 ]);
+
+// Discipline modules (ADR-0011): 'dm' is the base product; a study opts into
+// the rest via study.modules.
+export const moduleName = pgEnum("module", ["dm", "stat"]);
 
 export const deliverableStatus = pgEnum("deliverable_status", [
   "draft",
@@ -115,6 +120,9 @@ export const study = pgTable("study", {
   indication: text("indication"),
   therapeuticArea: text("therapeutic_area"),
   status: studyStatus("status").notNull().default("planning"),
+  // Enabled discipline modules (ADR-0011); 'dm' is always present (CHECK in
+  // migrations/0005). Board and metrics reads filter on this.
+  modules: moduleName("modules").array().notNull().default(["dm"]),
   dmLeadId: uuid("dm_lead_id").references(() => person.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -160,6 +168,7 @@ export const milestoneDefinition = pgTable("milestone_definition", {
   code: text("code").primaryKey(),
   label: text("label").notNull(),
   phaseGroup: phaseGroup("phase_group").notNull(),
+  module: moduleName("module").notNull().default("dm"),
   sequence: integer("sequence").notNull(),
   defaultOwnerRole: assignmentRole("default_owner_role").notNull().default("dm_lead"),
   dependsOn: text("depends_on").array().notNull().default([]),

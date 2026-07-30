@@ -9,6 +9,9 @@ export interface Persona {
   canWriteMilestones: boolean;
   // UAT writes are open to analysts too (ADR-0010) — wider than milestones.
   canWriteUat: boolean;
+  // Analysis-phase milestones and analysis deliverable types are open to
+  // programmer/biostat on stat-module studies (ADR-0011).
+  canWriteAnalysis: boolean;
 }
 
 export const personas: Persona[] = [
@@ -17,42 +20,63 @@ export const personas: Persona[] = [
     label: "Maya Okafor — DM lead",
     canWriteMilestones: true,
     canWriteUat: true,
+    canWriteAnalysis: true,
   },
   {
     token: "dev-manager-token",
     label: "Daniel Reyes — DM manager",
     canWriteMilestones: true,
     canWriteUat: true,
+    canWriteAnalysis: true,
   },
   {
     token: "dev-analyst-token",
     label: "Priya Natarajan — Analyst (UAT)",
     canWriteMilestones: false,
     canWriteUat: true,
+    canWriteAnalysis: false,
+  },
+  {
+    token: "dev-programmer-token",
+    label: "Tomas Lindqvist — Programmer (analysis)",
+    canWriteMilestones: false,
+    canWriteUat: false,
+    canWriteAnalysis: true,
+  },
+  {
+    token: "dev-biostat-token",
+    label: "Omar Haddad — Biostatistician (analysis)",
+    canWriteMilestones: false,
+    canWriteUat: false,
+    canWriteAnalysis: true,
   },
   {
     token: "dev-clinops-token",
     label: "Grace Liu — ClinOps (read-only)",
     canWriteMilestones: false,
     canWriteUat: false,
+    canWriteAnalysis: false,
   },
   {
     token: "dev-sponsor-token",
     label: "Sylvia Tran — Sponsor (curated view)",
     canWriteMilestones: false,
     canWriteUat: false,
+    canWriteAnalysis: false,
   },
   {
     token: "dev-qa-token",
     label: "Ruth Adler — QA (portfolio, read-only)",
     canWriteMilestones: false,
     canWriteUat: false,
+    canWriteAnalysis: false,
   },
   {
     token: "dev-admin-token",
     label: "Alex Admin — Admin",
     canWriteMilestones: true,
     canWriteUat: true,
+    canWriteAnalysis: true,
   },
 ];
 

@@ -201,3 +201,95 @@ milestones:
     phase_group: closeout
     sequence: 380
     depends_on: [CLOSE.TRANSFER]
+
+  # --- Analysis & Reporting (stat module, ADR-0011) ---------------------------
+  # Only instantiated on studies that enable the stat module. The Git
+  # repository holds the programs, reviews, and run evidence; these codes
+  # track operational status only. A stat-module study marks BUILD.DATASETS
+  # na in favor of STAT.SDTM.PROD / STAT.ADAM.PROD (guidance, not automation).
+  - code: STAT.SAP.APPROVED
+    label: Statistical Analysis Plan approved
+    phase_group: analysis
+    module: stat
+    sequence: 400
+    default_owner_role: biostat
+  - code: STAT.SDTM.PROD
+    label: SDTM production datasets complete
+    phase_group: analysis
+    module: stat
+    sequence: 410
+    default_owner_role: programmer
+    depends_on: [SPEC.SDTM]
+  - code: STAT.SDTM.QC
+    label: SDTM QC / double programming complete
+    phase_group: analysis
+    module: stat
+    sequence: 420
+    default_owner_role: programmer
+    depends_on: [STAT.SDTM.PROD]
+  - code: STAT.ADAM.SPEC
+    label: ADaM specification approved
+    phase_group: analysis
+    module: stat
+    sequence: 430
+    default_owner_role: biostat
+    depends_on: [STAT.SAP.APPROVED, SPEC.SDTM]
+  - code: STAT.ADAM.PROD
+    label: ADaM production datasets complete
+    phase_group: analysis
+    module: stat
+    sequence: 440
+    default_owner_role: programmer
+    depends_on: [STAT.ADAM.SPEC, STAT.SDTM.PROD]
+  - code: STAT.ADAM.QC
+    label: ADaM QC / double programming complete
+    phase_group: analysis
+    module: stat
+    sequence: 450
+    default_owner_role: programmer
+    depends_on: [STAT.ADAM.PROD]
+  - code: STAT.TLF.SHELLS
+    label: TLF shells approved
+    phase_group: analysis
+    module: stat
+    sequence: 460
+    default_owner_role: biostat
+    depends_on: [STAT.SAP.APPROVED]
+  - code: STAT.TLF.PROD
+    label: TLF production complete
+    phase_group: analysis
+    module: stat
+    sequence: 470
+    default_owner_role: programmer
+    depends_on: [STAT.TLF.SHELLS, STAT.ADAM.PROD]
+  - code: STAT.TLF.QC
+    label: TLF QC / double programming complete
+    phase_group: analysis
+    module: stat
+    sequence: 480
+    default_owner_role: programmer
+    depends_on: [STAT.TLF.PROD]
+  - code: STAT.DRYRUN
+    label: Analysis dry run complete
+    phase_group: analysis
+    module: stat
+    sequence: 490
+    default_owner_role: programmer
+    depends_on: [STAT.ADAM.PROD, STAT.TLF.PROD]
+  - code: STAT.DELIVER.INTERIM
+    label: Interim analysis delivered
+    phase_group: analysis
+    module: stat
+    sequence: 500
+    default_owner_role: biostat
+    depends_on: [COND.INTERIM]
+    is_repeating: true
+  # CLOSE.TRANSFER is the handoff joint: final delivery depending on it wires
+  # DM closeout and analysis delivery together on one board (ADR-0011).
+  - code: STAT.DELIVER.FINAL
+    label: Final analysis delivered
+    phase_group: analysis
+    module: stat
+    sequence: 510
+    default_owner_role: biostat
+    depends_on: [CLOSE.TRANSFER, STAT.SDTM.QC, STAT.ADAM.QC, STAT.TLF.QC]

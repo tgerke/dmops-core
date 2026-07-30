@@ -1,8 +1,10 @@
 export { withActor, type Actor } from "./actor.js";
 export {
+  ANALYSIS_DELIVERABLE_TYPES,
   assignmentsFor,
   canReadStudy,
   canRebaseline,
+  canWriteAnalysis,
   canWriteDeliverables,
   canWriteMilestones,
   canWriteUat,

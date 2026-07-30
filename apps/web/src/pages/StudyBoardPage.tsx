@@ -30,7 +30,14 @@ const phaseGroups: [string, string][] = [
   ["startup_release", "Startup — Validation & Release"],
   ["conduct", "Conduct"],
   ["closeout", "Closeout"],
+  // Only stat-module studies serve analysis rows (ADR-0011); empty groups are
+  // skipped, so DM-only boards never show this section.
+  ["analysis", "Analysis & Reporting"],
 ];
+
+// Analysis deliverable types accept the analysis write posture (ADR-0011);
+// mirrors ANALYSIS_DELIVERABLE_TYPES in @dmops/core — the server enforces.
+const analysisDeliverableTypes = new Set(["sap", "adam_spec", "tlf_shells"]);
 
 export function StudyBoardPage() {
   const { studyId } = useParams<{ studyId: string }>();
@@ -272,7 +279,10 @@ function DeliverableRow({
   const [editing, setEditing] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const canWrite = currentPersona().canWriteMilestones;
+  const persona = currentPersona();
+  const canWrite =
+    persona.canWriteMilestones ||
+    (analysisDeliverableTypes.has(row.type) && persona.canWriteAnalysis);
 
   const save = async (patch: Record<string, unknown>) => {
     try {
@@ -791,7 +801,9 @@ function MilestoneRow({
 }) {
   const [editing, setEditing] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const canWrite = currentPersona().canWriteMilestones;
+  const persona = currentPersona();
+  const canWrite =
+    persona.canWriteMilestones || (row.phase_group === "analysis" && persona.canWriteAnalysis);
 
   const save = async (patch: Record<string, unknown>) => {
     try {

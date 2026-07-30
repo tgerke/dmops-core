@@ -50,6 +50,7 @@ const PHASE_GROUPS = [
   ["startup_release", "Startup — Validation & Release"],
   ["conduct", "Conduct"],
   ["closeout", "Closeout"],
+  ["analysis", "Analysis & Reporting"],
 ];
 
 const taxonomy = parse(readFileSync(join(repoRoot, "taxonomy/milestone_definitions.yaml"), "utf8"));
@@ -64,6 +65,7 @@ const sections = PHASE_GROUPS.map(([group, label]) => {
       const notes = [
         m.is_repeating ? "repeating" : null,
         m.default_owner_role ? `default owner: ${m.default_owner_role}` : null,
+        m.module && m.module !== "dm" ? `module: ${m.module}` : null,
       ]
         .filter(Boolean)
         .join(" · ");
@@ -89,7 +91,7 @@ description: The ${milestones.length} governed milestone codes, by phase group, 
 
 Every milestone on a study board comes from this governed list ([ADR-0008](/dmops-core/reference/decisions/0008-governed-milestone-taxonomy/)). Codes are stable identifiers; labels can be re-worded. Studies may mark milestones N/A but may not invent codes outside the taxonomy. Changes to the list are pull requests against \`taxonomy/milestone_definitions.yaml\`, reviewed like code, and applied with \`pnpm db:sync-taxonomy\`. Codes are never deleted, only retired.
 
-A **Depends on** entry means the milestone cannot sensibly complete before its dependencies; the board uses it for ordering, not enforcement. **Repeating** milestones (protocol amendments, interim locks) can occur more than once per study, tracked by occurrence number.
+A **Depends on** entry means the milestone cannot sensibly complete before its dependencies; the board uses it for ordering, not enforcement. **Repeating** milestones (protocol amendments, interim locks) can occur more than once per study, tracked by occurrence number. Codes tagged **module: stat** exist only on studies that enable the statistical programming module ([ADR-0011](/dmops-core/reference/decisions/0011-stat-programming-as-an-opt-in-module/)); everything else is the \`dm\` base product.
 
 ${sections.join("\n")}`;
 

@@ -55,7 +55,7 @@ describe("authentication", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.audit_chain_verified).toBe(true);
-    expect(body.migrations).toBe(5);
+    expect(body.migrations).toBe(6);
   });
 });
 
@@ -170,7 +170,7 @@ describe("deliverable surface (ADR-0006)", () => {
     const res = await get(`/studies/${study1}/deliverables`, "dev-dmlead-token");
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.deliverables.length).toBe(3);
+    expect(body.deliverables.length).toBe(6);
     const dmp = body.deliverables.find((d: { type: string }) => d.type === "dmp");
     expect(dmp.status).toBe("approved");
     expect(dmp.etmf_uri).toMatch(/ctms\.example\/tmf/);
@@ -185,7 +185,7 @@ describe("deliverable surface (ADR-0006)", () => {
     const sponsor = await get(`/studies/${study1}/deliverables`, "dev-sponsor-token");
     expect(sponsor.status).toBe(200);
     const body = await sponsor.json();
-    expect(body.deliverables.length).toBe(3);
+    expect(body.deliverables.length).toBe(6);
     expect(body.deliverables[0].etmf_uri).not.toBeUndefined();
     expect((await get(`/studies/${study2}/deliverables`, "dev-sponsor-token")).status).toBe(403);
     expect((await get(`/studies/${study2}/deliverables`, "dev-qa-token")).status).toBe(200);
@@ -529,6 +529,100 @@ describe("UAT cycles and defects (ADR-0010)", () => {
       },
     );
     expect(late.status).toBe(400);
+  });
+});
+
+describe("stat module (ADR-0011)", () => {
+  it("DM-P5: the board serves analysis rows only where the module is enabled", async () => {
+    const stat = await (await get(`/studies/${study1}/milestones`, "dev-dmlead-token")).json();
+    const analysis = stat.milestones.filter(
+      (m: { phase_group: string }) => m.phase_group === "analysis",
+    );
+    expect(analysis.length).toBe(12);
+    expect(analysis.map((m: { code: string }) => m.code)).toContain("STAT.DELIVER.FINAL");
+
+    // DMOPS-002 never enabled stat: no analysis section, no permanently
+    // hidden rows — the codes simply do not exist on this study.
+    const dmOnly = await (await get(`/studies/${study2}/milestones`, "dev-qa-token")).json();
+    expect(
+      dmOnly.milestones.some((m: { phase_group: string }) => m.phase_group === "analysis"),
+    ).toBe(false);
+  });
+
+  it("DM-P6: the programmer's analysis-phase write lands and is audit-attributed (ADR-0003)", async () => {
+    const res = await patch(
+      `/studies/${study1}/milestones/STAT.SDTM.PROD`,
+      "dev-programmer-token",
+      { forecast_date: "2026-08-24" },
+    );
+    expect(res.status).toBe(200);
+    expect((await res.json()).forecast_date).toBe("2026-08-24");
+
+    const [event] = await owner`
+      SELECT * FROM audit_event
+      WHERE action = 'study_milestone.update' ORDER BY id DESC LIMIT 1`;
+    expect(event!.actor_label).toMatch(/Tomas Lindqvist/);
+
+    // restore for repeatable local runs (also audited)
+    await patch(`/studies/${study1}/milestones/STAT.SDTM.PROD`, "dev-programmer-token", {
+      forecast_date: "2026-08-21",
+    });
+  });
+
+  it("DM-P6: the biostatistician writes analysis milestones, but DM-phase milestones stay leadership-only", async () => {
+    const analysisWrite = await patch(
+      `/studies/${study1}/milestones/STAT.TLF.SHELLS`,
+      "dev-biostat-token",
+      { forecast_date: "2026-08-13" },
+    );
+    expect(analysisWrite.status).toBe(200);
+    await patch(`/studies/${study1}/milestones/STAT.TLF.SHELLS`, "dev-biostat-token", {
+      forecast_date: "2026-08-12",
+    });
+
+    for (const token of ["dev-biostat-token", "dev-programmer-token"]) {
+      const dmWrite = await patch(`/studies/${study1}/milestones/CLOSE.SDV`, token, {
+        status: "in_progress",
+      });
+      expect(dmWrite.status).toBe(403);
+    }
+  });
+
+  it("DM-P6: the analysis posture does not leak sideways — the analyst gets 403 on analysis milestones", async () => {
+    const res = await patch(`/studies/${study1}/milestones/STAT.SDTM.QC`, "dev-analyst-token", {
+      status: "in_progress",
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it("analysis deliverable types accept the analysis posture; DM types do not (ADR-0011)", async () => {
+    const all = (await (await get(`/studies/${study1}/deliverables`, "dev-biostat-token")).json())
+      .deliverables;
+    const shells = all.find((d: { type: string }) => d.type === "tlf_shells");
+    const dmp = all.find((d: { type: string }) => d.type === "dmp");
+
+    const allowed = await patch(
+      `/studies/${study1}/deliverables/${shells.id}`,
+      "dev-biostat-token",
+      { version: "0.4" },
+    );
+    expect(allowed.status).toBe(200);
+    expect((await allowed.json()).version).toBe("0.4");
+    await patch(`/studies/${study1}/deliverables/${shells.id}`, "dev-biostat-token", {
+      version: "0.3",
+    });
+
+    const denied = await patch(`/studies/${study1}/deliverables/${dmp.id}`, "dev-biostat-token", {
+      version: "2.1",
+    });
+    expect(denied.status).toBe(403);
+  });
+
+  it("DM-P1: every dictionary metric on a stat-module study is still the dm set — no stat metrics exist until ADR-0012 ships", async () => {
+    const res = await get(`/studies/${study1}/metrics`, "dev-biostat-token");
+    expect(res.status).toBe(200);
+    const ids = (await res.json()).metrics.map((m: { metric_id: string }) => m.metric_id).sort();
+    expect(ids).toEqual(["entry_lag", "milestone_slip", "query_open_aging", "query_tat_median"]);
   });
 });
 

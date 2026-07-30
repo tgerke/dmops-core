@@ -36,6 +36,13 @@
       "when": 1785400004000,
       "tag": "0004_uat_defects",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785400005000,
+      "tag": "0005_stat_module",
+      "breakpoints": true
     }
   ]
 }

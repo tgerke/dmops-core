@@ -1,5 +1,6 @@
 import { getAdapter } from "@dmops/adapters";
 import {
+  ANALYSIS_DELIVERABLE_TYPES,
   type BoardRow,
   DeliverableError,
   type DeliverableRow,
@@ -10,6 +11,7 @@ import {
   UatError,
   canReadStudy,
   canRebaseline,
+  canWriteAnalysis,
   canWriteDeliverables,
   canWriteMilestones,
   canWriteUat,
@@ -245,7 +247,11 @@ export function buildApp(sql: Sql) {
           "Invalid patch — planned_date and baseline_date are not writable here; " +
             "the plan moves only via POST .../rebaseline (ADR-0008, ADR-0009)",
         ),
-        403: json(ErrorSchema, "Milestone writes require DM leadership on the study"),
+        403: json(
+          ErrorSchema,
+          "Milestone writes require DM leadership on the study; analysis-phase " +
+            "milestones also accept programmer or biostat assignments (ADR-0011)",
+        ),
         404: json(ErrorSchema, "No such milestone on this study"),
       },
     }),
@@ -253,9 +259,23 @@ export function buildApp(sql: Sql) {
       const { studyId, code } = c.req.valid("param");
       const { occurrence } = c.req.valid("query");
       const assignments = c.get("assignments");
-      if (!canWriteMilestones(assignments, studyId)) {
+      // Phase-scoped write posture (ADR-0011): analysis-phase milestones
+      // belong to the team doing the work (DM-P6); DM phases stay
+      // leadership-only.
+      const [def] = await sql`
+        SELECT phase_group FROM milestone_definition WHERE code = ${code}`;
+      const allowed =
+        def?.phase_group === "analysis"
+          ? canWriteAnalysis(assignments, studyId)
+          : canWriteMilestones(assignments, studyId);
+      if (!allowed) {
         return c.json(
-          { error: "milestone writes require a dm_lead, dm_manager, or admin assignment" },
+          {
+            error:
+              def?.phase_group === "analysis"
+                ? "analysis milestone writes require a dm_lead, dm_manager, programmer, biostat, or admin assignment"
+                : "milestone writes require a dm_lead, dm_manager, or admin assignment",
+          },
           403,
         );
       }
@@ -417,15 +437,34 @@ export function buildApp(sql: Sql) {
           "Updated deliverable (write audited via withActor, ADR-0003; status and pointer only, ADR-0006)",
         ),
         400: json(ErrorSchema, "Invalid patch, or approved without an approved_date"),
-        403: json(ErrorSchema, "Deliverable writes require DM leadership on the study"),
+        403: json(
+          ErrorSchema,
+          "Deliverable writes require DM leadership on the study; analysis " +
+            "deliverable types also accept programmer or biostat assignments (ADR-0011)",
+        ),
         404: json(ErrorSchema, "No such deliverable on this study"),
       },
     }),
     async (c) => {
       const { studyId, deliverableId } = c.req.valid("param");
-      if (!canWriteDeliverables(c.get("assignments"), studyId)) {
+      // Analysis deliverable types take the phase-scoped predicate
+      // (ADR-0011); a missing row falls through to the DM predicate and then
+      // 404s for writers, so non-writers cannot probe existence.
+      const [existing] = await sql`
+        SELECT type FROM deliverable WHERE id = ${deliverableId} AND study_id = ${studyId}`;
+      const isAnalysisType = existing
+        ? ANALYSIS_DELIVERABLE_TYPES.has(existing.type as string)
+        : false;
+      const allowed = isAnalysisType
+        ? canWriteAnalysis(c.get("assignments"), studyId)
+        : canWriteDeliverables(c.get("assignments"), studyId);
+      if (!allowed) {
         return c.json(
-          { error: "deliverable writes require a dm_lead, dm_manager, or admin assignment" },
+          {
+            error: isAnalysisType
+              ? "analysis deliverable writes require a dm_lead, dm_manager, programmer, biostat, or admin assignment"
+              : "deliverable writes require a dm_lead, dm_manager, or admin assignment",
+          },
           403,
         );
       }
@@ -704,7 +743,14 @@ export function buildApp(sql: Sql) {
       const denied = requireRead(c.get("assignments"), studyId);
       if (denied) return c.json(denied, 403);
 
-      const specs = assertRegistryMatchesSpecs(loadSpecs());
+      // The module boundary hides other modules' metrics entirely — no
+      // permanent "unavailable" rows for a module the study never enabled
+      // (ADR-0011).
+      const [studyRow] = await sql`SELECT modules FROM study WHERE id = ${studyId}`;
+      const modules = (studyRow?.modules ?? ["dm"]) as string[];
+      const specs = assertRegistryMatchesSpecs(loadSpecs()).filter(({ spec }) =>
+        modules.includes(spec.module),
+      );
       const [source] = await sql`
         SELECT adapter FROM study_source WHERE study_id = ${studyId} AND active`;
       const capabilities = source ? getAdapter(source.adapter as string).capabilities() : null;

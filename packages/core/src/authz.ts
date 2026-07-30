@@ -65,6 +65,33 @@ export function canWriteUat(assignments: Assignment[], studyId: string): boolean
 }
 
 /**
+ * Deliverable types owned by the analysis phase (ADR-0011); status writes on
+ * these accept the analysis predicate. sdtm_spec stays DM: SPEC.SDTM is a
+ * dm-module startup milestone.
+ */
+export const ANALYSIS_DELIVERABLE_TYPES: ReadonlySet<string> = new Set([
+  "sap",
+  "adam_spec",
+  "tlf_shells",
+]);
+
+/**
+ * Analysis-phase writes (ADR-0011): DM leadership plus programmer or biostat
+ * assigned to the study — the taxonomy's default owners for STAT.* codes, and
+ * DM-P6 keeps data entry where the work happens. Applies to analysis-phase
+ * milestones and analysis deliverable types; DM-phase milestones remain
+ * leadership-only via canWriteMilestones.
+ */
+export function canWriteAnalysis(assignments: Assignment[], studyId: string): boolean {
+  return (
+    canWriteMilestones(assignments, studyId) ||
+    assignments.some(
+      (a) => a.studyId === studyId && (a.role === "programmer" || a.role === "biostat"),
+    )
+  );
+}
+
+/**
  * Re-baselining (ADR-0009): deliberately stricter than milestone writes —
  * moving the plan is governance, not an edit. dm_lead moves forecasts only.
  */

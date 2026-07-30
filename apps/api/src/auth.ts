@@ -55,6 +55,16 @@ export function configureTokens(): void {
     email: "priya.natarajan@pmo.example",
     roleLabel: "analyst",
   });
+  // Programmer and biostat write analysis-phase milestones and analysis
+  // deliverable types on stat-module studies (ADR-0011).
+  tokenToEmail.set(process.env.DMOPS_TOKEN_PROGRAMMER ?? "dev-programmer-token", {
+    email: "tomas.lindqvist@pmo.example",
+    roleLabel: "programmer",
+  });
+  tokenToEmail.set(process.env.DMOPS_TOKEN_BIOSTAT ?? "dev-biostat-token", {
+    email: "omar.haddad@pmo.example",
+    roleLabel: "biostat",
+  });
   tokenToEmail.set(process.env.DMOPS_TOKEN_CLINOPS ?? "dev-clinops-token", {
     email: "grace.liu@pmo.example",
     roleLabel: "ClinOps",

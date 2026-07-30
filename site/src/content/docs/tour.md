@@ -12,7 +12,7 @@ works on any fresh seed.
 ## 1. Read the portfolio
 
 Open http://localhost:5175 as **Maya Okafor — DM lead** (the default).
-DMOPS-001 is enrolling, 25 of 38 milestones complete, one blocked;
+DMOPS-001 is enrolling, 27 of 50 milestones complete, one blocked;
 DMOPS-002 is barely started. The progress bars and "next up" column are
 derived roll-ups; nobody maintains them.
 
@@ -21,7 +21,10 @@ derived roll-ups; nobody maintains them.
 ## 2. Read a board top to bottom
 
 Click **DMOPS-001**. The board stacks the metrics strip, deliverables, UAT
-cycles, and five milestone tables grouped by phase.
+cycles, and six milestone tables grouped by phase, ending with Analysis &
+Reporting because this study runs the stat module
+([ADR-0011](/dmops-core/reference/decisions/0011-stat-programming-as-an-opt-in-module/));
+DMOPS-002 never enabled it, so its board stops at Closeout.
 
 ![DMOPS-001's full board as the DM lead: the four-card metrics strip, the deliverables table, two UAT cycles expanded to their defect tables, and the phase-grouped milestone tables below](../../assets/screenshots/study-board.png)
 

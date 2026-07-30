@@ -7,8 +7,10 @@
  * DMOPS-001 is mid-conduct — startup complete (with honest slips), an
  * amendment in flight, interim lock on the horizon, SAE reconciliation
  * blocked — and wired to the CSV fixture study so the metrics strip is live
- * on first boot. DMOPS-002 is in startup with almost nothing done, so the
- * board's early-life state is visible too.
+ * on first boot. It also runs the stat module (ADR-0011): analysis work is
+ * in flight toward the September interim, so the phase-scoped write posture
+ * is demoable. DMOPS-002 is DM-only and in startup with almost nothing done,
+ * so the board's early-life state and the module-off posture are visible too.
  *
  * All writes are audit-attributed to 'seed' (ADR-0003). Person and study ids
  * regenerate on every run.
@@ -88,13 +90,15 @@ const [meridian] = await withSeedActor(
   (tx) => tx`INSERT INTO sponsor (name) VALUES ('Meridian Oncology') RETURNING id`,
 );
 
+// DMOPS-001 runs analysis in house, so the stat module is on (ADR-0011).
 const [study1] = await withSeedActor(
   (tx) => tx`
     INSERT INTO study
-      (protocol_number, short_title, sponsor_id, phase, indication, therapeutic_area, status, dm_lead_id)
+      (protocol_number, short_title, sponsor_id, phase, indication, therapeutic_area, status, dm_lead_id, modules)
     VALUES
       ('DMOPS-001', 'Abiraterone combination in metastatic prostate cancer',
-       ${meridian!.id}, '2', 'Metastatic prostate cancer', 'Oncology', 'enrolling', ${maya.id})
+       ${meridian!.id}, '2', 'Metastatic prostate cancer', 'Oncology', 'enrolling', ${maya.id},
+       '{dm,stat}'::module[])
     RETURNING id`,
 );
 const [study2] = await withSeedActor(
@@ -146,6 +150,7 @@ const ownerByRole: Record<string, string> = {
   dm_manager: daniel.id,
   analyst: priya.id,
   programmer: tomas.id,
+  biostat: omar.id,
 };
 
 interface MilestoneSeed {
@@ -230,6 +235,35 @@ const study1Milestones: Record<string, MilestoneSeed> = {
   "CLOSE.LOCK": { baseline: "2027-04-26", status: "not_started" },
   "CLOSE.TRANSFER": { baseline: "2027-04-28", status: "not_started" },
   "CLOSE.ARCHIVE": { baseline: "2027-06-01", status: "not_started" },
+  // Analysis phase (stat module, ADR-0011): SAP and ADaM spec approved,
+  // production programming in flight toward the September interim. The SAP
+  // completion sits in May with slip +4, matching COND.FPI, so the seeded May
+  // milestone_slip median stays 4; no analysis completion lands in June (the
+  // hand-computed qualification period). BUILD.DATASETS stays complete: it
+  // landed in April, before the module was enabled, and history is history —
+  // the "mark it na" guidance applies prospectively.
+  "STAT.SAP.APPROVED": {
+    baseline: "2026-05-25",
+    actual: "2026-05-29",
+    status: "complete",
+    evidence: "https://ctms.example/tmf/DMOPS-001/sap",
+  },
+  "STAT.SDTM.PROD": { baseline: "2026-08-14", forecast: "2026-08-21", status: "in_progress" },
+  "STAT.SDTM.QC": { baseline: "2026-08-28", status: "not_started" },
+  "STAT.ADAM.SPEC": {
+    baseline: "2026-07-06",
+    actual: "2026-07-10",
+    status: "complete",
+    evidence: "https://ctms.example/tmf/DMOPS-001/adam-spec",
+  },
+  "STAT.ADAM.PROD": { baseline: "2026-09-04", status: "not_started" },
+  "STAT.ADAM.QC": { baseline: "2026-09-11", status: "not_started" },
+  "STAT.TLF.SHELLS": { baseline: "2026-08-10", forecast: "2026-08-12", status: "in_progress" },
+  "STAT.TLF.PROD": { baseline: "2026-09-18", status: "not_started" },
+  "STAT.TLF.QC": { baseline: "2026-09-24", status: "not_started" },
+  "STAT.DRYRUN": { baseline: "2026-09-25", status: "not_started" },
+  "STAT.DELIVER.INTERIM": { baseline: "2026-09-29", status: "not_started" },
+  "STAT.DELIVER.FINAL": { baseline: "2027-05-14", status: "not_started" },
 };
 
 // DMOPS-002: startup barely begun.
@@ -241,8 +275,11 @@ const study2Milestones: Record<string, MilestoneSeed> = {
 async function instantiateMilestones(
   studyId: string,
   seeds: Record<string, MilestoneSeed>,
+  modules: string[] = ["dm"],
 ): Promise<void> {
-  for (const def of loadTaxonomy()) {
+  // Instantiation is module-filtered (ADR-0011): a study never carries rows
+  // for codes in a module it has not enabled.
+  for (const def of loadTaxonomy().filter((d) => modules.includes(d.module))) {
     const s = seeds[def.code] ?? {};
     const baseline = s.baseline ?? null;
     await withSeedActor(
@@ -260,7 +297,7 @@ async function instantiateMilestones(
   }
 }
 
-await instantiateMilestones(study1Id, study1Milestones);
+await instantiateMilestones(study1Id, study1Milestones, ["dm", "stat"]);
 await instantiateMilestones(study2Id, study2Milestones);
 
 // --- deliverables (status + eTMF pointer only, ADR-0006) ---------------------
@@ -274,6 +311,11 @@ await withSeedActor(
        'https://ctms.example/tmf/DMOPS-001/edit-checks', ${priya.id}),
       (${study1Id}, 'sdtm_spec', 'SDTM Mapping Specification', '0.9', 'in_review', NULL,
        'https://ctms.example/tmf/DMOPS-001/sdtm-spec', ${tomas.id}),
+      (${study1Id}, 'sap', 'Statistical Analysis Plan', '1.0', 'approved', '2026-05-29',
+       'https://ctms.example/tmf/DMOPS-001/sap', ${omar.id}),
+      (${study1Id}, 'adam_spec', 'ADaM Specification', '1.0', 'approved', '2026-07-10',
+       'https://ctms.example/tmf/DMOPS-001/adam-spec', ${omar.id}),
+      (${study1Id}, 'tlf_shells', 'TLF Shells', '0.3', 'in_review', NULL, NULL, ${omar.id}),
       (${study2Id}, 'dmp', 'Data Management Plan', '0.2', 'draft', NULL, NULL, ${maya.id})`,
 );
 
@@ -359,6 +401,7 @@ console.log(
   "dev tokens: dev-dmlead-token (Maya), dev-manager-token (Daniel), dev-analyst-token (Priya),",
 );
 console.log(
-  "            dev-clinops-token (Grace), dev-sponsor-token (Sylvia), dev-qa-token (Ruth), dev-admin-token (Alex)",
+  "            dev-programmer-token (Tomas), dev-biostat-token (Omar), dev-clinops-token (Grace),",
 );
+console.log("            dev-sponsor-token (Sylvia), dev-qa-token (Ruth), dev-admin-token (Alex)");
 await sql.end();
