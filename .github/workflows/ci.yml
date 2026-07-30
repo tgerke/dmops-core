@@ -1,0 +1,60 @@
+# The five-minute-demo path is itself CI-verified: migrate + seed run against
+# the service Postgres before the suite, so a clone that cannot reach a
+# working seeded state fails here first.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dmops
+          POSTGRES_PASSWORD: dmops
+          POSTGRES_DB: dmops
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U dmops -d dmops"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DMOPS_DATABASE_URL: postgres://dmops:dmops@localhost:5434/dmops
+      DMOPS_AUTH_MODE: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        # version is taken from packageManager in package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Migrate and seed (the demo path)
+        run: pnpm db:migrate && pnpm db:seed
+
+      - name: Test
+        run: pnpm test
+
+      - name: Installation qualification
+        run: pnpm validation:iq
+
+      - name: Build web
+        run: pnpm --filter @dmops/web build

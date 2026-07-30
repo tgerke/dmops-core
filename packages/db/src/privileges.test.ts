@@ -37,14 +37,16 @@ describe("runtime role privilege ceilings (ADR-0003, DM-P3)", () => {
   it("still audits writes it is allowed to make, attributed via withActor settings", async () => {
     // dmops_app CAN write domain tables — that is its job; the point is the
     // write leaves a chained audit event it cannot alter.
-    await app.begin(async (tx) => {
-      await tx`SELECT set_config('dmops.actor_label', 'privilege-probe', true)`;
-      await tx`INSERT INTO sponsor (name) VALUES ('Privilege Probe Sponsor')`;
-      const [event] = await tx`SELECT * FROM audit_event ORDER BY id DESC LIMIT 1`;
-      expect(event!.actor_label).toBe("privilege-probe");
-      throw new Error("rollback");
-    }).catch((e) => {
-      if ((e as Error).message !== "rollback") throw e;
-    });
+    await app
+      .begin(async (tx) => {
+        await tx`SELECT set_config('dmops.actor_label', 'privilege-probe', true)`;
+        await tx`INSERT INTO sponsor (name) VALUES ('Privilege Probe Sponsor')`;
+        const [event] = await tx`SELECT * FROM audit_event ORDER BY id DESC LIMIT 1`;
+        expect(event!.actor_label).toBe("privilege-probe");
+        throw new Error("rollback");
+      })
+      .catch((e) => {
+        if ((e as Error).message !== "rollback") throw e;
+      });
   });
 });

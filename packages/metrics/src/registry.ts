@@ -29,7 +29,9 @@ export function assertRegistryMatchesSpecs(specs: LoadedSpec[] = loadSpecs()): L
   const fromSpecs = new Set(specs.map((s) => `${s.spec.id}@${s.spec.version}`));
   for (const key of fromSpecs) {
     if (!registry.has(key)) {
-      throw new Error(`metric ${key} is defined in metrics/ but has no registered compute function`);
+      throw new Error(
+        `metric ${key} is defined in metrics/ but has no registered compute function`,
+      );
     }
   }
   for (const key of registry.keys()) {

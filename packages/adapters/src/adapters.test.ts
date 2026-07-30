@@ -46,7 +46,11 @@ const edcQueries = [
     subjectKey: "1001",
     formOid: "IG.AE",
     messages: [
-      { author: "cra.jones", body: "Please clarify onset date", createdAt: "2026-06-02T10:00:00.000Z" },
+      {
+        author: "cra.jones",
+        body: "Please clarify onset date",
+        createdAt: "2026-06-02T10:00:00.000Z",
+      },
       { author: "site.coordinator", body: "Corrected", createdAt: "2026-06-04T08:00:00.000Z" },
     ],
   },
@@ -129,7 +133,7 @@ describe("edc-core adapter (reference EDC, recorded fixtures)", () => {
   });
 
   it("fails with an actionable message when the key env var is missing", async () => {
-    delete process.env.DMOPS_TEST_EDC_KEY;
+    process.env.DMOPS_TEST_EDC_KEY = "";
     await expect(
       adapter.extract({ sourceStudyKey: "study-1", frames: ["queries"], config }),
     ).rejects.toThrow(/DMOPS_TEST_EDC_KEY/);

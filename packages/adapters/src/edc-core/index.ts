@@ -99,7 +99,11 @@ export function createEdcCoreAdapter(fetchImpl: typeof fetch = fetch): SourceAda
             },
             notes: "edc-core exposes record creation time, not an enrollment date",
           },
-          visits: { supported: false, fields: {}, notes: "visit dates are captured item values, not API fields" },
+          visits: {
+            supported: false,
+            fields: {},
+            notes: "visit dates are captured item values, not API fields",
+          },
           pages: { supported: false, fields: {}, notes: "form-instance mapping is future work" },
         },
       };

@@ -1,6 +1,12 @@
 export { metricAvailability, type MetricAvailability } from "./engine.js";
 export { assertRegistryMatchesSpecs, computeFn } from "./registry.js";
-export { defaultMetricsDir, loadSpecs, metricSpec, type LoadedSpec, type MetricSpec } from "./spec.js";
+export {
+  defaultMetricsDir,
+  loadSpecs,
+  metricSpec,
+  type LoadedSpec,
+  type MetricSpec,
+} from "./spec.js";
 export {
   daysBetween,
   inPeriod,

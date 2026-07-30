@@ -25,7 +25,9 @@ export const queryTatMedian: ComputeFn = (frames, ctx) => {
       n_records: closed.length,
     },
   ];
-  const siteKeys = [...new Set(closed.map((q) => q.site_key).filter((s): s is string => s !== null))];
+  const siteKeys = [
+    ...new Set(closed.map((q) => q.site_key).filter((s): s is string => s !== null)),
+  ];
   for (const siteKey of siteKeys.sort()) {
     const siteQueries = closed.filter((q) => q.site_key === siteKey);
     rows.push({

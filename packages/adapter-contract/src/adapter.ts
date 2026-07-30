@@ -1,4 +1,4 @@
-import { z } from "zod";
+import type { z } from "zod";
 import type { AdapterCapabilities } from "./capabilities.js";
 import { type FrameName, frameSchemas } from "./frames.js";
 

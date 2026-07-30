@@ -47,7 +47,11 @@ async function main() {
     const [trigger] = await sql`
       SELECT count(*)::int AS n FROM pg_trigger
       WHERE tgname = ${`${table}_immutable`} AND NOT tgisinternal`;
-    ok(trigger!.n === 1, `immutability trigger on ${table}`, trigger!.n === 1 ? "present" : "MISSING");
+    ok(
+      trigger!.n === 1,
+      `immutability trigger on ${table}`,
+      trigger!.n === 1 ? "present" : "MISSING",
+    );
   }
 
   // every domain table carries the audit trigger (ADR-0003)
@@ -72,7 +76,11 @@ async function main() {
   // audit writer runs as definer; runtime role cannot forge events
   const [prosecdef] = await sql`
     SELECT prosecdef FROM pg_proc WHERE proname = 'dmops_audit'`;
-  ok(Boolean(prosecdef?.prosecdef), "dmops_audit() is SECURITY DEFINER", String(prosecdef?.prosecdef));
+  ok(
+    Boolean(prosecdef?.prosecdef),
+    "dmops_audit() is SECURITY DEFINER",
+    String(prosecdef?.prosecdef),
+  );
 
   // roles and privilege ceilings
   for (const role of ["dmops_app", "dmops_readonly"]) {
@@ -85,9 +93,17 @@ async function main() {
            has_table_privilege('dmops_app', 'person', 'TRUNCATE') AS can_truncate,
            has_table_privilege('dmops_app', 'metric_snapshot', 'UPDATE') AS can_rewrite`;
   ok(!privileges!.can_create, "dmops_app cannot CREATE in schema", String(privileges!.can_create));
-  ok(!privileges!.can_forge, "dmops_app cannot INSERT audit_event directly", String(privileges!.can_forge));
+  ok(
+    !privileges!.can_forge,
+    "dmops_app cannot INSERT audit_event directly",
+    String(privileges!.can_forge),
+  );
   ok(!privileges!.can_truncate, "dmops_app cannot TRUNCATE", String(privileges!.can_truncate));
-  ok(!privileges!.can_rewrite, "dmops_app cannot UPDATE metric_snapshot", String(privileges!.can_rewrite));
+  ok(
+    !privileges!.can_rewrite,
+    "dmops_app cannot UPDATE metric_snapshot",
+    String(privileges!.can_rewrite),
+  );
 
   // structural display-only posture (DM-P4, ADR-0006)
   const signatureish = await sql`
@@ -105,7 +121,11 @@ async function main() {
   // audit hash chain verifies end to end (ADR-0003)
   const problems = await sql`SELECT * FROM dmops_verify_audit_chain()`;
   const [events] = await sql`SELECT count(*)::int AS n FROM audit_event`;
-  ok(problems.length === 0, "audit hash chain verifies", `${events!.n} events, ${problems.length} problems`);
+  ok(
+    problems.length === 0,
+    "audit hash chain verifies",
+    `${events!.n} events, ${problems.length} problems`,
+  );
 
   // registered metric definitions match the governed dictionary (DM-P2, ADR-0004)
   const metricsDir = fileURLToPath(new URL("../../../metrics", import.meta.url));
@@ -113,7 +133,11 @@ async function main() {
   const registered = await sql`
     SELECT metric_id, version, spec_checksum FROM metric_definition`;
   if (registered.length === 0) {
-    record("WARN", "metric dictionary registered", "no metric_definition rows — run the seed or metric registration");
+    record(
+      "WARN",
+      "metric dictionary registered",
+      "no metric_definition rows — run the seed or metric registration",
+    );
   } else {
     let mismatches = 0;
     for (const f of files) {
@@ -135,7 +159,12 @@ async function main() {
   // auth posture
   const mode = process.env.DMOPS_AUTH_MODE;
   if (mode === "oidc") record("PASS", "DMOPS_AUTH_MODE", "oidc");
-  else record("WARN", "DMOPS_AUTH_MODE", `'${mode ?? "unset"}' — dev tokens are not a production access-control posture`);
+  else
+    record(
+      "WARN",
+      "DMOPS_AUTH_MODE",
+      `'${mode ?? "unset"}' — dev tokens are not a production access-control posture`,
+    );
 
   await sql.end();
 

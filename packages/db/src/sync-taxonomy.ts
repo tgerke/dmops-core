@@ -10,13 +10,19 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import { z } from "zod";
-import { createDb, type Sql } from "./client.js";
+import { type Sql, createDb } from "./client.js";
 
 const milestoneSchema = z
   .object({
     code: z.string().regex(/^[A-Z]+(\.[A-Z0-9]+)+$/, "codes are dotted uppercase identifiers"),
     label: z.string().min(1),
-    phase_group: z.enum(["startup_spec", "startup_build", "startup_release", "conduct", "closeout"]),
+    phase_group: z.enum([
+      "startup_spec",
+      "startup_build",
+      "startup_release",
+      "conduct",
+      "closeout",
+    ]),
     sequence: z.number().int().positive(),
     default_owner_role: z
       .enum(["dm_lead", "dm_manager", "analyst", "programmer"])

@@ -1,8 +1,4 @@
-import {
-  type AdapterCapabilities,
-  type FrameName,
-  fieldSupport,
-} from "@dmops/adapter-contract";
+import { type AdapterCapabilities, type FrameName, fieldSupport } from "@dmops/adapter-contract";
 import type { MetricSpec } from "./spec.js";
 
 export type MetricAvailability =

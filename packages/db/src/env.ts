@@ -13,7 +13,7 @@ export function loadEnv(): void {
     if (existsSync(candidate)) {
       for (const line of readFileSync(candidate, "utf8").split("\n")) {
         const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
-        if (m && m[1] && process.env[m[1]] === undefined) {
+        if (m?.[1] && process.env[m[1]] === undefined) {
           process.env[m[1]] = m[2] ?? "";
         }
       }

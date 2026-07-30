@@ -12,8 +12,7 @@ export const queryOpenAging: ComputeFn = (frames, ctx) => {
       (q.status === "open" || q.status === "answered") &&
       Date.parse(q.opened_at) <= Date.parse(ctx.periodEnd) + 86_400_000,
   );
-  const aged = (qs: QueryRow[]) =>
-    qs.filter((q) => daysBetween(q.opened_at, ctx.periodEnd) > 30);
+  const aged = (qs: QueryRow[]) => qs.filter((q) => daysBetween(q.opened_at, ctx.periodEnd) > 30);
 
   const agedOpen = aged(open);
   const rows: SnapshotValue[] = [

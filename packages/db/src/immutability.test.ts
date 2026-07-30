@@ -19,9 +19,9 @@ async function inRollback(fn: (tx: typeof sql) => Promise<void>) {
 
 describe("append-only warehouse and audit trail (DM-P3)", () => {
   it("rejects UPDATE on audit_event at the database level", async () => {
-    await expect(
-      sql`UPDATE audit_event SET actor_label = 'tampered' WHERE id = 1`,
-    ).rejects.toThrow(/immutable/);
+    await expect(sql`UPDATE audit_event SET actor_label = 'tampered' WHERE id = 1`).rejects.toThrow(
+      /immutable/,
+    );
   });
 
   it("rejects DELETE on audit_event", async () => {

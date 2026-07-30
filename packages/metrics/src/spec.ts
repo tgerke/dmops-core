@@ -17,7 +17,9 @@ export const metricSpec = z
     owner: z.string().min(1),
     version: z.string().regex(/^\d+\.\d+$/),
     grain: z.array(z.enum(["study", "site", "country", "portfolio"])).min(1),
-    definition: z.string().min(20, "write the full definition; ambiguity here causes metric disputes"),
+    definition: z
+      .string()
+      .min(20, "write the full definition; ambiguity here causes metric disputes"),
     clock_start: z.string(),
     clock_stop: z.string(),
     calendar: z.enum(["calendar_days", "business_days"]),
@@ -59,7 +61,9 @@ export function loadSpecs(dir: string = defaultMetricsDir()): LoadedSpec[] {
   for (const l of loaded) {
     for (const frame of Object.keys(l.spec.required_fields)) {
       if (!l.spec.source_frames.includes(frame)) {
-        throw new Error(`${l.spec.id}: required_fields names frame '${frame}' not in source_frames`);
+        throw new Error(
+          `${l.spec.id}: required_fields names frame '${frame}' not in source_frames`,
+        );
       }
     }
   }

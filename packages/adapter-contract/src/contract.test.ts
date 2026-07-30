@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { validateExtraction } from "./adapter.js";
-import { fieldSupport, type AdapterCapabilities } from "./capabilities.js";
+import { type AdapterCapabilities, fieldSupport } from "./capabilities.js";
 import { checksumFrames } from "./checksum.js";
 import { queryRow } from "./frames.js";
 

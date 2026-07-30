@@ -13,8 +13,8 @@
  * All writes are audit-attributed to 'seed' (ADR-0003). Person and study ids
  * regenerate on every run.
  */
-import { registerMetrics, refreshStudyMetrics } from "@dmops/core";
-import { createDb, type Sql } from "../client.js";
+import { refreshStudyMetrics, registerMetrics } from "@dmops/core";
+import { type Sql, createDb } from "../client.js";
 import { loadTaxonomy, syncTaxonomy } from "../sync-taxonomy.js";
 
 // The fixture study's reporting period (see fixtures/study-DMOPS-001).
@@ -67,7 +67,11 @@ const priya = await insertPerson("Priya Natarajan", "priya.natarajan@pmo.example
 const tomas = await insertPerson("Tomas Lindqvist", "tomas.lindqvist@pmo.example", "PMO");
 const grace = await insertPerson("Grace Liu", "grace.liu@pmo.example", "PMO");
 const omar = await insertPerson("Omar Haddad", "omar.haddad@pmo.example", "PMO");
-const sylvia = await insertPerson("Sylvia Tran", "sylvia.tran@meridian.example", "Meridian Oncology");
+const sylvia = await insertPerson(
+  "Sylvia Tran",
+  "sylvia.tran@meridian.example",
+  "Meridian Oncology",
+);
 const ruth = await insertPerson("Ruth Adler", "ruth.adler@gcpaudit.example", "GCP Audit Partners");
 const admin = await insertPerson("Alex Admin", "alex.admin@pmo.example", "PMO");
 
@@ -150,13 +154,33 @@ interface MilestoneSeed {
 // DMOPS-001: startup done with honest slips; June completions feed the
 // milestone_slip demo number (slips +4, +5, -2 → median 4).
 const study1Milestones: Record<string, MilestoneSeed> = {
-  "SPEC.DMP.DRAFT": { baseline: "2026-01-12", actual: "2026-01-12", status: "complete", evidence: "https://ctms.example/tmf/DMOPS-001/dmp-draft" },
-  "SPEC.DMP.APPROVED": { baseline: "2026-01-26", actual: "2026-01-30", status: "complete", evidence: "https://ctms.example/tmf/DMOPS-001/dmp" },
+  "SPEC.DMP.DRAFT": {
+    baseline: "2026-01-12",
+    actual: "2026-01-12",
+    status: "complete",
+    evidence: "https://ctms.example/tmf/DMOPS-001/dmp-draft",
+  },
+  "SPEC.DMP.APPROVED": {
+    baseline: "2026-01-26",
+    actual: "2026-01-30",
+    status: "complete",
+    evidence: "https://ctms.example/tmf/DMOPS-001/dmp",
+  },
   "SPEC.CRF.DRAFT": { baseline: "2026-01-19", actual: "2026-01-16", status: "complete" },
-  "SPEC.CRF.APPROVED": { baseline: "2026-02-02", actual: "2026-02-06", status: "complete", evidence: "https://ctms.example/tmf/DMOPS-001/crf-spec" },
+  "SPEC.CRF.APPROVED": {
+    baseline: "2026-02-02",
+    actual: "2026-02-06",
+    status: "complete",
+    evidence: "https://ctms.example/tmf/DMOPS-001/crf-spec",
+  },
   "SPEC.CCG": { baseline: "2026-02-16", actual: "2026-02-16", status: "complete" },
   "SPEC.EDIT.DRAFT": { baseline: "2026-02-09", actual: "2026-02-13", status: "complete" },
-  "SPEC.EDIT.APPROVED": { baseline: "2026-02-23", actual: "2026-02-27", status: "complete", evidence: "https://ctms.example/tmf/DMOPS-001/edit-checks" },
+  "SPEC.EDIT.APPROVED": {
+    baseline: "2026-02-23",
+    actual: "2026-02-27",
+    status: "complete",
+    evidence: "https://ctms.example/tmf/DMOPS-001/edit-checks",
+  },
   "SPEC.EXT.AGREED": { baseline: "2026-02-16", actual: "2026-03-06", status: "complete" },
   "SPEC.CODING": { baseline: "2026-02-09", actual: "2026-02-09", status: "complete" },
   "SPEC.SDTM": { baseline: "2026-03-02", actual: "2026-03-09", status: "complete" },
@@ -168,7 +192,12 @@ const study1Milestones: Record<string, MilestoneSeed> = {
   "BUILD.DATASETS": { baseline: "2026-04-06", actual: "2026-04-10", status: "complete" },
   "UAT.START": { baseline: "2026-03-23", actual: "2026-03-25", status: "complete" },
   "UAT.COMPLETE": { baseline: "2026-04-06", actual: "2026-04-09", status: "complete" },
-  "VAL.SUMMARY": { baseline: "2026-04-13", actual: "2026-04-15", status: "complete", evidence: "https://ctms.example/tmf/DMOPS-001/validation-summary" },
+  "VAL.SUMMARY": {
+    baseline: "2026-04-13",
+    actual: "2026-04-15",
+    status: "complete",
+    evidence: "https://ctms.example/tmf/DMOPS-001/validation-summary",
+  },
   "REL.GOLIVE": { baseline: "2026-04-20", actual: "2026-04-21", status: "complete" },
   "REL.TRAIN": { baseline: "2026-06-01", actual: "2026-06-05", status: "complete" },
   "REL.ACCESS": { baseline: "2026-04-27", actual: "2026-04-27", status: "complete" },
@@ -256,10 +285,11 @@ for (const [protocol, studyId] of [
 ] as const) {
   const result = await refreshStudyMetrics(sql, studyId, PERIOD);
   console.log(
-    `${protocol}: ${result.computed.length} metrics computed, ${result.skipped.length} skipped` +
-      (result.skipped.length
+    `${protocol}: ${result.computed.length} metrics computed, ${result.skipped.length} skipped${
+      result.skipped.length
         ? ` (${result.skipped.map((s) => `${s.metricId}: ${s.reason}`).join("; ")})`
-        : ""),
+        : ""
+    }`,
   );
   for (const warning of result.warnings) console.log(`  warning: ${warning}`);
 }
@@ -268,6 +298,8 @@ const [chain] = await sql`SELECT count(*)::int AS n FROM dmops_verify_audit_chai
 if (chain!.n !== 0) throw new Error("audit chain verification failed after seed");
 
 console.log("seed complete — audit chain verifies clean");
-console.log("dev tokens: dev-dmlead-token (Maya), dev-manager-token (Daniel), dev-clinops-token (Grace),");
+console.log(
+  "dev tokens: dev-dmlead-token (Maya), dev-manager-token (Daniel), dev-clinops-token (Grace),",
+);
 console.log("            dev-sponsor-token (Sylvia), dev-qa-token (Ruth), dev-admin-token (Alex)");
 await sql.end();

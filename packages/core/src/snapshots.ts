@@ -1,7 +1,4 @@
-import {
-  type NormalizedFrames,
-  validateExtraction,
-} from "@dmops/adapter-contract";
+import { type NormalizedFrames, validateExtraction } from "@dmops/adapter-contract";
 import { getAdapter } from "@dmops/adapters";
 import type { Sql } from "@dmops/db";
 import {
@@ -102,9 +99,7 @@ export async function refreshStudyMetrics(
       if (result.extractId) {
         const siteRows = await sql`
           SELECT id, site_number FROM site WHERE study_id = ${studyId}`;
-        const siteIdByKey = new Map(
-          siteRows.map((r) => [r.site_number as string, r.id as string]),
-        );
+        const siteIdByKey = new Map(siteRows.map((r) => [r.site_number as string, r.id as string]));
         for (const loaded of runnable) {
           await computeAndInsert(sql, studyId, loaded, frames, period, result, siteIdByKey);
         }

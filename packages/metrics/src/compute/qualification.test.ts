@@ -17,7 +17,9 @@ import { queryTatMedian } from "./query_tat_median.js";
 
 const expected = JSON.parse(
   readFileSync(
-    fileURLToPath(new URL("../../../../fixtures/study-DMOPS-001/expected-values.json", import.meta.url)),
+    fileURLToPath(
+      new URL("../../../../fixtures/study-DMOPS-001/expected-values.json", import.meta.url),
+    ),
     "utf8",
   ),
 );

@@ -1,3 +1,4 @@
+import { refreshStudyMetrics } from "@dmops/core";
 /**
  * Metric refresh CLI: run the snapshot pipeline for one study or the whole
  * portfolio. Stateless and cron-friendly — schedule it with cron or your
@@ -10,7 +11,6 @@
  *   pnpm metrics:refresh --period 2026-06      # a specific calendar month
  */
 import { createDb } from "@dmops/db";
-import { refreshStudyMetrics } from "@dmops/core";
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);

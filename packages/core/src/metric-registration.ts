@@ -21,8 +21,7 @@ export async function registerMetrics(
     if (existing) {
       if (existing.spec_checksum !== checksum) {
         throw new Error(
-          `metrics/${spec.id}: file changed but version is still ${spec.version} — ` +
-            "a changed definition is a new version (ADR-0004)",
+          `metrics/${spec.id}: file changed but version is still ${spec.version} — a changed definition is a new version (ADR-0004)`,
         );
       }
       unchanged++;

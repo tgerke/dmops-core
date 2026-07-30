@@ -22,6 +22,10 @@ REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON audit_event FROM dmops_app;--> statem
 -- forbid mutation for everyone; the runtime role additionally lacks the
 -- privilege at the grant level.
 REVOKE UPDATE, DELETE, TRUNCATE ON metric_snapshot, source_extract, metric_definition FROM dmops_app;--> statement-breakpoint
+-- The health endpoint reports applied-migration count; the runtime role may
+-- read the migration journal (drizzle schema), nothing more.
+GRANT USAGE ON SCHEMA drizzle TO dmops_app;--> statement-breakpoint
+GRANT SELECT ON ALL TABLES IN SCHEMA drizzle TO dmops_app;--> statement-breakpoint
 -- Read-only role for downstream BI (integration surface: metric snapshots
 -- and derived views, nothing writable).
 DO $$ BEGIN
