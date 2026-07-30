@@ -33,6 +33,14 @@ reporting period, with its target from the dictionary. Clicking a card opens
 the detail: the trend across reporting periods, and the by-site drill-down
 for metrics computed at site grain.
 
+The strip serves the metrics for the study's enabled modules. All four
+shipped metrics belong to the `dm` base module, so today every study shows
+the same four cards; when metrics tagged `stat` arrive
+([ADR-0012](/dmops-core/reference/decisions/0012-programming-work-frames-and-github-adapter/)),
+they will appear only on studies that run the stat module, never as
+permanent "unavailable" cards on studies that don't
+([ADR-0011](/dmops-core/reference/decisions/0011-stat-programming-as-an-opt-in-module/)).
+
 ![The expanded query turnaround card: a trend sparkline across two reporting periods next to a by-site table listing two US sites with their values and record counts](../../../assets/screenshots/metric-drilldown.png)
 
 Metrics declare their grains in the dictionary: `study` and `site` today,

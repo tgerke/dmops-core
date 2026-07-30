@@ -11,7 +11,7 @@ it is signed.
 
 ## Status and a pointer
 
-![The deliverables table on DMOPS-001: the Data Management Plan at version 2.0 approved in January, the edit check specification approved in February, and the SDTM mapping spec at version 0.9 in review, each with an eTMF link](../../../assets/screenshots/deliverables.png)
+![The deliverables table on DMOPS-001: the Data Management Plan, edit check specification, SAP, and ADaM specification approved with dates, the SDTM mapping spec and TLF shells in review, most with eTMF links](../../../assets/screenshots/deliverables.png)
 
 A deliverable row is a type, a title, a version, an owner, a status chip
 (`draft`, `in_review`, `approved`, `superseded`), an approved date, and an
@@ -39,5 +39,9 @@ requires a schema change and an ADR, not a quiet feature.
 `GET /studies/{studyId}/deliverables` lists them;
 `PATCH /studies/{studyId}/deliverables/{deliverableId}` updates status,
 version, owner, approved date, or the eTMF link. Writes follow the same rule
-as milestones: DM leadership on the study, or admin (see
-[Personas and access](/dmops-core/personas-and-access/)).
+as milestones: DM leadership on the study, or admin. The three analysis
+deliverable types (`sap`, `adam_spec`, `tlf_shells`) additionally accept
+`programmer` and `biostat` on the study, matching who owns that work on
+stat-module studies
+([ADR-0011](/dmops-core/reference/decisions/0011-stat-programming-as-an-opt-in-module/);
+see [Personas and access](/dmops-core/personas-and-access/)).

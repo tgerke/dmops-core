@@ -4,16 +4,14 @@ title: Start here
 
 dmops-core serves people with different jobs: DM leads running studies, DM
 managers governing plans, analysts running UAT, programmers wiring sources
-and metrics, and the sponsors and QA folks reading over everyone's
+and metrics, statistical programmers and biostatisticians tracking
+analysis delivery, and the sponsors and QA folks reading over everyone's
 shoulder. Nobody needs every page. Pick the track that matches your role
 and read in order; each step says why it comes next.
 
 Every track names a demo persona from the header dropdown. If you
 [run the stack](/dmops-core/getting-started/) first, you can do each step
-yourself instead of just reading about it. A statistical programming track
-is on its way: the opt-in stat module is decided
-([ADR-0011](/dmops-core/reference/decisions/0011-stat-programming-as-an-opt-in-module/))
-and its pages join this router when it ships.
+yourself instead of just reading about it.
 
 ## DM leads {#dm-leads}
 
@@ -53,6 +51,23 @@ You run UAT, wire source systems, or add metrics. Work as
    contract's three obligations, with the reference implementations.
 4. [Writing a metric](/dmops-core/guide/writing-a-metric/): the YAML
    definition, the version rule, and qualification against fixtures.
+
+## Statistical programmers and biostatisticians {#stat}
+
+Your study runs the opt-in stat module
+([ADR-0011](/dmops-core/reference/decisions/0011-stat-programming-as-an-opt-in-module/)):
+the board gains an Analysis & Reporting section that you write. Work as
+**Omar Haddad** (biostat) or **Tomas Lindqvist** (programmer).
+
+1. [Five-minute tour](/dmops-core/tour/), the analysis step: your STAT
+   milestones on the same board DM and the sponsor read.
+2. [Milestones](/dmops-core/guide/milestones/): the four-date model and
+   slip badges, which work the same in your phase as in DM's.
+3. [Personas and access](/dmops-core/personas-and-access/): why you can
+   write `STAT.*` milestones and the SAP, ADaM spec, and TLF shell
+   deliverables, but not the DM phases.
+4. [Milestone taxonomy](/dmops-core/reference/milestone-taxonomy/): the
+   governed `STAT.*` codes, their dependencies, and how the list changes.
 
 ## Sponsor and QA oversight {#oversight}
 

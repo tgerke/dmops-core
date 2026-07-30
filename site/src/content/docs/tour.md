@@ -85,7 +85,19 @@ completion gate is enforced by the API, not by the button.
 
 *Full guide: [UAT](/dmops-core/guide/uat/)*
 
-## 7. See what the sponsor sees, as Sylvia
+## 7. Move an analysis forecast, as Omar
+
+Switch to **Omar Haddad — Biostatistician (analysis)**. Scroll to the
+Analysis & Reporting section: DMOPS-001 runs the stat module, so the STAT
+milestones live on the same board everyone else reads. Edit the forecast
+on the in-progress TLF shells milestone; then try the same on any Closeout
+row and notice there is no edit control. Analysis entry belongs to the
+analysis team, and DM-phase milestones stay a leadership assertion
+([ADR-0011](/dmops-core/reference/decisions/0011-stat-programming-as-an-opt-in-module/)).
+
+*Full guide: [Personas and access](/dmops-core/personas-and-access/)*
+
+## 8. See what the sponsor sees, as Sylvia
 
 Switch to **Sylvia Tran — Sponsor (curated view)**. The SAE reconciliation
 milestone is still visibly Blocked and three weeks behind, but the rose
@@ -94,7 +106,7 @@ control and the defect resolution notes. Same facts, curated fields.
 
 *Full guide: [Personas and access](/dmops-core/personas-and-access/)*
 
-## 8. Verify the audit trail
+## 9. Verify the audit trail
 
 Everything you just did was written to the hash-chained audit trail,
 attributed to the persona that did it:

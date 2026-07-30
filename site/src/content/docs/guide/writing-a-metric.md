@@ -53,6 +53,14 @@ and reported as unavailable, never approximated
 `grain` names the levels the metric computes at: `study`, `site`, `country`,
 or `portfolio`.
 
+A definition may also carry `module` (`dm` or `stat`, defaulting to `dm`
+when omitted, as every shipped metric does today). A metric tagged for a
+module a study has not enabled is filtered out of that study's strip and
+compute runs entirely, rather than sitting permanently unavailable
+([ADR-0011](/dmops-core/reference/decisions/0011-stat-programming-as-an-opt-in-module/)).
+The first `stat` metrics arrive with the repository frames
+([ADR-0012](/dmops-core/reference/decisions/0012-programming-work-frames-and-github-adapter/)).
+
 ## The version rule
 
 Registration copies each YAML file into the database verbatim with a
