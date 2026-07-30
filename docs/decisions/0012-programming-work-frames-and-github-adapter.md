@@ -81,3 +81,24 @@ closed enumeration of the DM suite.
   with a synthetic repository extract.
 - A GitHub adapter PR that asserts a capability without a documentation
   citation does not merge, the same rule as vendor EDC adapters.
+
+## Amendment (2026-07-30, recorded at implementation)
+
+Two decisions the slice had to make that this ADR left implicit:
+
+- **The csv fixture adapter carries the three frames.** "The csv and
+  edc-core adapters are untouched by the addition" describes what the frame
+  addition forces through fail-closed capabilities; it is not a freeze on
+  the fixture adapter, whose whole job is feeding fixture frames. The demo
+  seed and the DS qualification suite read the repository frames from
+  `fixtures/study-DMOPS-001` through the same csv path the DM metrics use,
+  which is what "hand-computed like `fixtures/study-DMOPS-001`" turned out
+  to mean in practice. The GitHub adapter itself is tested against recorded
+  API responses, the edc-core pattern.
+- **The snapshot pipeline is multi-source.** A study can hold several
+  active `study_source` rows, and each metric is fed by the first source,
+  in adapter order, whose declared capabilities cover its required fields.
+  The single-source pipeline this ADR inherited could never have run a
+  repository source beside an EDC source on the same study, so "which
+  repositories feed a study is `study_source` configuration" implied this
+  change all along.
