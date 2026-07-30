@@ -241,6 +241,12 @@ const shots = [
     fullPage: true,
   },
   {
+    name: "metrics-unavailable",
+    path: `/studies/${study2}`,
+    persona: "dmlead",
+    locator: "main > div > div",
+  },
+  {
     name: "api-scalar",
     path: `${API_URL}/docs`,
     persona: "dmlead",
