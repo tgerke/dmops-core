@@ -26,6 +26,16 @@ describe("csv adapter (the reference implementation)", () => {
     expect(result.row_counts).toEqual({ issues: 9, pull_requests: 9, reviews: 10 });
   });
 
+  it("extracts the roster frames from the fixture study (ADR-0013)", async () => {
+    const result = await csvAdapter.extract({
+      sourceStudyKey: "DMOPS-001",
+      frames: ["training_records", "access_grants"],
+      config: { dir: "fixtures/study-DMOPS-001" },
+    });
+    expect(() => validateExtraction(result)).not.toThrow();
+    expect(result.row_counts).toEqual({ training_records: 20, access_grants: 10 });
+  });
+
   it("produces a deterministic checksum for the same fixture (extract provenance)", async () => {
     const input = {
       sourceStudyKey: "DMOPS-001",
@@ -78,6 +88,39 @@ const edcQueries = [
   },
 ];
 
+// Shapes from edc-core's members listing (see adapter header): current
+// unrevoked grants only, service accounts already excluded by the endpoint.
+const edcMembers = [
+  {
+    grantId: "g-1",
+    userId: "u-1",
+    username: "maya.okafor",
+    fullName: "Maya Okafor",
+    email: "maya.okafor@pmo.example",
+    userStatus: "active",
+    roleName: "data_manager",
+    siteId: null,
+    siteOid: null,
+    siteName: null,
+    grantedAt: "2026-04-20T14:00:00.000Z",
+    grantedBy: "alex.admin",
+  },
+  {
+    grantId: "g-2",
+    userId: "u-2",
+    username: "j.ellis",
+    fullName: "Jordan Ellis",
+    email: "j.ellis@site001.example",
+    userStatus: "locked",
+    roleName: "site_coordinator",
+    siteId: "site-a",
+    siteOid: "001",
+    siteName: "General",
+    grantedAt: "2026-04-27T13:00:00.000Z",
+    grantedBy: "alex.admin",
+  },
+];
+
 function fakeFetch(): typeof fetch {
   return (async (url: URL | RequestInfo) => {
     const path = url.toString();
@@ -85,7 +128,9 @@ function fakeFetch(): typeof fetch {
       ? edcSubjects
       : path.endsWith("/queries")
         ? edcQueries
-        : null;
+        : path.endsWith("/members")
+          ? edcMembers
+          : null;
     if (!body) return new Response("not found", { status: 404 });
     return new Response(JSON.stringify(body), {
       status: 200,
@@ -140,6 +185,42 @@ describe("edc-core adapter (reference EDC, recorded fixtures)", () => {
     expect(adapter.capabilities().frames.visits?.supported).toBe(false);
     await expect(
       adapter.extract({ sourceStudyKey: "study-1", frames: ["visits"], config }),
+    ).rejects.toThrow(/unsupported/);
+  });
+
+  it("maps the members listing to current access grants (ADR-0013)", async () => {
+    process.env.DMOPS_TEST_EDC_KEY = "test-key";
+    const result = await adapter.extract({
+      sourceStudyKey: "study-1",
+      frames: ["access_grants"],
+      config,
+    });
+    expect(() => validateExtraction(result)).not.toThrow();
+    expect(result.frames.access_grants).toEqual([
+      {
+        person_key: "maya.okafor@pmo.example",
+        person_name: "Maya Okafor",
+        role_key: "data_manager",
+        site_key: null, // study-wide grant
+        status: "active",
+        granted_at: "2026-04-20T14:00:00.000Z",
+      },
+      {
+        person_key: "j.ellis@site001.example",
+        person_name: "Jordan Ellis",
+        role_key: "site_coordinator",
+        site_key: "001",
+        status: "locked",
+        granted_at: "2026-04-27T13:00:00.000Z",
+      },
+    ]);
+  });
+
+  it("declares training unsupported — an EDC is not an LMS (ADR-0013, DM-P1)", async () => {
+    process.env.DMOPS_TEST_EDC_KEY = "test-key";
+    expect(adapter.capabilities().frames.training_records?.supported).toBe(false);
+    await expect(
+      adapter.extract({ sourceStudyKey: "study-1", frames: ["training_records"], config }),
     ).rejects.toThrow(/unsupported/);
   });
 

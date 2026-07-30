@@ -43,6 +43,13 @@
       "when": 1785400005000,
       "tag": "0005_stat_module",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785400006000,
+      "tag": "0006_roster_mirrors",
+      "breakpoints": true
     }
   ]
 }

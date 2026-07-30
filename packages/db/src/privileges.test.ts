@@ -35,6 +35,17 @@ describe("runtime role privilege ceilings (ADR-0003, DM-P3)", () => {
     await expect(app`DELETE FROM milestone_rebaseline`).rejects.toThrow(/permission denied/);
   });
 
+  it("cannot write the roster mirrors — display-only, pipeline-written (ADR-0013)", async () => {
+    await expect(app`
+      INSERT INTO training_mirror (study_id, source_extract_id, person_key, course_key)
+      VALUES (gen_random_uuid(), gen_random_uuid(), 'smuggled@x.example', 'GCP')
+    `).rejects.toThrow(/permission denied/);
+    await expect(app`UPDATE access_mirror SET status = 'active'`).rejects.toThrow(
+      /permission denied/,
+    );
+    await expect(app`DELETE FROM access_mirror`).rejects.toThrow(/permission denied/);
+  });
+
   it("cannot disable triggers (requires table ownership)", async () => {
     await expect(
       app`ALTER TABLE audit_event DISABLE TRIGGER audit_event_immutable`,

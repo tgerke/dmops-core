@@ -5,8 +5,10 @@ import {
   type BoardRow,
   type Deliverable,
   type MetricSiteRow,
+  type RosterRow,
   type Snapshot,
   type StudyMetric,
+  type TrainingRecord,
   type UatCycle,
   type UatDefect,
   api,
@@ -45,6 +47,7 @@ export function StudyBoardPage() {
   const [metrics, setMetrics] = useState<StudyMetric[] | null>(null);
   const [deliverables, setDeliverables] = useState<Deliverable[] | null>(null);
   const [uatCycles, setUatCycles] = useState<UatCycle[] | null>(null);
+  const [roster, setRoster] = useState<RosterRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
@@ -65,6 +68,10 @@ export function StudyBoardPage() {
       .uatCycles(studyId)
       .then((u) => setUatCycles(u.cycles))
       .catch(() => setUatCycles(null));
+    api
+      .accessRoster(studyId)
+      .then((r) => setRoster(r.people))
+      .catch(() => setRoster(null));
   }, [studyId]);
   useEffect(() => {
     load();
@@ -82,6 +89,7 @@ export function StudyBoardPage() {
       {uatCycles && (uatCycles.length > 0 || currentPersona().canWriteUat) && (
         <UatSection studyId={studyId} cycles={uatCycles} onSaved={load} />
       )}
+      {roster && roster.length > 0 && <TrainingAccessSection studyId={studyId} people={roster} />}
       {phaseGroups.map(([group, title]) => {
         const groupRows = rows.filter((r) => r.phase_group === group);
         if (groupRows.length === 0) return null;
@@ -228,6 +236,205 @@ function MetricDetail({ studyId, metricId }: { studyId: string; metricId: string
       </div>
     </div>
   );
+}
+
+// Training and access mirrors (ADR-0013): display-only rows mirrored from
+// the source systems — there is nothing to edit here by construction, the
+// API role cannot write the mirrors.
+function TrainingAccessSection({ studyId, people }: { studyId: string; people: RosterRow[] }) {
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [training, setTraining] = useState<TrainingRecord[] | null>(null);
+
+  useEffect(() => {
+    if (expanded && training === null) {
+      api
+        .training(studyId)
+        .then((t) => setTraining(t.records))
+        .catch(() => setTraining([]));
+    }
+  }, [expanded, training, studyId]);
+
+  const gaps = people.filter((p) => p.training_gap).length;
+  const mirroredAt = people[0]?.mirrored_at;
+
+  return (
+    <section>
+      <h2 className="mb-2 flex items-baseline gap-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+        Training &amp; Access
+        {gaps > 0 && (
+          <span className="rounded bg-rose-50 px-1.5 py-0.5 text-xs font-medium normal-case tracking-normal text-rose-700">
+            {gaps} training {gaps === 1 ? "gap" : "gaps"}
+          </span>
+        )}
+        {mirroredAt && (
+          <span
+            className="text-xs font-normal normal-case tracking-normal text-slate-400"
+            title="Mirrored from the source system with extract provenance; the LMS and the EDC hold the records (ADR-0013, ADR-0006)"
+          >
+            mirrored {mirroredAt.slice(0, 10)}
+          </span>
+        )}
+      </h2>
+      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-400">
+              <th className="px-4 py-2">Person</th>
+              <th className="px-4 py-2">Roles</th>
+              <th className="px-4 py-2">Sites</th>
+              <th className="px-4 py-2">Account</th>
+              <th className="px-4 py-2">Training</th>
+              <th className="px-4 py-2" />
+            </tr>
+          </thead>
+          <tbody>
+            {people.map((p) => (
+              <RosterPersonRow
+                key={p.person_key}
+                person={p}
+                expanded={expanded === p.person_key}
+                records={
+                  training?.filter((t) => t.person_key === p.person_key) ??
+                  (expanded === p.person_key ? [] : null)
+                }
+                onToggle={() => setExpanded(expanded === p.person_key ? null : p.person_key)}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function RosterPersonRow({
+  person,
+  expanded,
+  records,
+  onToggle,
+}: {
+  person: RosterRow;
+  expanded: boolean;
+  records: TrainingRecord[] | null;
+  onToggle: () => void;
+}) {
+  const accountTone =
+    person.account_status === "active"
+      ? "bg-emerald-50 text-emerald-700"
+      : person.account_status === "locked"
+        ? "bg-amber-50 text-amber-700"
+        : "bg-slate-100 text-slate-500";
+  return (
+    <>
+      <tr className="border-b border-slate-100 align-top last:border-0">
+        <td className="px-4 py-3">
+          <button
+            type="button"
+            className="text-xs text-slate-400 hover:text-slate-600"
+            onClick={onToggle}
+          >
+            {expanded ? "▾" : "▸"}
+          </button>
+          <span className="ml-2 font-medium">{person.person_name ?? person.person_key}</span>
+          <span className="ml-2 font-mono text-xs text-slate-400">{person.person_key}</span>
+        </td>
+        <td className="px-4 py-3 text-slate-600">{person.roles.join(", ")}</td>
+        <td className="px-4 py-3 text-slate-500">
+          {person.site_keys?.length ? person.site_keys.join(", ") : "study-wide"}
+        </td>
+        <td className="px-4 py-3">
+          <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${accountTone}`}>
+            {person.account_status}
+          </span>
+        </td>
+        <td className="px-4 py-3 text-xs">
+          {person.trainings_on_file === 0 ? (
+            <span className="text-slate-400">none on file</span>
+          ) : (
+            <span className="space-x-2">
+              <span className="text-emerald-700">{person.trainings_current} current</span>
+              {person.trainings_overdue > 0 && (
+                <span className="font-medium text-amber-700">
+                  {person.trainings_overdue} overdue
+                </span>
+              )}
+              {person.trainings_expired > 0 && (
+                <span className="font-medium text-rose-700">
+                  {person.trainings_expired} expired
+                </span>
+              )}
+              {person.trainings_pending > 0 && (
+                <span className="text-slate-400">{person.trainings_pending} pending</span>
+              )}
+            </span>
+          )}
+        </td>
+        <td className="px-4 py-3 text-right">
+          {person.training_gap && (
+            <span
+              className="rounded bg-rose-50 px-1.5 py-0.5 text-xs font-medium text-rose-700"
+              title="Active access with training missing, overdue, or expired — the DM-Q8 predicate (ADR-0013)"
+            >
+              gap
+            </span>
+          )}
+        </td>
+      </tr>
+      {expanded && (
+        <tr className="border-b border-slate-100 bg-slate-50/50 last:border-0">
+          <td colSpan={6} className="px-10 py-2">
+            {records === null ? (
+              <Spinner label="Loading training records…" />
+            ) : records.length === 0 ? (
+              <p className="py-1 text-xs text-slate-400">
+                No training on file in the LMS mirror for this person.
+              </p>
+            ) : (
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left uppercase tracking-wide text-slate-400">
+                    <th className="py-1 pr-4">Course</th>
+                    <th className="py-1 pr-4">Due</th>
+                    <th className="py-1 pr-4">Completed</th>
+                    <th className="py-1 pr-4">Expires</th>
+                    <th className="py-1">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {records.map((t) => (
+                    <tr key={t.course_key} className="border-t border-slate-100">
+                      <td className="py-1.5 pr-4">
+                        <span className="font-medium">{t.course_title ?? t.course_key}</span>
+                        <span className="ml-2 font-mono text-slate-400">{t.course_key}</span>
+                      </td>
+                      <td className="py-1.5 pr-4 text-slate-500">{t.due_date ?? "—"}</td>
+                      <td className="py-1.5 pr-4 text-slate-500">{t.completed_date ?? "—"}</td>
+                      <td className="py-1.5 pr-4 text-slate-500">{t.expires_date ?? "—"}</td>
+                      <td className="py-1.5">
+                        <TrainingStatusChip status={t.status} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+function TrainingStatusChip({ status }: { status: TrainingRecord["status"] }) {
+  const tone =
+    status === "current"
+      ? "bg-emerald-50 text-emerald-700"
+      : status === "overdue"
+        ? "bg-amber-50 text-amber-700"
+        : status === "expired"
+          ? "bg-rose-50 text-rose-700"
+          : "bg-slate-100 text-slate-500";
+  return <span className={`rounded px-1.5 py-0.5 font-medium ${tone}`}>{status}</span>;
 }
 
 function DeliverablesSection({

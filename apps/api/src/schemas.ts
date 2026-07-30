@@ -263,6 +263,46 @@ export const StudyMetricsSchema = z.object({
   metrics: z.array(StudyMetricSchema),
 });
 
+// Roster mirrors (ADR-0013): display-only rows read from the mirrors, one
+// serialization for every role — status and dates only, nothing to curate.
+export const RosterRowSchema = z.object({
+  person_key: z.string(),
+  person_name: z.string().nullable(),
+  roles: z.array(z.string()),
+  site_keys: z.array(z.string()).nullable(),
+  account_status: z.enum(["active", "locked", "deactivated"]),
+  first_granted_at: z.string().nullable(),
+  mirrored_at: z.string(),
+  trainings_on_file: z.number(),
+  trainings_current: z.number(),
+  trainings_overdue: z.number(),
+  trainings_expired: z.number(),
+  trainings_pending: z.number(),
+  training_gap: z.boolean(),
+});
+
+export const AccessRosterSchema = z.object({
+  study_id: z.string().uuid(),
+  people: z.array(RosterRowSchema),
+});
+
+export const TrainingStatusRowSchema = z.object({
+  person_key: z.string(),
+  person_name: z.string().nullable(),
+  course_key: z.string(),
+  course_title: z.string().nullable(),
+  due_date: z.string().nullable(),
+  completed_date: z.string().nullable(),
+  expires_date: z.string().nullable(),
+  mirrored_at: z.string(),
+  status: z.enum(["current", "expired", "overdue", "pending"]),
+});
+
+export const StudyTrainingSchema = z.object({
+  study_id: z.string().uuid(),
+  records: z.array(TrainingStatusRowSchema),
+});
+
 export const HealthSchema = z.object({
   status: z.string(),
   migrations: z.number(),

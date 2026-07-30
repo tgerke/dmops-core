@@ -1,0 +1,21 @@
+person_key,person_name,course_key,course_title,due_date,completed_date,expires_date
+maya.okafor@pmo.example,Maya Okafor,GCP-2026,GCP refresher 2026,2026-03-31,2026-03-15,2027-03-15
+maya.okafor@pmo.example,Maya Okafor,EDC-USER,EDC user training,2026-04-20,2026-04-18,
+maya.okafor@pmo.example,Maya Okafor,PROT-A3,Protocol amendment 3 training,2026-06-20,2026-06-18,
+priya.natarajan@pmo.example,Priya Natarajan,GCP-2026,GCP refresher 2026,2026-03-31,2026-03-28,2027-03-28
+priya.natarajan@pmo.example,Priya Natarajan,EDC-USER,EDC user training,2026-04-20,2026-04-19,
+priya.natarajan@pmo.example,Priya Natarajan,PROT-A3,Protocol amendment 3 training,2026-06-20,,
+tomas.lindqvist@pmo.example,Tomas Lindqvist,GCP-2026,GCP refresher 2026,2026-03-31,2025-06-10,2026-06-10
+tomas.lindqvist@pmo.example,Tomas Lindqvist,EDC-USER,EDC user training,2026-04-20,2026-04-20,
+grace.liu@pmo.example,Grace Liu,GCP-2026,GCP refresher 2026,2026-03-31,2026-03-30,2027-03-30
+grace.liu@pmo.example,Grace Liu,EDC-USER,EDC user training,2026-04-20,2026-04-15,
+grace.liu@pmo.example,Grace Liu,PROT-A3,Protocol amendment 3 training,2026-06-20,2026-06-25,
+j.ellis@site001.example,Jordan Ellis,GCP-2026,GCP refresher 2026,,2026-02-01,2027-02-01
+j.ellis@site001.example,Jordan Ellis,EDC-USER,EDC user training,2026-02-15,2026-02-08,
+j.ellis@site001.example,Jordan Ellis,PROT-A3,Protocol amendment 3 training,2026-06-20,2026-06-19,
+h.whitfield@site001.example,Helen Whitfield,EDC-USER,EDC user training,2026-02-15,2026-02-12,
+h.whitfield@site001.example,Helen Whitfield,PROT-A3,Protocol amendment 3 training,2026-06-20,,
+m.santos@site002.example,Marisol Santos,EDC-USER,EDC user training,2026-02-15,2026-02-20,
+m.santos@site002.example,Marisol Santos,GCP-2026,GCP refresher 2026,2026-03-31,2026-04-02,2027-04-02
+m.santos@site002.example,Marisol Santos,PROT-A3,Protocol amendment 3 training,2026-07-10,,
+r.chen@site002.example,Riley Chen,EDC-USER,EDC user training,2026-02-15,2026-02-20,

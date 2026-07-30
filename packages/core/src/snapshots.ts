@@ -1,4 +1,10 @@
-import { type FrameName, type NormalizedFrames, validateExtraction } from "@dmops/adapter-contract";
+import {
+  type AccessGrantRow,
+  type FrameName,
+  type NormalizedFrames,
+  type TrainingRecordRow,
+  validateExtraction,
+} from "@dmops/adapter-contract";
 import { getAdapter } from "@dmops/adapters";
 import type { Sql } from "@dmops/db";
 import {
@@ -17,8 +23,14 @@ export interface RefreshResult {
   extracts: { adapter: string; extractId: string }[];
   computed: { metricId: string; version: string; rows: number }[];
   skipped: { metricId: string; reason: string }[];
+  /** Roster mirrors replaced this run (ADR-0013). */
+  mirrored: { frame: string; adapter: string; rows: number }[];
   warnings: string[];
 }
+
+// Frames that persist as roster mirrors (ADR-0013), refreshed alongside the
+// metrics from the first active source that supports them.
+const MIRROR_FRAMES = ["training_records", "access_grants"] as const satisfies readonly FrameName[];
 
 /**
  * The snapshot pipeline (ADR-0005, ADR-0007): extract → validate → record a
@@ -43,6 +55,7 @@ export async function refreshStudyMetrics(
     extracts: [],
     computed: [],
     skipped: [],
+    mirrored: [],
     warnings: [],
   };
 
@@ -87,15 +100,34 @@ export async function refreshStudyMetrics(
       }
     }
 
+    // Mirror frames go to the first source that supports them (ADR-0013),
+    // sharing that source's extraction with any metrics it feeds.
+    const mirrorBySource = new Map<number, FrameName[]>();
+    for (const frame of MIRROR_FRAMES) {
+      const i = capabilities.findIndex((c) => c.frames[frame]?.supported);
+      if (i === -1) {
+        result.warnings.push(
+          `${frame}: no active source supports this frame — mirror not refreshed`,
+        );
+      } else {
+        mirrorBySource.set(i, [...(mirrorBySource.get(i) ?? []), frame]);
+      }
+    }
+
     const siteRows = await sql`
       SELECT id, site_number FROM site WHERE study_id = ${studyId}`;
     const siteIdByKey = new Map(siteRows.map((r) => [r.site_number as string, r.id as string]));
 
-    for (const [i, runnable] of runnableBySource) {
+    const sourceIndices = [...new Set([...runnableBySource.keys(), ...mirrorBySource.keys()])].sort(
+      (a, b) => a - b,
+    );
+    for (const i of sourceIndices) {
+      const runnable = runnableBySource.get(i) ?? [];
+      const mirrorFrames = mirrorBySource.get(i) ?? [];
       const source = sources[i]!;
       const adapter = adapters[i]!;
       const neededFrames = [
-        ...new Set(runnable.flatMap((l) => l.spec.source_frames)),
+        ...new Set([...runnable.flatMap((l) => l.spec.source_frames), ...mirrorFrames]),
       ] as FrameName[];
       let extractId: string | null = null;
       let frames: NormalizedFrames = {};
@@ -122,8 +154,16 @@ export async function refreshStudyMetrics(
         for (const loaded of runnable) {
           result.skipped.push({ metricId: loaded.spec.id, reason: `extract failed: ${detail}` });
         }
+        for (const frame of mirrorFrames) {
+          result.warnings.push(`${frame}: extract failed — mirror keeps its previous rows`);
+        }
         // Other sources and dmops-native metrics still compute.
         continue;
+      }
+
+      for (const frame of mirrorFrames) {
+        const rows = await replaceMirror(sql, studyId, frame, frames[frame] ?? [], extractId);
+        result.mirrored.push({ frame, adapter: adapter.id, rows });
       }
 
       for (const loaded of runnable) {
@@ -153,6 +193,48 @@ export async function refreshStudyMetrics(
   }
 
   return result;
+}
+
+/**
+ * Replace a study's mirror rows with the just-validated extraction (ADR-0013).
+ * Runs as the owning role — dmops_app cannot write mirrors — and atomically,
+ * so a failed refresh keeps the previous roster instead of an empty one. The
+ * mirrors are unaudited by design: provenance is the cited source_extract.
+ */
+async function replaceMirror(
+  sql: Sql,
+  studyId: string,
+  frame: FrameName,
+  rows: unknown[],
+  extractId: string,
+): Promise<number> {
+  await sql.begin(async (t) => {
+    const tx = t as unknown as Sql;
+    if (frame === "training_records") {
+      await tx`DELETE FROM training_mirror WHERE study_id = ${studyId}`;
+      for (const r of rows as TrainingRecordRow[]) {
+        await tx`
+          INSERT INTO training_mirror
+            (study_id, source_extract_id, person_key, person_name, course_key,
+             course_title, due_date, completed_date, expires_date)
+          VALUES
+            (${studyId}, ${extractId}, ${r.person_key}, ${r.person_name}, ${r.course_key},
+             ${r.course_title}, ${r.due_date}, ${r.completed_date}, ${r.expires_date})`;
+      }
+    } else {
+      await tx`DELETE FROM access_mirror WHERE study_id = ${studyId}`;
+      for (const r of rows as AccessGrantRow[]) {
+        await tx`
+          INSERT INTO access_mirror
+            (study_id, source_extract_id, person_key, person_name, role_key,
+             site_key, status, granted_at)
+          VALUES
+            (${studyId}, ${extractId}, ${r.person_key}, ${r.person_name}, ${r.role_key},
+             ${r.site_key}, ${r.status}, ${r.granted_at})`;
+      }
+    }
+  });
+  return rows.length;
 }
 
 async function computeAndInsert(

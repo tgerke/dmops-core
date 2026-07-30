@@ -12,6 +12,7 @@ export {
 } from "./capabilities.js";
 export { canonicalJson, checksumFrames } from "./checksum.js";
 export {
+  accessGrantRow,
   frameNames,
   frameSchemas,
   issueRow,
@@ -20,7 +21,9 @@ export {
   queryRow,
   reviewRow,
   subjectRow,
+  trainingRecordRow,
   visitRow,
+  type AccessGrantRow,
   type FrameName,
   type IssueRow,
   type NormalizedFrames,
@@ -29,5 +32,6 @@ export {
   type QueryRow,
   type ReviewRow,
   type SubjectRow,
+  type TrainingRecordRow,
   type VisitRow,
 } from "./frames.js";

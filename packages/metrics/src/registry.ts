@@ -1,3 +1,4 @@
+import { accessTrainingGap } from "./compute/access_training_gap.js";
 import { entryLagV1_1 } from "./compute/entry_lag.js";
 import { issueClosureLagMedian } from "./compute/issue_closure_lag_median.js";
 import { issueOpenAging } from "./compute/issue_open_aging.js";
@@ -6,6 +7,7 @@ import { prCycleTimeMedian } from "./compute/pr_cycle_time_median.js";
 import { prReviewTatMedian } from "./compute/pr_review_tat_median.js";
 import { queryOpenAging } from "./compute/query_open_aging.js";
 import { queryTatMedianV1_1 } from "./compute/query_tat_median.js";
+import { trainingCurrentPct } from "./compute/training_current_pct.js";
 import { type LoadedSpec, loadSpecs } from "./spec.js";
 import type { ComputeFn } from "./types.js";
 
@@ -21,6 +23,9 @@ const registry = new Map<string, ComputeFn>([
   ["query_open_aging@1.0", queryOpenAging],
   ["entry_lag@1.1", entryLagV1_1],
   ["milestone_slip@1.0", milestoneSlip],
+  // Training and access mirrors (ADR-0013).
+  ["training_current_pct@1.0", trainingCurrentPct],
+  ["access_training_gap@1.0", accessTrainingGap],
   // DS starter set (ADR-0012), module: stat.
   ["pr_review_tat_median@1.0", prReviewTatMedian],
   ["pr_cycle_time_median@1.0", prCycleTimeMedian],

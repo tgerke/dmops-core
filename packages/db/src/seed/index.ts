@@ -39,6 +39,7 @@ await sql.begin(async (t) => {
   await tx`SELECT set_config('dmops.actor_label', 'seed', true)`;
   await tx`
     TRUNCATE audit_event, metric_snapshot, source_extract, metric_definition,
+             training_mirror, access_mirror,
              uat_defect, uat_cycle, milestone_rebaseline, study_milestone,
              deliverable, study_source, study_assignment, site, study, sponsor,
              person, milestone_definition
@@ -388,6 +389,10 @@ for (const [protocol, studyId] of [
       `${protocol} ${period.periodStart.slice(0, 7)}: ${result.computed.length} metrics computed, ${result.skipped.length} skipped${
         result.skipped.length
           ? ` (${result.skipped.map((s) => `${s.metricId}: ${s.reason}`).join("; ")})`
+          : ""
+      }${
+        result.mirrored.length
+          ? `, mirrored ${result.mirrored.map((m) => `${m.frame} ${m.rows}`).join(", ")}`
           : ""
       }`,
     );

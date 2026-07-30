@@ -1,4 +1,5 @@
 import {
+  type AccessGrantRow,
   type AdapterCapabilities,
   type ExtractionResult,
   type FrameName,
@@ -24,6 +25,12 @@ import { z } from "zod";
  * - visits: UNSUPPORTED — visit dates are captured item values, not API
  *   fields; entry_lag is gated off for edc-core-sourced studies by design.
  * - pages: UNSUPPORTED in v1 (form-instance mapping is future work).
+ * - access_grants (ADR-0013, verified against edc-core's members listing,
+ *   2026-07-30): native person (email/fullName), role, site, account status
+ *   (edc-core's active|locked|deactivated matches the contract enum), and
+ *   granted-at. The endpoint returns current unrevoked human grants only —
+ *   exactly the frame's semantics — and excludes service accounts itself.
+ * - training_records: UNSUPPORTED — an EDC is not an LMS.
  */
 const configSchema = z
   .object({
@@ -52,6 +59,16 @@ interface EdcSubjectRow {
   subjectKey: string;
   status: "screening" | "enrolled" | "screen_failed" | "completed" | "withdrawn";
   siteId: string;
+}
+
+// Shape from edc-core's study members listing (the fields we read).
+interface EdcMemberRow {
+  email: string;
+  fullName: string;
+  userStatus: "active" | "locked" | "deactivated";
+  roleName: string;
+  siteOid: string | null;
+  grantedAt: string;
 }
 
 export function createEdcCoreAdapter(fetchImpl: typeof fetch = fetch): SourceAdapter {
@@ -105,6 +122,21 @@ export function createEdcCoreAdapter(fetchImpl: typeof fetch = fetch): SourceAda
             notes: "visit dates are captured item values, not API fields",
           },
           pages: { supported: false, fields: {}, notes: "form-instance mapping is future work" },
+          access_grants: {
+            supported: true,
+            fields: {
+              person_key: "native",
+              person_name: "native",
+              role_key: "native",
+              site_key: "native",
+              status: "native",
+              granted_at: "native",
+            },
+            notes:
+              "current unrevoked human grants from the members listing; revocation history " +
+              "stays in the EDC's audit trail (ADR-0013)",
+          },
+          training_records: { supported: false, fields: {}, notes: "an EDC is not an LMS" },
         },
       };
     },
@@ -121,7 +153,10 @@ export function createEdcCoreAdapter(fetchImpl: typeof fetch = fetch): SourceAda
 
       const wantsQueries = frames.includes("queries");
       const wantsSubjects = frames.includes("subjects");
-      const unsupported = frames.filter((f) => f !== "queries" && f !== "subjects");
+      const wantsAccess = frames.includes("access_grants");
+      const unsupported = frames.filter(
+        (f) => f !== "queries" && f !== "subjects" && f !== "access_grants",
+      );
       if (unsupported.length > 0) {
         throw new Error(
           `edc-core adapter cannot extract: ${unsupported.join(", ")} (declared unsupported)`,
@@ -144,6 +179,20 @@ export function createEdcCoreAdapter(fetchImpl: typeof fetch = fetch): SourceAda
         }));
         out.subjects = rows;
         rowCounts.subjects = rows.length;
+      }
+
+      if (wantsAccess) {
+        const raw = await get<EdcMemberRow[]>(baseUrl, apiKey, `studies/${sourceStudyKey}/members`);
+        const rows: AccessGrantRow[] = raw.map((m) => ({
+          person_key: m.email,
+          person_name: m.fullName,
+          role_key: m.roleName,
+          site_key: m.siteOid,
+          status: m.userStatus,
+          granted_at: m.grantedAt,
+        }));
+        out.access_grants = rows;
+        rowCounts.access_grants = rows.length;
       }
 
       if (wantsQueries) {

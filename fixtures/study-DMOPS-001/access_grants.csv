@@ -1,0 +1,11 @@
+person_key,person_name,role_key,site_key,status,granted_at
+maya.okafor@pmo.example,Maya Okafor,data_manager,,active,2026-04-20T14:00:00Z
+maya.okafor@pmo.example,Maya Okafor,safety_reviewer,,active,2026-05-01T08:00:00Z
+priya.natarajan@pmo.example,Priya Natarajan,data_manager,,active,2026-04-20T14:05:00Z
+tomas.lindqvist@pmo.example,Tomas Lindqvist,read_only,,active,2026-04-21T09:00:00Z
+grace.liu@pmo.example,Grace Liu,cra,,active,2026-04-22T10:00:00Z
+j.ellis@site001.example,Jordan Ellis,site_coordinator,001,active,2026-04-27T13:00:00Z
+h.whitfield@site001.example,Helen Whitfield,investigator,001,active,2026-04-27T13:05:00Z
+m.santos@site002.example,Marisol Santos,site_coordinator,002,active,2026-05-04T09:30:00Z
+s.park@site002.example,Sun-Hee Park,investigator,002,active,2026-05-04T09:35:00Z
+r.chen@site002.example,Riley Chen,site_coordinator,002,deactivated,2026-05-04T09:40:00Z

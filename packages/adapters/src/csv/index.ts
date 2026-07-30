@@ -92,6 +92,23 @@ export const csvAdapter: SourceAdapter = {
           "state",
           "submitted_at",
         ]),
+        training_records: allNative([
+          "person_key",
+          "person_name",
+          "course_key",
+          "course_title",
+          "due_date",
+          "completed_date",
+          "expires_date",
+        ]),
+        access_grants: allNative([
+          "person_key",
+          "person_name",
+          "role_key",
+          "site_key",
+          "status",
+          "granted_at",
+        ]),
       },
     };
   },

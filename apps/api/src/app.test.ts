@@ -55,7 +55,7 @@ describe("authentication", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.audit_chain_verified).toBe(true);
-    expect(body.migrations).toBe(6);
+    expect(body.migrations).toBe(7);
   });
 });
 
@@ -623,6 +623,7 @@ describe("stat module (ADR-0011)", () => {
     expect(res.status).toBe(200);
     const ids = (await res.json()).metrics.map((m: { metric_id: string }) => m.metric_id).sort();
     expect(ids).toEqual([
+      "access_training_gap",
       "entry_lag",
       "issue_closure_lag_median",
       "issue_open_aging",
@@ -631,6 +632,7 @@ describe("stat module (ADR-0011)", () => {
       "pr_review_tat_median",
       "query_open_aging",
       "query_tat_median",
+      "training_current_pct",
     ]);
   });
 
@@ -643,12 +645,92 @@ describe("stat module (ADR-0011)", () => {
   });
 });
 
+describe("training and access mirrors (ADR-0013)", () => {
+  // The view derives training status against CURRENT_DATE, so assertions
+  // stay to facts that cannot flip as the clock advances: an expiry in the
+  // past stays expired, an uncompleted assignment stays overdue, and an
+  // empty transcript stays empty.
+  const roster = async (studyId: string, token = "dev-dmlead-token") =>
+    (await (await get(`/studies/${studyId}/access-roster`, token)).json()).people;
+
+  it("DM-P1: the roster is mirrored from the source, one row per person, grants aggregated", async () => {
+    const people = await roster(study1);
+    expect(people.length).toBe(9); // 10 grants, 9 people — Maya holds two roles
+    const maya = people.find((p: { person_key: string }) => p.person_key.startsWith("maya.okafor"));
+    expect(maya.roles).toEqual(["data_manager", "safety_reviewer"]);
+    expect(maya.account_status).toBe("active");
+    expect(maya.trainings_on_file).toBe(3);
+  });
+
+  it("training_gap flags the inspection question: expired, overdue, and missing training on active access", async () => {
+    const people = await roster(study1);
+    const byKey = Object.fromEntries(
+      people.map((p: { person_key: string }) => [p.person_key.split("@")[0], p]),
+    );
+    expect(byKey["tomas.lindqvist"].training_gap).toBe(true); // expired GCP
+    expect(byKey["tomas.lindqvist"].trainings_expired).toBeGreaterThanOrEqual(1);
+    expect(byKey["priya.natarajan"].training_gap).toBe(true); // overdue amendment training
+    expect(byKey["s.park"].training_gap).toBe(true); // access with no training on file
+    expect(byKey["s.park"].trainings_on_file).toBe(0);
+    // A deactivated account is not an actionable gap — access is already gone.
+    expect(byKey["r.chen"].account_status).toBe("deactivated");
+    expect(byKey["r.chen"].training_gap).toBe(false);
+  });
+
+  it("DM-P4: training records serve dated status and provenance, never certificates", async () => {
+    const res = await get(`/studies/${study1}/training`, "dev-dmlead-token");
+    expect(res.status).toBe(200);
+    const { records } = await res.json();
+    expect(records.length).toBe(20);
+    const expired = records.find(
+      (r: { person_key: string; course_key: string }) =>
+        r.person_key.startsWith("tomas") && r.course_key === "GCP-2026",
+    );
+    expect(expired.status).toBe("expired");
+    expect(expired.expires_date).toBe("2026-06-10");
+    for (const r of records) {
+      expect(r.mirrored_at).toBeTruthy();
+      expect(
+        Object.keys(r).some((k) => /content|file|blob|certificate|signature|signed/.test(k)),
+      ).toBe(false);
+    }
+  });
+
+  it("DM-P5: mirror reads are row-scoped; the sponsor sees the roster of its own study", async () => {
+    expect((await get(`/studies/${study2}/access-roster`, "dev-sponsor-token")).status).toBe(403);
+    const sponsorView = await roster(study1, "dev-sponsor-token");
+    expect(sponsorView.length).toBe(9); // same rows for every role — nothing to curate
+  });
+
+  it("a study with no roster-capable source serves empty mirrors, not errors", async () => {
+    expect(await roster(study2, "dev-qa-token")).toEqual([]);
+    const training = await (await get(`/studies/${study2}/training`, "dev-qa-token")).json();
+    expect(training.records).toEqual([]);
+  });
+
+  it("DM-Q7/DM-Q8: the roster metrics flow through the snapshot pipeline with the fixture truth", async () => {
+    const body = await (await get(`/studies/${study1}/metrics`, "dev-dmlead-token")).json();
+    const pct = body.metrics.find(
+      (m: { metric_id: string }) => m.metric_id === "training_current_pct",
+    );
+    expect(pct.availability).toBe("computed");
+    expect(Number(pct.latest.value)).toBe(84.2);
+    const gap = body.metrics.find(
+      (m: { metric_id: string }) => m.metric_id === "access_training_gap",
+    );
+    expect(gap.availability).toBe("computed");
+    expect(Number(gap.latest.value)).toBe(4);
+    expect(Number(gap.latest.denominator)).toBe(8);
+  });
+});
+
 describe("metrics surface (DM-P1, DM-P2, DM-P3)", () => {
   it("DM-P2: every dictionary metric appears with its version and availability", async () => {
     const res = await get(`/studies/${study1}/metrics`, "dev-dmlead-token");
     const body = await res.json();
     const ids = body.metrics.map((m: { metric_id: string }) => m.metric_id).sort();
     expect(ids).toEqual([
+      "access_training_gap",
       "entry_lag",
       "issue_closure_lag_median",
       "issue_open_aging",
@@ -657,10 +739,11 @@ describe("metrics surface (DM-P1, DM-P2, DM-P3)", () => {
       "pr_review_tat_median",
       "query_open_aging",
       "query_tat_median",
+      "training_current_pct",
     ]);
     // The engine-current version per metric: the two elapsed-time DM metrics
     // moved to business-day clocks as v1.1 (ADR-0004); the DS starter set
-    // ships at 1.0 (ADR-0012).
+    // (ADR-0012) and the roster metrics (ADR-0013) ship at 1.0.
     const versions: Record<string, string> = {
       query_tat_median: "1.1",
       query_open_aging: "1.0",
@@ -670,6 +753,8 @@ describe("metrics surface (DM-P1, DM-P2, DM-P3)", () => {
       pr_cycle_time_median: "1.0",
       issue_closure_lag_median: "1.0",
       issue_open_aging: "1.0",
+      training_current_pct: "1.0",
+      access_training_gap: "1.0",
     };
     for (const m of body.metrics) {
       expect(m.availability).toBe("computed");

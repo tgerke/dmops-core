@@ -6,9 +6,12 @@ import {
   type DeliverableRow,
   MilestoneError,
   type RebaselineRecord,
+  type RosterRow,
+  type TrainingStatusRow,
   type UatCycleRow,
   type UatDefectRow,
   UatError,
+  accessRoster,
   canReadStudy,
   canRebaseline,
   canWriteAnalysis,
@@ -25,6 +28,7 @@ import {
   milestoneBoard,
   rebaselineHistory,
   rebaselineMilestone,
+  trainingStatus,
   updateDeliverable,
   updateMilestone,
   updateUatCycle,
@@ -36,6 +40,7 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 import { type Env, authMiddleware, authMode, configureTokens } from "./auth.js";
 import {
+  AccessRosterSchema,
   BoardRowSchema,
   CycleDefectsSchema,
   DeliverablePatchSchema,
@@ -53,6 +58,7 @@ import {
   StudyDetailSchema,
   StudyMetricsSchema,
   StudySummarySchema,
+  StudyTrainingSchema,
   StudyUatCyclesSchema,
   UatCyclePatchSchema,
   UatCyclePostSchema,
@@ -722,6 +728,61 @@ export function buildApp(sql: Sql) {
     },
   );
 
+  // --- training and access mirrors (ADR-0013) --------------------------------
+
+  app.openapi(
+    createRoute({
+      method: "get",
+      path: "/studies/{studyId}/access-roster",
+      security,
+      request: { params: z.object({ studyId: z.string().uuid() }) },
+      responses: {
+        200: json(
+          AccessRosterSchema,
+          "Access roster mirrored from the source system, joined with training " +
+            "status (ADR-0013). Display-only with extract provenance — the record " +
+            "lives in the source (ADR-0006, DM-P4); training_gap flags active " +
+            "access whose training is missing, overdue, or expired. Empty until " +
+            "a source that supports access_grants is wired.",
+        ),
+        403: json(ErrorSchema, "Not assigned to this study"),
+      },
+    }),
+    async (c) => {
+      const { studyId } = c.req.valid("param");
+      const denied = requireRead(c.get("assignments"), studyId);
+      if (denied) return c.json(denied, 403);
+      const rows = await accessRoster(sql, studyId);
+      return c.json({ study_id: studyId, people: rows.map(serializeRosterRow) }, 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: "get",
+      path: "/studies/{studyId}/training",
+      security,
+      request: { params: z.object({ studyId: z.string().uuid() }) },
+      responses: {
+        200: json(
+          StudyTrainingSchema,
+          "Training records mirrored from the LMS, with status derived from the " +
+            "dated facts at read time (ADR-0013). Display-only — the LMS holds " +
+            "the record (ADR-0006, DM-P4). Empty until a source that supports " +
+            "training_records is wired.",
+        ),
+        403: json(ErrorSchema, "Not assigned to this study"),
+      },
+    }),
+    async (c) => {
+      const { studyId } = c.req.valid("param");
+      const denied = requireRead(c.get("assignments"), studyId);
+      if (denied) return c.json(denied, 403);
+      const rows = await trainingStatus(sql, studyId);
+      return c.json({ study_id: studyId, records: rows.map(serializeTrainingRow) }, 200);
+    },
+  );
+
   // --- metrics ---------------------------------------------------------------
 
   app.openapi(
@@ -944,6 +1005,25 @@ function serializeRebaseline(r: RebaselineRecord) {
     reference_uri: r.reference_uri,
     created_at: new Date(r.created_at).toISOString(),
   };
+}
+
+function serializeRosterRow(row: RosterRow) {
+  const { study_id: _studyId, ...rest } = row;
+  return {
+    ...rest,
+    trainings_on_file: Number(row.trainings_on_file),
+    trainings_current: Number(row.trainings_current),
+    trainings_overdue: Number(row.trainings_overdue),
+    trainings_expired: Number(row.trainings_expired),
+    trainings_pending: Number(row.trainings_pending),
+    first_granted_at: row.first_granted_at ? new Date(row.first_granted_at).toISOString() : null,
+    mirrored_at: new Date(row.mirrored_at).toISOString(),
+  };
+}
+
+function serializeTrainingRow(row: TrainingStatusRow) {
+  const { study_id: _studyId, ...rest } = row;
+  return { ...rest, mirrored_at: new Date(row.mirrored_at).toISOString() };
 }
 
 function serializeSnapshot(row: Record<string, unknown>) {

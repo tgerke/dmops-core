@@ -93,6 +93,39 @@ export const reviewRow = z
   })
   .strict();
 
+/**
+ * Roster frames (ADR-0013): mirrors of the LMS transcript and the source
+ * system's user administration — displayed with provenance, never the
+ * record (ADR-0006). `person_key` is the source system's identity, by
+ * convention an email address, so training and access rows join across
+ * sources; there is deliberately no link to this system's `person` table.
+ */
+export const trainingRecordRow = z
+  .object({
+    person_key: z.string().min(1),
+    person_name: z.string().nullable(),
+    course_key: z.string().min(1),
+    course_title: z.string().nullable(),
+    due_date: isoDate.nullable(),
+    completed_date: isoDate.nullable(),
+    expires_date: isoDate.nullable(),
+  })
+  .strict();
+
+// Current grants only: a roster is a statement about now, and revocation
+// history stays in the source system's own audit trail (ADR-0013).
+export const accessGrantRow = z
+  .object({
+    person_key: z.string().min(1),
+    person_name: z.string().nullable(),
+    role_key: z.string().min(1),
+    /** Null means a study-wide grant, not an unknown site. */
+    site_key: z.string().nullable(),
+    status: z.enum(["active", "locked", "deactivated"]),
+    granted_at: isoDateTime.nullable(),
+  })
+  .strict();
+
 export const frameSchemas = {
   queries: queryRow,
   subjects: subjectRow,
@@ -101,6 +134,8 @@ export const frameSchemas = {
   issues: issueRow,
   pull_requests: pullRequestRow,
   reviews: reviewRow,
+  training_records: trainingRecordRow,
+  access_grants: accessGrantRow,
 } as const;
 
 export type FrameName = keyof typeof frameSchemas;
@@ -113,6 +148,8 @@ export type PageRow = z.infer<typeof pageRow>;
 export type IssueRow = z.infer<typeof issueRow>;
 export type PullRequestRow = z.infer<typeof pullRequestRow>;
 export type ReviewRow = z.infer<typeof reviewRow>;
+export type TrainingRecordRow = z.infer<typeof trainingRecordRow>;
+export type AccessGrantRow = z.infer<typeof accessGrantRow>;
 
 export interface NormalizedFrames {
   queries?: QueryRow[];
@@ -122,4 +159,6 @@ export interface NormalizedFrames {
   issues?: IssueRow[];
   pull_requests?: PullRequestRow[];
   reviews?: ReviewRow[];
+  training_records?: TrainingRecordRow[];
+  access_grants?: AccessGrantRow[];
 }

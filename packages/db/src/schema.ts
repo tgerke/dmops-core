@@ -91,6 +91,9 @@ export const uatDefectSeverity = pgEnum("uat_defect_severity", ["critical", "maj
 
 export const extractStatus = pgEnum("extract_status", ["ok", "error"]);
 
+// Source-system account status as mirrored (ADR-0013).
+export const accessStatus = pgEnum("access_status", ["active", "locked", "deactivated"]);
+
 export const metricGrain = pgEnum("metric_grain", ["study", "site", "country", "portfolio"]);
 
 // ---------------------------------------------------------------------------
@@ -381,6 +384,54 @@ export const metricSnapshot = pgTable(
     ),
   ],
 );
+
+// ---------------------------------------------------------------------------
+// Roster mirrors (ADR-0013): mirrors of the LMS and the source system's user
+// administration, replaced wholesale by the refresh pipeline. Unaudited
+// machine state with extract provenance; SELECT-only for the API role.
+// person_key is source-side identity (by convention an email) — deliberately
+// no FK to person. Hand-written SQL in migrations/0006 is the source of
+// truth.
+// ---------------------------------------------------------------------------
+
+export const trainingMirror = pgTable(
+  "training_mirror",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    studyId: uuid("study_id")
+      .notNull()
+      .references(() => study.id),
+    sourceExtractId: uuid("source_extract_id")
+      .notNull()
+      .references(() => sourceExtract.id),
+    personKey: text("person_key").notNull(),
+    personName: text("person_name"),
+    courseKey: text("course_key").notNull(),
+    courseTitle: text("course_title"),
+    dueDate: date("due_date"),
+    completedDate: date("completed_date"),
+    expiresDate: date("expires_date"),
+    mirroredAt: timestamp("mirrored_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("training_mirror_person_course_idx").on(t.studyId, t.personKey, t.courseKey)],
+);
+
+export const accessMirror = pgTable("access_mirror", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  studyId: uuid("study_id")
+    .notNull()
+    .references(() => study.id),
+  sourceExtractId: uuid("source_extract_id")
+    .notNull()
+    .references(() => sourceExtract.id),
+  personKey: text("person_key").notNull(),
+  personName: text("person_name"),
+  roleKey: text("role_key").notNull(),
+  siteKey: text("site_key"),
+  status: accessStatus("status").notNull(),
+  grantedAt: timestamp("granted_at", { withTimezone: true }),
+  mirroredAt: timestamp("mirrored_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 // ---------------------------------------------------------------------------
 // Audit (ADR-0003) — written only by database triggers, never by application

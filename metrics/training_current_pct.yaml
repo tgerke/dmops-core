@@ -1,0 +1,25 @@
+# Governed metric definition (ADR-0004; training and access mirrors, ADR-0013).
+id: training_current_pct
+label: Training current at period end (%)
+owner: DM Operations
+version: "1.0"
+grain: [study]
+definition: >
+  Of training assignments required by period end — due on or before period
+  end, or carrying no due date (required now) — the percent completed on or
+  before period end and unexpired, where unexpired means no expiry date or an
+  expiry strictly after period end. A late completion still counts once made;
+  assignments due after period end are pending and excluded entirely.
+clock_start: training_records.due_date
+clock_stop: period_end
+calendar: calendar_days
+include:
+  - assignments due on or before period end
+  - assignments with no due date
+exclude:
+  - assignments due after period end
+source_frames: [training_records]
+required_fields:
+  training_records: [person_key, due_date, completed_date, expires_date]
+refresh: daily
+target: "100"

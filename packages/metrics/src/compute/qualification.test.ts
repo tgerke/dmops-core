@@ -11,6 +11,7 @@ import type { NormalizedFrames } from "@dmops/adapter-contract";
 import { csvAdapter } from "@dmops/adapters/csv";
 import { beforeAll, describe, expect, it } from "vitest";
 import { type MilestoneFact, type SnapshotValue, businessDaysBetween } from "../types.js";
+import { accessTrainingGap } from "./access_training_gap.js";
 import { entryLag, entryLagV1_1 } from "./entry_lag.js";
 import { issueClosureLagMedian } from "./issue_closure_lag_median.js";
 import { issueOpenAging } from "./issue_open_aging.js";
@@ -19,6 +20,7 @@ import { prCycleTimeMedian } from "./pr_cycle_time_median.js";
 import { prReviewTatMedian } from "./pr_review_tat_median.js";
 import { queryOpenAging } from "./query_open_aging.js";
 import { queryTatMedian, queryTatMedianV1_1 } from "./query_tat_median.js";
+import { trainingCurrentPct } from "./training_current_pct.js";
 
 const expected = JSON.parse(
   readFileSync(
@@ -34,7 +36,17 @@ let frames: NormalizedFrames;
 beforeAll(async () => {
   const extraction = await csvAdapter.extract({
     sourceStudyKey: "DMOPS-001",
-    frames: ["queries", "subjects", "visits", "pages", "issues", "pull_requests", "reviews"],
+    frames: [
+      "queries",
+      "subjects",
+      "visits",
+      "pages",
+      "issues",
+      "pull_requests",
+      "reviews",
+      "training_records",
+      "access_grants",
+    ],
     config: { dir: "fixtures/study-DMOPS-001" },
   });
   frames = extraction.frames as NormalizedFrames;
@@ -94,6 +106,44 @@ describe("metric qualification against hand-computed fixtures", () => {
     const rows = milestoneSlip(frames, { ...ctx, milestones: [] });
     expect(byGrain(rows, "study")).toMatchObject({ value: null, n_records: 0 });
   });
+
+  it("DM-Q7: training_current_pct v1.0 matches hand-computed truth for DMOPS-001", () => {
+    const rows = trainingCurrentPct(frames, ctx);
+    expect(byGrain(rows, "study")).toMatchObject(expected.training_current_pct.study);
+    expect(rows).toHaveLength(1); // study grain only
+  });
+
+  it("DM-Q7: training_current_pct returns null with zero records when nothing is required yet", () => {
+    const early = trainingCurrentPct(
+      { training_records: frames.training_records },
+      { periodStart: "2026-01-01", periodEnd: "2026-01-31" },
+    );
+    // Only the undated assignment (required now) is in scope in January.
+    expect(byGrain(early, "study")).toMatchObject({ denominator: 1 });
+    const none = trainingCurrentPct({ training_records: [] }, ctx);
+    expect(byGrain(none, "study")).toMatchObject({ value: null, n_records: 0 });
+  });
+
+  it("DM-Q8: access_training_gap v1.0 matches hand-computed truth for DMOPS-001", () => {
+    const rows = accessTrainingGap(frames, ctx);
+    expect(byGrain(rows, "study")).toMatchObject(expected.access_training_gap.study);
+  });
+
+  it("DM-Q8: access_training_gap counts access with no training on file, and ignores inactive accounts", () => {
+    const rows = accessTrainingGap(
+      {
+        access_grants: [
+          grant("untrained@x.example", "active"),
+          grant("deactivated@x.example", "deactivated"),
+          grant("locked@x.example", "locked"),
+        ],
+        training_records: [],
+      },
+      ctx,
+    );
+    // Only the active holder counts, and absence of training is the gap.
+    expect(byGrain(rows, "study")).toMatchObject({ value: 1, denominator: 1 });
+  });
 });
 
 describe("DS metric qualification against hand-computed fixtures (stat module, ADR-0012)", () => {
@@ -141,6 +191,17 @@ describe("businessDaysBetween (the v1.1 day-counting rule, ADR-0004)", () => {
     expect(businessDaysBetween("2026-06-08", "2026-06-05")).toBe(-1);
   });
 });
+
+function grant(personKey: string, status: "active" | "locked" | "deactivated") {
+  return {
+    person_key: personKey,
+    person_name: null,
+    role_key: "data_manager",
+    site_key: null,
+    status,
+    granted_at: "2026-05-01T09:00:00Z",
+  };
+}
 
 function fact(code: string, status: string, baseline: string, actual: string): MilestoneFact {
   return {

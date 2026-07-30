@@ -33,7 +33,18 @@
     "issue_closure_lag_median: closed in June are IS-5 4.0d, IS-6 9.0d,",
     "IS-7 32.0d, IS-9 2.0d; IS-8 closed in May excluded. [2,4,9,32] → 6.5.",
     "issue_open_aging as of 6/30: open are IS-1 (70.6d), IS-2 (35.6d),",
-    "IS-3 (19.6d), IS-4 (4.4d) → 2 aged of 4 open."
+    "IS-3 (19.6d), IS-4 (4.4d) → 2 aged of 4 open.",
+    "Roster mirrors (ADR-0013; training_records/access_grants CSVs, study",
+    "grain only, evaluated as of period end 6/30). training_current_pct:",
+    "required = due ≤ 6/30 or undated → 19 of 20 rows (m.santos PROT-A3 due",
+    "7/10 is pending). Not current among them: priya PROT-A3 (due 6/20, not",
+    "completed → overdue), h.whitfield PROT-A3 (same), tomas GCP-2026",
+    "(expires 6/10 ≤ 6/30 → expired). 16/19 → 84.2%. access_training_gap:",
+    "active grant holders are maya, priya, tomas, grace, j.ellis,",
+    "h.whitfield, m.santos, s.park (8; r.chen is deactivated). Gaps: priya",
+    "(overdue), tomas (expired), h.whitfield (overdue), s.park (no training",
+    "on file) → 4 of 8. grace PROT-A3 completed 6/25 after its 6/20 due date",
+    "is late but current; m.santos pending row creates no gap."
   ],
   "period": { "start": "2026-06-01", "end": "2026-06-30" },
   "query_tat_median": {
@@ -74,5 +85,11 @@
   },
   "issue_open_aging": {
     "study": { "value": 2, "numerator": 2, "denominator": 4, "n_records": 4 }
+  },
+  "training_current_pct": {
+    "study": { "value": 84.2, "numerator": 16, "denominator": 19, "n_records": 19 }
+  },
+  "access_training_gap": {
+    "study": { "value": 4, "numerator": 4, "denominator": 8, "n_records": 8 }
   }
 }

@@ -23,6 +23,13 @@ export {
 } from "./deliverables.js";
 export { registerMetrics } from "./metric-registration.js";
 export {
+  accessRoster,
+  trainingStatus,
+  type RosterRow,
+  type TrainingStatus,
+  type TrainingStatusRow,
+} from "./mirrors.js";
+export {
   MilestoneError,
   milestoneBoard,
   rebaselineHistory,

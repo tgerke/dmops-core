@@ -104,6 +104,8 @@ function parseComplianceTable(): Requirement[] {
       ["DM-Q4", "milestone_slip", "v1.0"],
       ["DM-Q5", "query_tat_median", "v1.1 (business days)"],
       ["DM-Q6", "entry_lag", "v1.1 (business days)"],
+      ["DM-Q7", "training_current_pct", "v1.0"],
+      ["DM-Q8", "access_training_gap", "v1.0"],
       ["DS-Q1", "pr_review_tat_median", "v1.0 (business days)"],
       ["DS-Q2", "pr_cycle_time_median", "v1.0 (business days)"],
       ["DS-Q3", "issue_closure_lag_median", "v1.0 (calendar days)"],

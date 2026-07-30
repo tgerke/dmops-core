@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import { validateExtraction } from "./adapter.js";
 import { type AdapterCapabilities, fieldSupport } from "./capabilities.js";
 import { checksumFrames } from "./checksum.js";
-import { pullRequestRow, queryRow, reviewRow } from "./frames.js";
+import {
+  accessGrantRow,
+  pullRequestRow,
+  queryRow,
+  reviewRow,
+  trainingRecordRow,
+} from "./frames.js";
 
 const validQuery = {
   source_query_id: "Q-1",
@@ -57,6 +63,49 @@ describe("repository-work frame schemas (ADR-0012)", () => {
     expect(reviewRow.parse(validReview)).toEqual(validReview);
     expect(() => reviewRow.parse({ ...validReview, submitted_at: null })).toThrow();
     expect(() => reviewRow.parse({ ...validReview, state: "pending" })).toThrow();
+  });
+});
+
+describe("roster frame schemas (ADR-0013)", () => {
+  const validTraining = {
+    person_key: "maya.okafor@pmo.example",
+    person_name: "Maya Okafor",
+    course_key: "GCP-2026",
+    course_title: "GCP refresher 2026",
+    due_date: "2026-06-15",
+    completed_date: "2026-06-10",
+    expires_date: "2027-06-10",
+  };
+
+  it("accepts a conforming training record with dated facts, all nullable", () => {
+    expect(trainingRecordRow.parse(validTraining)).toEqual(validTraining);
+    expect(() =>
+      trainingRecordRow.parse({
+        ...validTraining,
+        due_date: null,
+        completed_date: null,
+        expires_date: null,
+      }),
+    ).not.toThrow();
+  });
+
+  it("has no status field — current/overdue/expired is derived in views, never stored", () => {
+    expect(() => trainingRecordRow.parse({ ...validTraining, status: "current" })).toThrow();
+  });
+
+  it("accepts a conforming access grant and rejects vendor account states", () => {
+    const validGrant = {
+      person_key: "site.coord@site001.example",
+      person_name: "Jordan Ellis",
+      role_key: "site_coordinator",
+      site_key: "001",
+      status: "active",
+      granted_at: "2026-02-10T15:00:00Z",
+    };
+    expect(accessGrantRow.parse(validGrant)).toEqual(validGrant);
+    expect(() => accessGrantRow.parse({ ...validGrant, status: "ACTIVE" })).toThrow();
+    // Null site_key is a study-wide grant, not a validation failure.
+    expect(() => accessGrantRow.parse({ ...validGrant, site_key: null })).not.toThrow();
   });
 });
 

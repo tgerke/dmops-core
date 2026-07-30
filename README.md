@@ -88,11 +88,11 @@ report), `pnpm metrics:refresh` (cron-friendly snapshot computation).
 
 ## Status
 
-A working slice 5, not a product. What exists: the study registry, the full
+A working slice 6, not a product. What exists: the study registry, the full
 DM milestone taxonomy with a role-scoped board and audited writes, a
 deliverables surface with eTMF pointers and audited status updates, UAT
 cycle and defect tracking with a completion gate ("UAT complete" refuses to
-land while defects are open, ADR-0010), eight qualified metrics flowing
+land while defects are open, ADR-0010), ten qualified metrics flowing
 through the adapter pipeline into an immutable snapshot warehouse with trend
 and per-site drill-downs, governed re-baselining with an append-only history
 (ADR-0009), business-day metric calendars as v1.1 of the elapsed-time
@@ -105,13 +105,16 @@ deliverable types (ADR-0011), and repository work flowing through the same
 pipeline: issues, pull requests, and reviews as normalized frames, a
 capability-declaring GitHub adapter, the DS metric starter set, and
 multi-source studies so an EDC and a repository host can feed one study side
-by side (ADR-0012). What comes next, in order:
+by side (ADR-0012), and training and access mirrors: the LMS transcript and
+the source system's access list read through the same adapter contract into
+display-only, extract-provenanced mirror tables, a roster that flags active
+access with missing, overdue, or expired training, and two roster metrics
+that snapshot that answer monthly (ADR-0013). What comes next, in order:
 
-1. Training and access mirrors.
-2. Lock-readiness scoring.
-3. Portfolio roll-up views, over every module's metrics.
-4. Exports and KPI packs, and holiday-aware metric calendars.
-5. Medrio and Rave adapters (the contract is designed for them; see
+1. Lock-readiness scoring.
+2. Portfolio roll-up views, over every module's metrics.
+3. Exports and KPI packs, and holiday-aware metric calendars.
+4. Medrio and Rave adapters (the contract is designed for them; see
    [Writing an adapter](https://tgerke.github.io/dmops-core/guide/writing-an-adapter/)).
 
 This is not validated software. The IQ script, OQ report, and traceability

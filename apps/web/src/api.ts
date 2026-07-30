@@ -83,6 +83,35 @@ export interface UatDefect {
   reference_uri: string | null;
 }
 
+// Roster mirrors (ADR-0013): display-only, same serialization for every role.
+export interface RosterRow {
+  person_key: string;
+  person_name: string | null;
+  roles: string[];
+  site_keys: string[] | null;
+  account_status: "active" | "locked" | "deactivated";
+  first_granted_at: string | null;
+  mirrored_at: string;
+  trainings_on_file: number;
+  trainings_current: number;
+  trainings_overdue: number;
+  trainings_expired: number;
+  trainings_pending: number;
+  training_gap: boolean;
+}
+
+export interface TrainingRecord {
+  person_key: string;
+  person_name: string | null;
+  course_key: string;
+  course_title: string | null;
+  due_date: string | null;
+  completed_date: string | null;
+  expires_date: string | null;
+  mirrored_at: string;
+  status: "current" | "expired" | "overdue" | "pending";
+}
+
 export interface Snapshot {
   metric_id: string;
   metric_version: string;
@@ -190,6 +219,10 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(patch),
     }),
+  accessRoster: (studyId: string) =>
+    request<{ people: RosterRow[] }>(`/studies/${studyId}/access-roster`),
+  training: (studyId: string) =>
+    request<{ records: TrainingRecord[] }>(`/studies/${studyId}/training`),
   snapshots: (studyId: string, metricId: string, grain: string) =>
     request<Snapshot[]>(`/studies/${studyId}/metrics/${metricId}/snapshots?grain=${grain}`),
   metricSites: (studyId: string, metricId: string) =>

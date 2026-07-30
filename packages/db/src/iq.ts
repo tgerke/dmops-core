@@ -22,8 +22,15 @@ const ok = (cond: boolean, check: string, detail: string) =>
 
 // metric_snapshot and source_extract are machine-derived, immutable, and carry
 // their own extract provenance (see 0001_audit_and_views.sql); audit_event
-// cannot audit itself.
-const AUDIT_EXEMPT = new Set(["metric_snapshot", "source_extract", "audit_event"]);
+// cannot audit itself. The roster mirrors are machine state replaced each
+// refresh, provenanced by the extract they cite (ADR-0013, migrations/0006).
+const AUDIT_EXEMPT = new Set([
+  "metric_snapshot",
+  "source_extract",
+  "audit_event",
+  "training_mirror",
+  "access_mirror",
+]);
 
 // Append-only warehouse + audit trail + governance records (DM-P3, ADR-0007,
 // ADR-0009).
@@ -98,7 +105,9 @@ async function main() {
     SELECT has_schema_privilege('dmops_app', 'public', 'CREATE') AS can_create,
            has_table_privilege('dmops_app', 'audit_event', 'INSERT') AS can_forge,
            has_table_privilege('dmops_app', 'person', 'TRUNCATE') AS can_truncate,
-           has_table_privilege('dmops_app', 'metric_snapshot', 'UPDATE') AS can_rewrite`;
+           has_table_privilege('dmops_app', 'metric_snapshot', 'UPDATE') AS can_rewrite,
+           has_table_privilege('dmops_app', 'training_mirror', 'INSERT')
+             OR has_table_privilege('dmops_app', 'access_mirror', 'INSERT') AS can_write_mirror`;
   ok(!privileges!.can_create, "dmops_app cannot CREATE in schema", String(privileges!.can_create));
   ok(
     !privileges!.can_forge,
@@ -110,6 +119,11 @@ async function main() {
     !privileges!.can_rewrite,
     "dmops_app cannot UPDATE metric_snapshot",
     String(privileges!.can_rewrite),
+  );
+  ok(
+    !privileges!.can_write_mirror,
+    "dmops_app cannot write roster mirrors (ADR-0013)",
+    String(privileges!.can_write_mirror),
   );
 
   // structural display-only posture (DM-P4, ADR-0006)
