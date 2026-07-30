@@ -191,9 +191,7 @@ a.landing-card {
   display: block;
   text-decoration: none;
   color: inherit;
-  transition:
-    border-color 120ms ease,
-    transform 120ms ease;
+  transition: border-color 120ms ease, transform 120ms ease;
 }
 
 a.landing-card:hover {

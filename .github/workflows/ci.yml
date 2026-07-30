@@ -58,3 +58,9 @@ jobs:
 
       - name: Build web
         run: pnpm --filter @dmops/web build
+
+      # The links validator runs inside the Starlight build, so broken
+      # cross-links and ADR references fail PRs here rather than surfacing
+      # on the main-branch Pages deploy.
+      - name: Build docs site
+        run: pnpm --filter site build

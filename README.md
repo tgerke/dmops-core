@@ -6,6 +6,10 @@ never inside it. Milestone boards, deliverable status with eTMF links, and
 quality metrics computed from source systems through capability-declaring
 adapters, with every published number traceable to a checksummed extract.
 
+**Documentation: https://tgerke.github.io/dmops-core/** — a guided tour,
+role-based reading tracks, the full user guide with screenshots, and the
+published design decisions.
+
 Sibling to [edc-core](https://github.com/tgerke/edc-core) (data capture) and
 [ctms-core](https://github.com/tgerke/ctms-core) (TMF/regulatory documents),
 sharing their architecture: compliance enforced by the database rather than
