@@ -1,0 +1,188 @@
+---
+title: The DM PMO layer beside the EDC
+description: Milestone boards, deliverable status, and capability-gated quality metrics for clinical Data Management
+template: splash
+tableOfContents: false
+hero:
+  title: Data Management operations, beside the EDC
+  tagline: >-
+    DM's operational load — database build, edit checks, UAT, reconciliation,
+    lock readiness — is tracked today in spreadsheets and email threads, and
+    re-assembled by hand for every governance meeting. dmops-core is the
+    system of record for that work: governed milestone boards, deliverable
+    status with eTMF links, UAT tracking, and quality metrics computed from
+    source systems that never approximate around a gap.
+  actions:
+    - text: Get started
+      link: /dmops-core/getting-started/
+      icon: right-arrow
+      variant: primary
+    - text: Five-minute tour
+      link: /dmops-core/tour/
+      variant: secondary
+    - text: GitHub
+      link: https://github.com/tgerke/dmops-core
+      icon: github
+      variant: minimal
+---
+
+import { Image } from "astro:assets";
+import board from "../../assets/screenshots/board-hero.png";
+
+<div class="landing">
+
+<figure class="landing-shot">
+  <Image src={board} alt="A study board: four KPI cards with reporting periods and targets, a deliverables table with status chips and eTMF links, UAT cycle cards with defect counts, and phase-grouped milestone tables with slip badges" />
+  <figcaption>
+    One study board: metrics, deliverables, UAT, and phase-grouped
+    milestones, derived from one set of audited facts.
+  </figcaption>
+</figure>
+
+<section>
+
+<h2 id="why-dmops-core">Why dmops-core</h2>
+
+<div class="landing-grid">
+  <div class="landing-card">
+    <h3>Beside the EDC, never inside it</h3>
+    <p>
+      No clinical data, no query workflow, no document content. If a fact
+      lives in the EDC or eTMF, an adapter reads it; if it lives nowhere
+      else, dmops-core owns and audits it. Dual entry is the failure mode
+      that kills status portals
+      (<a href="/dmops-core/reference/decisions/0001-pmo-beside-the-edc/">ADR-0001</a>).
+    </p>
+  </div>
+  <div class="landing-card">
+    <h3>Governed milestones, honest slip</h3>
+    <p>
+      One 38-code taxonomy across every study, four dates per milestone, and
+      computed slip that survives re-planning: moving a plan is an
+      append-only governance action with a required reason
+      (<a href="/dmops-core/reference/decisions/0009-append-only-rebaseline-governance/">ADR-0009</a>).
+    </p>
+  </div>
+  <div class="landing-card">
+    <h3>Metrics are code, not dashboards</h3>
+    <p>
+      Every KPI is one versioned written definition bound to one tested
+      compute function, qualified against hand-computed fixtures, and
+      snapshotted immutably with extract provenance
+      (<a href="/dmops-core/reference/decisions/0004-metrics-are-versioned-code/">ADR-0004</a>).
+    </p>
+  </div>
+  <div class="landing-card">
+    <h3>Unavailable beats approximated</h3>
+    <p>
+      Adapters declare per-field capabilities; a metric whose source cannot
+      supply a required field is skipped and says so on the board. No number
+      appears that nobody can defend
+      (<a href="/dmops-core/reference/decisions/0005-adapter-capability-contract/">ADR-0005</a>).
+    </p>
+  </div>
+  <div class="landing-card">
+    <h3>Audit below the application</h3>
+    <p>
+      A hash-chained audit trail written by database triggers, verified end
+      to end by <code>/health</code>, and an API role that cannot fabricate
+      or edit audit events — controls that hold even for ad-hoc psql
+      (<a href="/dmops-core/reference/decisions/0003-db-enforced-audit/">ADR-0003</a>).
+    </p>
+  </div>
+  <div class="landing-card">
+    <h3>Displays regulated records, holds none</h3>
+    <p>
+      Deliverable and UAT evidence stay in the eTMF; dmops-core stores
+      status plus a link, with no signature columns anywhere in the schema.
+      Scope discipline keeps the validation burden proportionate
+      (<a href="/dmops-core/reference/decisions/0006-display-only-regulated-records/">ADR-0006</a>).
+    </p>
+  </div>
+</div>
+
+</section>
+
+<section>
+
+## Where to start
+
+<div class="landing-grid landing-grid--4">
+  <a class="landing-card" href="/dmops-core/getting-started/">
+    <h3>Getting started</h3>
+    <p>
+      A seeded two-study demo portfolio in five commands, with personas for
+      every role.
+    </p>
+  </a>
+  <a class="landing-card" href="/dmops-core/tour/">
+    <h3>Five-minute tour</h3>
+    <p>
+      Portfolio → board → metric drill-down → re-baseline → UAT defect →
+      sponsor view → audit chain.
+    </p>
+  </a>
+  <a class="landing-card" href="/dmops-core/guide/milestones/">
+    <h3>User guide</h3>
+    <p>
+      Milestones, deliverables, UAT, metrics, and the adapters that feed
+      them.
+    </p>
+  </a>
+  <a class="landing-card" href="/dmops-core/compliance/">
+    <h3>Compliance</h3>
+    <p>
+      The lighter-tier scope argument, database-enforced controls, and
+      generated validation evidence.
+    </p>
+  </a>
+</div>
+
+</section>
+
+<section>
+
+## Start here by role
+
+<div class="landing-grid landing-grid--4">
+  <a class="landing-card" href="/dmops-core/start-here/#dm-leads">
+    <h3>DM leads</h3>
+    <p>
+      Run a board: milestones, forecasts, deliverable status, and reading
+      the metrics strip.
+    </p>
+  </a>
+  <a class="landing-card" href="/dmops-core/start-here/#dm-managers">
+    <h3>DM managers</h3>
+    <p>
+      Governance: re-baselining, the append-only plan history, and the
+      taxonomy itself.
+    </p>
+  </a>
+  <a class="landing-card" href="/dmops-core/start-here/#analysts">
+    <h3>Analysts and programmers</h3>
+    <p>
+      UAT cycles and defects, source adapters, and adding qualified
+      metrics.
+    </p>
+  </a>
+  <a class="landing-card" href="/dmops-core/start-here/#oversight">
+    <h3>Sponsor and QA oversight</h3>
+    <p>
+      The curated view, the compliance posture, and the honest gaps list.
+    </p>
+  </a>
+</div>
+
+</section>
+
+<div class="landing-status">
+  <strong>Status: early development.</strong> The milestone board,
+  deliverables, UAT tracking, metrics engine, and the csv and edc-core
+  adapters are implemented and tested, with validation evidence generated
+  from live runs — but there has been no release yet and dmops-core has not
+  been used in production. Follow progress on
+  <a href="https://github.com/tgerke/dmops-core">GitHub</a>.
+</div>
+
+</div>
