@@ -28,9 +28,11 @@ Three obligations:
 
 1. **Normalized frames.** `extract` returns rows conforming to the zod
    schemas in `@dmops/adapter-contract`: the EDC frames `queries`,
-   `subjects`, `visits`, `pages`, and the repository-work frames `issues`,
+   `subjects`, `visits`, `pages`, the repository-work frames `issues`,
    `pull_requests`, `reviews`
-   ([ADR-0012](/dmops-core/reference/decisions/0012-programming-work-frames-and-github-adapter/)).
+   ([ADR-0012](/dmops-core/reference/decisions/0012-programming-work-frames-and-github-adapter/)),
+   and the roster frames `training_records`, `access_grants`
+   ([ADR-0013](/dmops-core/reference/decisions/0013-training-and-access-mirrors/)).
    Declare only the frames your source honestly supplies; an undeclared
    frame is unsupported, which is the fail-closed default working as
    intended. Keys are snake_case, timestamps are ISO 8601 strings, dates are

@@ -21,12 +21,17 @@ derived roll-ups; nobody maintains them.
 ## 2. Read a board top to bottom
 
 Click **DMOPS-001**. The board stacks the metrics strip, deliverables, UAT
-cycles, and six milestone tables grouped by phase, ending with Analysis &
-Reporting because this study runs the stat module
+cycles, the training-and-access roster, and six milestone tables grouped by
+phase, ending with Analysis & Reporting because this study runs the stat
+module
 ([ADR-0011](/dmops-core/reference/decisions/0011-stat-programming-as-an-opt-in-module/));
-DMOPS-002 never enabled it, so its board stops at Closeout.
+DMOPS-002 never enabled it, so its board stops at Closeout. In the roster,
+the red **gap** badges are people holding active access with training
+missing, overdue, or expired — mirrored from the source systems, never
+entered here
+([ADR-0013](/dmops-core/reference/decisions/0013-training-and-access-mirrors/)).
 
-![DMOPS-001's full board as the DM lead: the eight-card metrics strip, the deliverables table, two UAT cycles expanded to their defect tables, and the phase-grouped milestone tables below](../../assets/screenshots/study-board.png)
+![DMOPS-001's full board as the DM lead: the ten-card metrics strip, the deliverables table, two UAT cycles expanded to their defect tables, the training-and-access roster with gap badges, and the phase-grouped milestone tables below](../../assets/screenshots/study-board.png)
 
 Scan the Conduct section: completed milestones carry slip badges against
 their planned dates, and the in-flight amendment is forecast 11 days late.

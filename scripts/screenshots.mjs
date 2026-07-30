@@ -217,6 +217,22 @@ const shots = [
     run: expandUatCycles,
   },
   {
+    name: "training-access",
+    path: `/studies/${study1}`,
+    persona: "dmlead",
+    // has-text, not text-is: the heading carries the gap-count badge and the
+    // mirrored-date note (ADR-0013).
+    locator: "section:has(h2:has-text('Training & Access'))",
+    run: async (page) => {
+      // Expand the first person so the per-course mirror rows are visible.
+      await page
+        .locator("section:has(h2:has-text('Training & Access')) button", { hasText: "▸" })
+        .first()
+        .click();
+      await page.waitForLoadState("networkidle");
+    },
+  },
+  {
     name: "milestones-conduct",
     path: `/studies/${study1}`,
     persona: "dmlead",

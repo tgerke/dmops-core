@@ -26,7 +26,7 @@ authoring path.
 
 ## Reading the strip
 
-![The metrics strip on DMOPS-001: eight KPI cards spanning the DM suite (visit-to-entry lag, milestone slip, open query aging, query turnaround) and the DS suite (issue closure lag, open issue aging, PR cycle time, PR review turnaround), each with its reporting period and target](../../../assets/screenshots/metrics-strip.png)
+![The metrics strip on DMOPS-001: ten KPI cards spanning the DM suite (visit-to-entry lag, milestone slip, open query aging, query turnaround, training currency, access-training gap) and the DS suite (issue closure lag, open issue aging, PR cycle time, PR review turnaround), each with its reporting period and target](../../../assets/screenshots/metrics-strip.png)
 
 Each card is one metric's latest computed value for the most recent
 reporting period, with its target from the dictionary. Clicking a card opens
@@ -85,6 +85,14 @@ The DM suite, on every study:
 | `query_open_aging` | 1.0 | Open queries older than 30 days at period end |
 | `entry_lag` | 1.1 | Median business days from visit date to first data entry |
 | `milestone_slip` | 1.0 | Median days, baseline to actual, completed in period |
+| `training_current_pct` | 1.0 | Percent of required training completed and unexpired at period end |
+| `access_training_gap` | 1.0 | Persons with active access whose training is missing, overdue, or expired |
+
+The two roster metrics compute from the training and access mirrors' frames
+([ADR-0013](/dmops-core/reference/decisions/0013-training-and-access-mirrors/));
+see [Training & access](/dmops-core/guide/training-access/) for the mirror
+surface itself, including why `access_training_gap` reports unavailable in a
+split deployment where access and training come from different sources.
 
 The DS suite, on stat-module studies, computed from the repository frames at
 study grain (site and country are EDC concepts with no meaning for

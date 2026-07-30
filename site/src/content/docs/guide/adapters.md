@@ -12,9 +12,11 @@ declare they can supply.
 ## The contract
 
 A source adapter extracts normalized frames from the system where the data
-already lives: the EDC frames (`queries`, `subjects`, `visits`, `pages`) and
+already lives: the EDC frames (`queries`, `subjects`, `visits`, `pages`),
 the repository-work frames (`issues`, `pull_requests`, `reviews`,
-[ADR-0012](/dmops-core/reference/decisions/0012-programming-work-frames-and-github-adapter/)).
+[ADR-0012](/dmops-core/reference/decisions/0012-programming-work-frames-and-github-adapter/)),
+and the roster frames (`training_records`, `access_grants`,
+[ADR-0013](/dmops-core/reference/decisions/0013-training-and-access-mirrors/)).
 The frames are vocabulary owned by dmops-core, not a mirror of any vendor
 payload, and an adapter that does not declare a frame is unsupported for it,
 so adding a frame never disturbs existing adapters. The contract
@@ -53,7 +55,11 @@ approximates around source gaps publishes numbers nobody can defend.
 - **edc-core**: the reference EDC adapter. Authenticates with an edc-core
   study-scoped API key (env indirection, never a key in the database), maps
   query threads to the queries frame, and derives `first_response_at` from
-  the first thread message not authored by the query opener.
+  the first thread message not authored by the query opener. Also supplies
+  `access_grants` from the study members listing — current unrevoked human
+  grants only — and declares `training_records` unsupported, because an EDC
+  is not an LMS
+  ([ADR-0013](/dmops-core/reference/decisions/0013-training-and-access-mirrors/)).
 - **github**: the repository-host adapter
   ([ADR-0012](/dmops-core/reference/decisions/0012-programming-work-frames-and-github-adapter/)).
   Reads the repositories named in the study's source config (token via env
