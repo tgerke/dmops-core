@@ -29,6 +29,7 @@ import {
   DeliverableSchema,
   ErrorSchema,
   HealthSchema,
+  MetricSitesSchema,
   MilestoneBoardSchema,
   MilestonePatchSchema,
   RebaselinePostSchema,
@@ -480,6 +481,49 @@ export function buildApp(sql: Sql) {
         };
       });
       return c.json({ study_id: studyId, metrics }, 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: "get",
+      path: "/studies/{studyId}/metrics/{metricId}/sites",
+      security,
+      request: {
+        params: z.object({ studyId: z.string().uuid(), metricId: z.string() }),
+      },
+      responses: {
+        200: json(
+          MetricSitesSchema,
+          "Latest site-grain snapshot per site — the same versioned metric at site grain (DM-P2). " +
+            "Empty for metrics that emit study grain only.",
+        ),
+        403: json(ErrorSchema, "Not assigned to this study"),
+      },
+    }),
+    async (c) => {
+      const { studyId, metricId } = c.req.valid("param");
+      const denied = requireRead(c.get("assignments"), studyId);
+      if (denied) return c.json(denied, 403);
+      const rows = await sql`
+        SELECT v.*, s.site_number, s.name AS site_name, s.country
+        FROM v_metric_latest v
+        JOIN site s ON s.id = v.site_id
+        WHERE v.study_id = ${studyId} AND v.metric_id = ${metricId} AND v.grain = 'site'
+        ORDER BY s.site_number`;
+      return c.json(
+        {
+          study_id: studyId,
+          metric_id: metricId,
+          sites: rows.map((r) => ({
+            ...serializeSnapshot(r),
+            site_number: r.site_number as string,
+            site_name: (r.site_name ?? null) as string | null,
+            country: (r.country ?? null) as string | null,
+          })),
+        },
+        200,
+      );
     },
   );
 

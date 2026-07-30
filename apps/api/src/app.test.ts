@@ -376,10 +376,49 @@ describe("metrics surface (DM-P1, DM-P2, DM-P3)", () => {
       "dev-qa-token",
     );
     const rows = await res.json();
-    expect(rows.length).toBe(2);
+    // Two sites per seeded reporting period (the seed computes May and June).
+    const june = rows.filter((r: { period_start: string }) => r.period_start === "2026-06-01");
+    expect(june.length).toBe(2);
     for (const row of rows) {
       expect(row.metric_version).toBe("1.1");
       expect(row.grain).toBe("site");
     }
+  });
+
+  it("DM-P3: study-grain history spans reporting periods, newest first", async () => {
+    const res = await get(
+      `/studies/${study1}/metrics/query_tat_median/snapshots?grain=study`,
+      "dev-qa-token",
+    );
+    const rows = await res.json();
+    const periods = [...new Set(rows.map((r: { period_start: string }) => r.period_start))];
+    expect(periods.length).toBeGreaterThanOrEqual(2);
+    expect(rows[0].period_start).toBe("2026-06-01");
+  });
+
+  it("DM-P2: the site drill-down serves the same versioned metric at site grain", async () => {
+    const res = await get(`/studies/${study1}/metrics/query_tat_median/sites`, "dev-dmlead-token");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.sites.map((s: { site_number: string }) => s.site_number)).toEqual(["001", "002"]);
+    for (const site of body.sites) {
+      expect(site.metric_version).toBe("1.1");
+      expect(site.period_start).toBe("2026-06-01"); // latest, not history
+    }
+    // Hand-computed fixture truth (DM-Q5): business-day medians per site.
+    expect(Number(body.sites[0].value)).toBe(4.0);
+    expect(Number(body.sites[1].value)).toBe(4.5);
+  });
+
+  it("DM-P5: the site drill-down is row-scoped like every other read", async () => {
+    expect(
+      (await get(`/studies/${study2}/metrics/query_tat_median/sites`, "dev-sponsor-token")).status,
+    ).toBe(403);
+  });
+
+  it("a study-grain-only metric returns an empty site list, not an error", async () => {
+    const res = await get(`/studies/${study1}/metrics/milestone_slip/sites`, "dev-dmlead-token");
+    expect(res.status).toBe(200);
+    expect((await res.json()).sites).toEqual([]);
   });
 });

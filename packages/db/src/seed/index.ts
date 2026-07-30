@@ -17,8 +17,14 @@ import { refreshStudyMetrics, registerMetrics } from "@dmops/core";
 import { type Sql, createDb } from "../client.js";
 import { loadTaxonomy, syncTaxonomy } from "../sync-taxonomy.js";
 
-// The fixture study's reporting period (see fixtures/study-DMOPS-001).
-const PERIOD = { periodStart: "2026-06-01", periodEnd: "2026-06-30" };
+// The fixture study's reporting periods (see fixtures/study-DMOPS-001).
+// June is the hand-computed qualification period (expected-values.json); May
+// exists so snapshot history has a real trend on first boot. Chronological
+// order, so v_metric_latest lands on the newest period.
+const PERIODS = [
+  { periodStart: "2026-05-01", periodEnd: "2026-05-31" },
+  { periodStart: "2026-06-01", periodEnd: "2026-06-30" },
+];
 
 const { sql } = createDb();
 
@@ -29,8 +35,8 @@ await sql.begin(async (t) => {
   await tx`SELECT set_config('dmops.actor_label', 'seed', true)`;
   await tx`
     TRUNCATE audit_event, metric_snapshot, source_extract, metric_definition,
-             study_milestone, deliverable, study_source, study_assignment,
-             site, study, sponsor, person, milestone_definition
+             milestone_rebaseline, study_milestone, deliverable, study_source,
+             study_assignment, site, study, sponsor, person, milestone_definition
     RESTART IDENTITY CASCADE`;
 });
 
@@ -283,15 +289,17 @@ for (const [protocol, studyId] of [
   ["DMOPS-001", study1Id],
   ["DMOPS-002", study2Id],
 ] as const) {
-  const result = await refreshStudyMetrics(sql, studyId, PERIOD);
-  console.log(
-    `${protocol}: ${result.computed.length} metrics computed, ${result.skipped.length} skipped${
-      result.skipped.length
-        ? ` (${result.skipped.map((s) => `${s.metricId}: ${s.reason}`).join("; ")})`
-        : ""
-    }`,
-  );
-  for (const warning of result.warnings) console.log(`  warning: ${warning}`);
+  for (const period of PERIODS) {
+    const result = await refreshStudyMetrics(sql, studyId, period);
+    console.log(
+      `${protocol} ${period.periodStart.slice(0, 7)}: ${result.computed.length} metrics computed, ${result.skipped.length} skipped${
+        result.skipped.length
+          ? ` (${result.skipped.map((s) => `${s.metricId}: ${s.reason}`).join("; ")})`
+          : ""
+      }`,
+    );
+    for (const warning of result.warnings) console.log(`  warning: ${warning}`);
+  }
 }
 
 const [chain] = await sql`SELECT count(*)::int AS n FROM dmops_verify_audit_chain()`;

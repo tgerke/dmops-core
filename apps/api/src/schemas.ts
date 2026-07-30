@@ -149,6 +149,18 @@ export const SnapshotSchema = z.object({
   computed_at: z.string(),
 });
 
+export const MetricSiteRowSchema = SnapshotSchema.extend({
+  site_number: z.string(),
+  site_name: z.string().nullable(),
+  country: z.string().nullable(),
+});
+
+export const MetricSitesSchema = z.object({
+  study_id: z.string().uuid(),
+  metric_id: z.string(),
+  sites: z.array(MetricSiteRowSchema),
+});
+
 export const StudyMetricSchema = z.object({
   metric_id: z.string(),
   version: z.string(),

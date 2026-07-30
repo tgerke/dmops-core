@@ -38,6 +38,37 @@ export interface BoardRow {
   evidence_uri: string | null;
   forecast_slip_days: number | null;
   actual_slip_days: number | null;
+  rebaseline_count: number;
+  last_rebaselined_at: string | null;
+}
+
+export interface Deliverable {
+  id: string;
+  type: string;
+  title: string;
+  version: string | null;
+  status: string;
+  approved_date: string | null;
+  etmf_uri: string | null;
+  owner_name: string | null;
+}
+
+export interface Snapshot {
+  metric_id: string;
+  metric_version: string;
+  grain: string;
+  site_id: string | null;
+  period_start: string;
+  period_end: string;
+  value: string | null;
+  n_records: number | null;
+  computed_at: string;
+}
+
+export interface MetricSiteRow extends Snapshot {
+  site_number: string;
+  site_name: string | null;
+  country: string | null;
 }
 
 export interface StudyMetric {
@@ -94,4 +125,15 @@ export const api = {
       `/studies/${studyId}/milestones/${encodeURIComponent(code)}?occurrence=${occurrence}`,
       { method: "PATCH", body: JSON.stringify(patch) },
     ),
+  deliverables: (studyId: string) =>
+    request<{ deliverables: Deliverable[] }>(`/studies/${studyId}/deliverables`),
+  patchDeliverable: (studyId: string, deliverableId: string, patch: Record<string, unknown>) =>
+    request<Deliverable>(`/studies/${studyId}/deliverables/${deliverableId}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+  snapshots: (studyId: string, metricId: string, grain: string) =>
+    request<Snapshot[]>(`/studies/${studyId}/metrics/${metricId}/snapshots?grain=${grain}`),
+  metricSites: (studyId: string, metricId: string) =>
+    request<{ sites: MetricSiteRow[] }>(`/studies/${studyId}/metrics/${metricId}/sites`),
 };
