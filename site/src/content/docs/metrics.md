@@ -35,14 +35,16 @@ looked like at a past lock reproduces the number as reported then
 
 ## The starter dictionary
 
-| Metric | v1.0 definition in short |
-| --- | --- |
-| `query_tat_median` | Median calendar days, issuance to closure, closed in period |
-| `query_open_aging` | Open queries older than 30 days at period end |
-| `entry_lag` | Median days from visit date to first data entry |
-| `milestone_slip` | Median days, baseline to actual, completed in period |
+| Metric | Current | Definition in short |
+| --- | --- | --- |
+| `query_tat_median` | 1.1 | Median business days, issuance to closure, closed in period |
+| `query_open_aging` | 1.0 | Open queries older than 30 days at period end |
+| `entry_lag` | 1.1 | Median business days from visit date to first data entry |
+| `milestone_slip` | 1.0 | Median days, baseline to actual, completed in period |
 
-v1.0 uses calendar days throughout. Business-day clocks with per-country
-holiday calendars are a planned versioned change, which is the version story
-working as intended: the old numbers stay reproducible under the old
-definition.
+The version story has now been exercised once: the two elapsed-time metrics
+moved from calendar days (v1.0) to a Monday–Friday business-day clock (v1.1).
+The v1.0 compute functions stay in the codebase and stay qualification-tested,
+so historical snapshots remain reproducible under the definition that
+computed them. Per-country holiday calendars are the next planned versioned
+change.

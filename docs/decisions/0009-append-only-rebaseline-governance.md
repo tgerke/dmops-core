@@ -4,10 +4,10 @@
 
 ## Decision
 
-Re-baselining a study milestone appends a `milestone_rebaseline` row —
-numbered per milestone, carrying the new planned date, the previous planned
-date, a required reason, and an optional reference URI (for example an eTMF
-pointer to a protocol amendment) — and updates
+Re-baselining a study milestone appends a `milestone_rebaseline` row
+(numbered per milestone, carrying the new planned date, the previous planned
+date, a required reason, and an optional reference URI such as an eTMF
+pointer to a protocol amendment) and updates
 `study_milestone.planned_date` in the same audited transaction.
 `baseline_date` is never writable after instantiation, by anyone, through any
 endpoint. The action requires a `dm_manager` assignment on the study or
@@ -20,9 +20,10 @@ rejects UPDATE and DELETE for every role, and its history is queryable
 ## Rationale
 
 This exercises the deferral in ADR-0008: baselines are honest only if the
-original commitment survives every re-plan. Derived-over-stored applies — the
-record of change is the appended row; the current plan on `study_milestone`
-is the projection. Keeping both slip measures meaningful is the point:
+original commitment survives every re-plan. Derived-over-stored applies: the
+record of change is the appended row, and the current plan on
+`study_milestone` is the projection. Keeping both slip measures meaningful is
+the point:
 `milestone_slip` v1.0 keeps measuring actuals against the original baseline,
 while forecast slip measures against the current plan, so a re-baseline
 changes neither metric's definition. Requiring a reason and restricting the
