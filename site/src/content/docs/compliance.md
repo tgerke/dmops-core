@@ -30,7 +30,9 @@ The requirement ids below (`DM-P1`…`DM-P6`, defined in
 [Architecture and principles](/dmops-core/architecture/)) are the join key
 for generated validation evidence: they appear verbatim in test names, and
 `pnpm validation:artifacts` builds the traceability matrix from a live test
-run. `DM-Q*` ids are per-metric qualification cases.
+run. `DM-Q*` ids are per-metric qualification cases, with `DS-Q*` as the
+same mechanism for the stat-module metric dictionary
+([ADR-0012](/dmops-core/reference/decisions/0012-programming-work-frames-and-github-adapter/)).
 
 | Requirement | Mechanism |
 | --- | --- |

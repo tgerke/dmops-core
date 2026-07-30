@@ -26,7 +26,7 @@ Reporting because this study runs the stat module
 ([ADR-0011](/dmops-core/reference/decisions/0011-stat-programming-as-an-opt-in-module/));
 DMOPS-002 never enabled it, so its board stops at Closeout.
 
-![DMOPS-001's full board as the DM lead: the four-card metrics strip, the deliverables table, two UAT cycles expanded to their defect tables, and the phase-grouped milestone tables below](../../assets/screenshots/study-board.png)
+![DMOPS-001's full board as the DM lead: the eight-card metrics strip, the deliverables table, two UAT cycles expanded to their defect tables, and the phase-grouped milestone tables below](../../assets/screenshots/study-board.png)
 
 Scan the Conduct section: completed milestones carry slip badges against
 their planned dates, and the in-flight amendment is forecast 11 days late.

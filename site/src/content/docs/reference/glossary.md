@@ -61,9 +61,8 @@ while any defect is open or awaiting retest
 source system. See [Adapters](/dmops-core/guide/adapters/).
 
 **Frame**: a normalized extraction table defined by the adapter contract:
-`queries`, `subjects`, `visits`, `pages`. Three programming-work frames
-(`issues`, `pull_requests`, `reviews`) are decided and arrive with the stat
-module
+the EDC frames `queries`, `subjects`, `visits`, `pages`, and the
+programming-work frames `issues`, `pull_requests`, `reviews`
 ([ADR-0012](/dmops-core/reference/decisions/0012-programming-work-frames-and-github-adapter/)).
 
 **Pull request**: a repository host's unit of proposed change and review.
