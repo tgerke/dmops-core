@@ -55,7 +55,7 @@ describe("authentication", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.audit_chain_verified).toBe(true);
-    expect(body.migrations).toBe(4);
+    expect(body.migrations).toBe(5);
   });
 });
 
@@ -337,6 +337,198 @@ describe("re-baselining governance (ADR-0009, ADR-0003)", () => {
       { planned_date: "2027-05-01", reason: "no such occurrence to re-baseline" },
     );
     expect(res.status).toBe(404);
+  });
+});
+
+describe("UAT cycles and defects (ADR-0010)", () => {
+  // Cycles and defects are mutable audited rows, but created rows have no
+  // DELETE path; assertions on counts are relative and a re-seed is the reset.
+  const cycles = async (token = "dev-dmlead-token") =>
+    (await (await get(`/studies/${study1}/uat-cycles`, token)).json()).cycles;
+  const cycleByNumber = async (n: number) =>
+    (await cycles()).find((c: { cycle_number: number }) => c.cycle_number === n);
+
+  it("DM-P4: UAT serves cycle status, counts, and an evidence pointer — never scripts, screenshots, or signatures", async () => {
+    const res = await get(`/studies/${study1}/uat-cycles`, "dev-dmlead-token");
+    expect(res.status).toBe(200);
+    const all = (await res.json()).cycles;
+    const cycle1 = all.find((c: { cycle_number: number }) => c.cycle_number === 1);
+    expect(cycle1.status).toBe("complete");
+    expect(cycle1.evidence_uri).toMatch(/ctms\.example\/tmf/);
+    expect(cycle1.closed_defects).toBe(4);
+    expect(cycle1.withdrawn_defects).toBe(1);
+    expect(cycle1.open_defects).toBe(0);
+    const defects = (
+      await (
+        await get(`/studies/${study1}/uat-cycles/${cycle1.id}/defects`, "dev-dmlead-token")
+      ).json()
+    ).defects;
+    for (const row of [...all, ...defects]) {
+      expect(
+        Object.keys(row).some((k) => /content|file|blob|body|signature|signed|script_text/.test(k)),
+      ).toBe(false);
+    }
+  });
+
+  it("DM-P5: defect reads are row-scoped; the sponsor serialization omits resolution notes", async () => {
+    const cycle1 = await cycleByNumber(1);
+    const sponsor = await get(
+      `/studies/${study1}/uat-cycles/${cycle1.id}/defects`,
+      "dev-sponsor-token",
+    );
+    expect(sponsor.status).toBe(200);
+    const body = await sponsor.json();
+    expect(body.defects.length).toBe(5);
+    for (const d of body.defects) {
+      expect(d.severity).toBeTruthy();
+      // Curated serialization: the internal note is absent, not blanked.
+      expect("resolution_note" in d).toBe(false);
+    }
+    expect((await get(`/studies/${study2}/uat-cycles`, "dev-sponsor-token")).status).toBe(403);
+    const qa = await get(`/studies/${study2}/uat-cycles`, "dev-qa-token");
+    expect(qa.status).toBe(200);
+    expect((await qa.json()).cycles).toEqual([]);
+  });
+
+  it("DM-P6: the analyst's defect write lands and is audit-attributed (ADR-0003)", async () => {
+    const cycle2 = await cycleByNumber(2);
+    const n = cycle2.total_defects;
+
+    const created = await post(
+      `/studies/${study1}/uat-cycles/${cycle2.id}/defects`,
+      "dev-analyst-token",
+      { title: "Derived age not recomputed after birth date correction", severity: "major" },
+    );
+    expect(created.status).toBe(201);
+    const defect = await created.json();
+    expect(defect.defect_number).toBe(n + 1);
+    expect(defect.status).toBe("open");
+
+    const res = await patch(
+      `/studies/${study1}/uat-cycles/${cycle2.id}/defects/${defect.id}`,
+      "dev-analyst-token",
+      { status: "resolved", resolved_date: "2026-07-29" },
+    );
+    expect(res.status).toBe(200);
+    expect((await res.json()).status).toBe("resolved");
+
+    const [event] = await owner`
+      SELECT * FROM audit_event
+      WHERE action = 'uat_defect.update' ORDER BY id DESC LIMIT 1`;
+    expect(event!.actor_label).toMatch(/Priya Natarajan/);
+    expect(event!.before.status).toBe("open");
+    expect(event!.after.status).toBe("resolved");
+
+    // restore for repeatable local runs (also audited)
+    await patch(
+      `/studies/${study1}/uat-cycles/${cycle2.id}/defects/${defect.id}`,
+      "dev-analyst-token",
+      { status: "open", resolved_date: null },
+    );
+  });
+
+  it("read-only roles cannot write UAT: clinops and sponsor get 403; the analyst is study-scoped", async () => {
+    const cycle2 = await cycleByNumber(2);
+    const body = { title: "should never land", severity: "minor" };
+    for (const token of ["dev-clinops-token", "dev-sponsor-token"]) {
+      expect(
+        (await post(`/studies/${study1}/uat-cycles/${cycle2.id}/defects`, token, body)).status,
+      ).toBe(403);
+    }
+    // Priya is an analyst on DMOPS-001 only: UAT writes do not travel.
+    expect(
+      (await post(`/studies/${study2}/uat-cycles`, "dev-analyst-token", { title: "nope" })).status,
+    ).toBe(403);
+  });
+
+  it("UAT.COMPLETE means defects resolved: completing a cycle with open defects is rejected (ADR-0010)", async () => {
+    const cycle2 = await cycleByNumber(2);
+    const blocked = await patch(`/studies/${study1}/uat-cycles/${cycle2.id}`, "dev-dmlead-token", {
+      status: "complete",
+      completed_date: "2026-07-30",
+    });
+    expect(blocked.status).toBe(400);
+    expect((await blocked.json()).error).toMatch(/defects resolved/);
+
+    // Full lifecycle on a throwaway cycle: create, log a defect, watch
+    // completion refuse until the defect is closed with a dated, noted end.
+    const created = await post(`/studies/${study1}/uat-cycles`, "dev-dmlead-token", {
+      title: "Lifecycle exercise cycle (automated test)",
+      started_date: "2026-07-30",
+    });
+    expect(created.status).toBe(201);
+    const cycle = await created.json();
+    expect(cycle.status).toBe("in_progress");
+
+    const defect = await (
+      await post(`/studies/${study1}/uat-cycles/${cycle.id}/defects`, "dev-analyst-token", {
+        title: "Blocking finding for the lifecycle exercise",
+        severity: "critical",
+      })
+    ).json();
+
+    const early = await patch(`/studies/${study1}/uat-cycles/${cycle.id}`, "dev-dmlead-token", {
+      status: "complete",
+      completed_date: "2026-07-30",
+    });
+    expect(early.status).toBe(400);
+
+    await patch(
+      `/studies/${study1}/uat-cycles/${cycle.id}/defects/${defect.id}`,
+      "dev-analyst-token",
+      {
+        status: "closed",
+        resolved_date: "2026-07-30",
+        resolution_note: "Verified fixed in the lifecycle exercise build.",
+      },
+    );
+    const done = await patch(`/studies/${study1}/uat-cycles/${cycle.id}`, "dev-dmlead-token", {
+      status: "complete",
+      completed_date: "2026-07-30",
+    });
+    expect(done.status).toBe(200);
+    expect((await done.json()).status).toBe("complete");
+  });
+
+  it("endings are dated facts: resolved without a date and closed without a substantive note are rejected", async () => {
+    const cycle2 = await cycleByNumber(2);
+    const open = (
+      await (
+        await get(`/studies/${study1}/uat-cycles/${cycle2.id}/defects`, "dev-dmlead-token")
+      ).json()
+    ).defects.find((d: { status: string }) => d.status === "open");
+
+    const undated = await patch(
+      `/studies/${study1}/uat-cycles/${cycle2.id}/defects/${open.id}`,
+      "dev-dmlead-token",
+      { status: "resolved" },
+    );
+    expect(undated.status).toBe(400);
+
+    const unexplained = await patch(
+      `/studies/${study1}/uat-cycles/${cycle2.id}/defects/${open.id}`,
+      "dev-dmlead-token",
+      { status: "closed", resolved_date: "2026-07-30", resolution_note: "ok" },
+    );
+    expect(unexplained.status).toBe(400);
+  });
+
+  it("ADR-0010: identity fields are not writable, and a finished cycle takes no new defects", async () => {
+    const cycle1 = await cycleByNumber(1);
+    const rename = await patch(`/studies/${study1}/uat-cycles/${cycle1.id}`, "dev-dmlead-token", {
+      title: "Renamed cycle",
+    });
+    expect(rename.status).toBe(400);
+
+    const late = await post(
+      `/studies/${study1}/uat-cycles/${cycle1.id}/defects`,
+      "dev-dmlead-token",
+      {
+        title: "Raised after the cycle closed",
+        severity: "minor",
+      },
+    );
+    expect(late.status).toBe(400);
   });
 });
 

@@ -35,8 +35,9 @@ await sql.begin(async (t) => {
   await tx`SELECT set_config('dmops.actor_label', 'seed', true)`;
   await tx`
     TRUNCATE audit_event, metric_snapshot, source_extract, metric_definition,
-             milestone_rebaseline, study_milestone, deliverable, study_source,
-             study_assignment, site, study, sponsor, person, milestone_definition
+             uat_defect, uat_cycle, milestone_rebaseline, study_milestone,
+             deliverable, study_source, study_assignment, site, study, sponsor,
+             person, milestone_definition
     RESTART IDENTITY CASCADE`;
 });
 
@@ -276,6 +277,54 @@ await withSeedActor(
       (${study2Id}, 'dmp', 'Data Management Plan', '0.2', 'draft', NULL, NULL, ${maya.id})`,
 );
 
+// --- UAT cycles and defects (ADR-0010) ---------------------------------------
+// Cycle 1 matches the completed UAT.START/UAT.COMPLETE milestone actuals;
+// cycle 2 is the Amendment 3 regression round in flight, with an open critical
+// defect visibly blocking completion. DMOPS-002 has none (empty state).
+
+const [uatCycle1] = await withSeedActor(
+  (tx) => tx`
+    INSERT INTO uat_cycle
+      (study_id, cycle_number, title, status, started_date, completed_date,
+       scripts_planned, scripts_executed, evidence_uri)
+    VALUES
+      (${study1Id}, 1, 'Initial build UAT', 'complete', '2026-03-25', '2026-04-09',
+       42, 42, 'https://ctms.example/tmf/DMOPS-001/uat-summary')
+    RETURNING id`,
+);
+const [uatCycle2] = await withSeedActor(
+  (tx) => tx`
+    INSERT INTO uat_cycle
+      (study_id, cycle_number, title, status, started_date, completed_date,
+       scripts_planned, scripts_executed, evidence_uri)
+    VALUES
+      (${study1Id}, 2, 'Amendment 3 regression UAT', 'in_progress', '2026-07-20', NULL,
+       18, 11, NULL)
+    RETURNING id`,
+);
+
+await withSeedActor(
+  (tx) => tx`
+    INSERT INTO uat_defect
+      (cycle_id, defect_number, title, severity, status, raised_date, resolved_date, resolution_note) VALUES
+      (${uatCycle1!.id as string}, 1, 'Visit window check fires on unscheduled visits', 'critical', 'closed',
+       '2026-03-27', '2026-04-01', 'Check re-scoped to scheduled visits only; retested on script 12.'),
+      (${uatCycle1!.id as string}, 2, 'Concomitant medication end date allows dates before start date', 'major', 'closed',
+       '2026-03-28', '2026-04-03', 'Range check corrected and retested on scripts 18 and 19.'),
+      (${uatCycle1!.id as string}, 3, 'Lab unit conversion drops the original value on edit', 'major', 'closed',
+       '2026-03-30', '2026-04-06', 'Derivation rebuilt to preserve source value; retested on script 27.'),
+      (${uatCycle1!.id as string}, 4, 'Query text truncated at 200 characters in the review listing', 'minor', 'closed',
+       '2026-04-01', '2026-04-07', 'Listing widened; confirmed against the longest seeded query.'),
+      (${uatCycle1!.id as string}, 5, 'Duplicate of the visit window finding', 'minor', 'withdrawn',
+       '2026-04-02', NULL, 'Duplicate of defect 1; tracked and verified there.'),
+      (${uatCycle2!.id as string}, 1, 'New PSA edit check fires on the baseline visit', 'critical', 'open',
+       '2026-07-22', NULL, NULL),
+      (${uatCycle2!.id as string}, 2, 'Amended visit schedule not reflected in the entry calendar', 'major', 'resolved',
+       '2026-07-23', '2026-07-28', NULL),
+      (${uatCycle2!.id as string}, 3, 'Tooltip typo on the new eligibility form', 'minor', 'closed',
+       '2026-07-24', '2026-07-27', 'Corrected in build 2026-07-27-02 and retested.')`,
+);
+
 // --- source wiring + first snapshot run --------------------------------------
 
 await withSeedActor(
@@ -307,7 +356,9 @@ if (chain!.n !== 0) throw new Error("audit chain verification failed after seed"
 
 console.log("seed complete — audit chain verifies clean");
 console.log(
-  "dev tokens: dev-dmlead-token (Maya), dev-manager-token (Daniel), dev-clinops-token (Grace),",
+  "dev tokens: dev-dmlead-token (Maya), dev-manager-token (Daniel), dev-analyst-token (Priya),",
 );
-console.log("            dev-sponsor-token (Sylvia), dev-qa-token (Ruth), dev-admin-token (Alex)");
+console.log(
+  "            dev-clinops-token (Grace), dev-sponsor-token (Sylvia), dev-qa-token (Ruth), dev-admin-token (Alex)",
+);
 await sql.end();

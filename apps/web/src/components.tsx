@@ -48,6 +48,58 @@ export function DeliverableChip({ status }: { status: string }) {
   );
 }
 
+const uatCycleStatusStyles: Record<string, { label: string; className: string }> = {
+  planned: { label: "Planned", className: "bg-slate-100 text-slate-500" },
+  in_progress: { label: "In progress", className: "bg-sky-100 text-sky-700" },
+  complete: { label: "Complete", className: "bg-emerald-100 text-emerald-700" },
+  cancelled: { label: "Cancelled", className: "bg-slate-50 text-slate-400 line-through" },
+};
+
+export function UatCycleChip({ status }: { status: string }) {
+  const style = uatCycleStatusStyles[status] ?? uatCycleStatusStyles.planned!;
+  return (
+    <span
+      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${style.className}`}
+    >
+      {style.label}
+    </span>
+  );
+}
+
+const defectStatusStyles: Record<string, { label: string; className: string }> = {
+  open: { label: "Open", className: "bg-rose-100 text-rose-700" },
+  resolved: { label: "Resolved", className: "bg-amber-100 text-amber-700" },
+  closed: { label: "Closed", className: "bg-emerald-100 text-emerald-700" },
+  withdrawn: { label: "Withdrawn", className: "bg-slate-50 text-slate-400 line-through" },
+};
+
+export function DefectChip({ status }: { status: string }) {
+  const style = defectStatusStyles[status] ?? defectStatusStyles.open!;
+  return (
+    <span
+      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${style.className}`}
+    >
+      {style.label}
+    </span>
+  );
+}
+
+const severityStyles: Record<string, string> = {
+  critical: "bg-rose-100 text-rose-700",
+  major: "bg-amber-100 text-amber-700",
+  minor: "bg-slate-100 text-slate-500",
+};
+
+export function SeverityBadge({ severity }: { severity: string }) {
+  return (
+    <span
+      className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${severityStyles[severity] ?? severityStyles.minor}`}
+    >
+      {severity}
+    </span>
+  );
+}
+
 /** Inline SVG trend of snapshot values over reporting periods. */
 export function Sparkline({ points }: { points: { x: string; y: number | null }[] }) {
   const values = points.map((p) => p.y).filter((y): y is number => y !== null);

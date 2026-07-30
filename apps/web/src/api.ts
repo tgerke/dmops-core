@@ -53,6 +53,36 @@ export interface Deliverable {
   owner_name: string | null;
 }
 
+export interface UatCycle {
+  id: string;
+  cycle_number: number;
+  title: string;
+  status: string;
+  started_date: string | null;
+  completed_date: string | null;
+  scripts_planned: number | null;
+  scripts_executed: number | null;
+  evidence_uri: string | null;
+  open_defects: number;
+  resolved_defects: number;
+  closed_defects: number;
+  withdrawn_defects: number;
+  total_defects: number;
+}
+
+export interface UatDefect {
+  id: string;
+  defect_number: number;
+  title: string;
+  severity: string;
+  status: string;
+  raised_date: string;
+  resolved_date: string | null;
+  // Absent in the sponsor serialization (DM-P5).
+  resolution_note?: string | null;
+  reference_uri: string | null;
+}
+
 export interface Snapshot {
   metric_id: string;
   metric_version: string;
@@ -129,6 +159,34 @@ export const api = {
     request<{ deliverables: Deliverable[] }>(`/studies/${studyId}/deliverables`),
   patchDeliverable: (studyId: string, deliverableId: string, patch: Record<string, unknown>) =>
     request<Deliverable>(`/studies/${studyId}/deliverables/${deliverableId}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+  uatCycles: (studyId: string) => request<{ cycles: UatCycle[] }>(`/studies/${studyId}/uat-cycles`),
+  createUatCycle: (studyId: string, body: Record<string, unknown>) =>
+    request<UatCycle>(`/studies/${studyId}/uat-cycles`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  patchUatCycle: (studyId: string, cycleId: string, patch: Record<string, unknown>) =>
+    request<UatCycle>(`/studies/${studyId}/uat-cycles/${cycleId}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+  uatDefects: (studyId: string, cycleId: string) =>
+    request<{ defects: UatDefect[] }>(`/studies/${studyId}/uat-cycles/${cycleId}/defects`),
+  createUatDefect: (studyId: string, cycleId: string, body: Record<string, unknown>) =>
+    request<UatDefect>(`/studies/${studyId}/uat-cycles/${cycleId}/defects`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  patchUatDefect: (
+    studyId: string,
+    cycleId: string,
+    defectId: string,
+    patch: Record<string, unknown>,
+  ) =>
+    request<UatDefect>(`/studies/${studyId}/uat-cycles/${cycleId}/defects/${defectId}`, {
       method: "PATCH",
       body: JSON.stringify(patch),
     }),

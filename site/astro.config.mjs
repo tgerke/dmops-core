@@ -15,7 +15,7 @@ export default defineConfig({
         { label: "Getting started", items: ["getting-started"] },
         {
           label: "Guide",
-          items: ["milestones", "metrics", "adapters", "compliance"],
+          items: ["milestones", "uat", "metrics", "adapters", "compliance"],
         },
       ],
     }),

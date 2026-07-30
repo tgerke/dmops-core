@@ -5,18 +5,28 @@ import {
   type DeliverableRow,
   MilestoneError,
   type RebaselineRecord,
+  type UatCycleRow,
+  type UatDefectRow,
+  UatError,
   canReadStudy,
   canRebaseline,
   canWriteDeliverables,
   canWriteMilestones,
+  canWriteUat,
+  createUatCycle,
+  createUatDefect,
   hasPortfolioRead,
   isSponsorOnly,
   listDeliverables,
+  listUatCycles,
+  listUatDefects,
   milestoneBoard,
   rebaselineHistory,
   rebaselineMilestone,
   updateDeliverable,
   updateMilestone,
+  updateUatCycle,
+  updateUatDefect,
 } from "@dmops/core";
 import type { Sql } from "@dmops/db";
 import { assertRegistryMatchesSpecs, loadSpecs, metricAvailability } from "@dmops/metrics";
@@ -25,6 +35,7 @@ import { cors } from "hono/cors";
 import { type Env, authMiddleware, authMode, configureTokens } from "./auth.js";
 import {
   BoardRowSchema,
+  CycleDefectsSchema,
   DeliverablePatchSchema,
   DeliverableSchema,
   ErrorSchema,
@@ -40,6 +51,13 @@ import {
   StudyDetailSchema,
   StudyMetricsSchema,
   StudySummarySchema,
+  StudyUatCyclesSchema,
+  UatCyclePatchSchema,
+  UatCyclePostSchema,
+  UatCycleSchema,
+  UatDefectPatchSchema,
+  UatDefectPostSchema,
+  UatDefectSchema,
 } from "./schemas.js";
 
 const security = [{ bearerAuth: [] }];
@@ -427,6 +445,244 @@ export function buildApp(sql: Sql) {
     },
   );
 
+  // --- UAT cycles and defects (ADR-0010) -------------------------------------
+
+  const uatWriteDenied = {
+    error: "UAT writes require a dm_lead, dm_manager, analyst, or admin assignment",
+  };
+
+  app.openapi(
+    createRoute({
+      method: "get",
+      path: "/studies/{studyId}/uat-cycles",
+      security,
+      request: { params: z.object({ studyId: z.string().uuid() }) },
+      responses: {
+        200: json(
+          StudyUatCyclesSchema,
+          "Cycle status with derived defect counts and an evidence pointer — script " +
+            "execution stays in the validated system and the eTMF (ADR-0010, DM-P4)",
+        ),
+        403: json(ErrorSchema, "Not assigned to this study"),
+      },
+    }),
+    async (c) => {
+      const { studyId } = c.req.valid("param");
+      const denied = requireRead(c.get("assignments"), studyId);
+      if (denied) return c.json(denied, 403);
+      const rows = await listUatCycles(sql, studyId);
+      return c.json({ study_id: studyId, cycles: rows.map(serializeUatCycle) }, 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: "post",
+      path: "/studies/{studyId}/uat-cycles",
+      security,
+      request: {
+        params: z.object({ studyId: z.string().uuid() }),
+        body: { content: { "application/json": { schema: UatCyclePostSchema } }, required: true },
+      },
+      responses: {
+        201: json(
+          UatCycleSchema,
+          "New UAT cycle (write audited via withActor, ADR-0003); cycle_number is assigned serially",
+        ),
+        400: json(ErrorSchema, "Invalid cycle"),
+        403: json(ErrorSchema, "UAT writes require DM leadership or an analyst assignment"),
+        404: json(ErrorSchema, "No such study"),
+      },
+    }),
+    async (c) => {
+      const { studyId } = c.req.valid("param");
+      if (!canWriteUat(c.get("assignments"), studyId)) {
+        return c.json(uatWriteDenied, 403);
+      }
+      const body = c.req.valid("json");
+      try {
+        const row = await createUatCycle(sql, c.get("actor"), {
+          studyId,
+          title: body.title,
+          startedDate: body.started_date ?? null,
+          scriptsPlanned: body.scripts_planned ?? null,
+        });
+        return c.json(serializeUatCycle(row), 201);
+      } catch (e) {
+        if (e instanceof UatError) {
+          return c.json({ error: e.message }, e.code === "not_found" ? 404 : 400);
+        }
+        throw e;
+      }
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: "patch",
+      path: "/studies/{studyId}/uat-cycles/{cycleId}",
+      security,
+      request: {
+        params: z.object({ studyId: z.string().uuid(), cycleId: z.string().uuid() }),
+        body: { content: { "application/json": { schema: UatCyclePatchSchema } }, required: true },
+      },
+      responses: {
+        200: json(
+          UatCycleSchema,
+          "Updated cycle (audited, ADR-0003). Completion is refused while defects are " +
+            "open or awaiting retest — UAT.COMPLETE means defects resolved (ADR-0010)",
+        ),
+        400: json(
+          ErrorSchema,
+          "Invalid patch, an undated ending, or completion with unresolved defects",
+        ),
+        403: json(ErrorSchema, "UAT writes require DM leadership or an analyst assignment"),
+        404: json(ErrorSchema, "No such cycle on this study"),
+      },
+    }),
+    async (c) => {
+      const { studyId, cycleId } = c.req.valid("param");
+      if (!canWriteUat(c.get("assignments"), studyId)) {
+        return c.json(uatWriteDenied, 403);
+      }
+      try {
+        const row = await updateUatCycle(sql, c.get("actor"), {
+          studyId,
+          cycleId,
+          patch: c.req.valid("json"),
+        });
+        return c.json(serializeUatCycle(row), 200);
+      } catch (e) {
+        if (e instanceof UatError) {
+          return c.json({ error: e.message }, e.code === "not_found" ? 404 : 400);
+        }
+        throw e;
+      }
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: "get",
+      path: "/studies/{studyId}/uat-cycles/{cycleId}/defects",
+      security,
+      request: {
+        params: z.object({ studyId: z.string().uuid(), cycleId: z.string().uuid() }),
+      },
+      responses: {
+        200: json(
+          CycleDefectsSchema,
+          "Defect log for a cycle. The sponsor serialization omits resolution notes (DM-P5)",
+        ),
+        403: json(ErrorSchema, "Not assigned to this study"),
+        404: json(ErrorSchema, "No such cycle on this study"),
+      },
+    }),
+    async (c) => {
+      const { studyId, cycleId } = c.req.valid("param");
+      const denied = requireRead(c.get("assignments"), studyId);
+      if (denied) return c.json(denied, 403);
+      const rows = await listUatDefects(sql, studyId, cycleId);
+      if (rows === null) return c.json({ error: "UAT cycle not found on this study" }, 404);
+      const sponsorView = isSponsorOnly(c.get("assignments"), studyId);
+      const defects = rows.map((row) => {
+        const { resolution_note, ...rest } = serializeUatDefect(row);
+        return { ...rest, ...(sponsorView ? {} : { resolution_note }) };
+      });
+      return c.json({ study_id: studyId, cycle_id: cycleId, defects }, 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: "post",
+      path: "/studies/{studyId}/uat-cycles/{cycleId}/defects",
+      security,
+      request: {
+        params: z.object({ studyId: z.string().uuid(), cycleId: z.string().uuid() }),
+        body: { content: { "application/json": { schema: UatDefectPostSchema } }, required: true },
+      },
+      responses: {
+        201: json(
+          UatDefectSchema,
+          "New defect (write audited via withActor, ADR-0003); defect_number is assigned serially",
+        ),
+        400: json(ErrorSchema, "Invalid defect, or the cycle is complete or cancelled"),
+        403: json(ErrorSchema, "UAT writes require DM leadership or an analyst assignment"),
+        404: json(ErrorSchema, "No such cycle on this study"),
+      },
+    }),
+    async (c) => {
+      const { studyId, cycleId } = c.req.valid("param");
+      if (!canWriteUat(c.get("assignments"), studyId)) {
+        return c.json(uatWriteDenied, 403);
+      }
+      const body = c.req.valid("json");
+      try {
+        const row = await createUatDefect(sql, c.get("actor"), {
+          studyId,
+          cycleId,
+          title: body.title,
+          severity: body.severity,
+          raisedDate: body.raised_date ?? null,
+          referenceUri: body.reference_uri ?? null,
+        });
+        return c.json(serializeUatDefect(row), 201);
+      } catch (e) {
+        if (e instanceof UatError) {
+          return c.json({ error: e.message }, e.code === "not_found" ? 404 : 400);
+        }
+        throw e;
+      }
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: "patch",
+      path: "/studies/{studyId}/uat-cycles/{cycleId}/defects/{defectId}",
+      security,
+      request: {
+        params: z.object({
+          studyId: z.string().uuid(),
+          cycleId: z.string().uuid(),
+          defectId: z.string().uuid(),
+        }),
+        body: { content: { "application/json": { schema: UatDefectPatchSchema } }, required: true },
+      },
+      responses: {
+        200: json(
+          UatDefectSchema,
+          "Updated defect (audited, ADR-0003). Endings are dated facts: resolution " +
+            "requires a date, closure a substantive note (ADR-0010)",
+        ),
+        400: json(ErrorSchema, "Invalid patch, an undated resolution, or an unexplained closure"),
+        403: json(ErrorSchema, "UAT writes require DM leadership or an analyst assignment"),
+        404: json(ErrorSchema, "No such defect on this cycle"),
+      },
+    }),
+    async (c) => {
+      const { studyId, cycleId, defectId } = c.req.valid("param");
+      if (!canWriteUat(c.get("assignments"), studyId)) {
+        return c.json(uatWriteDenied, 403);
+      }
+      try {
+        const row = await updateUatDefect(sql, c.get("actor"), {
+          studyId,
+          cycleId,
+          defectId,
+          patch: c.req.valid("json"),
+        });
+        return c.json(serializeUatDefect(row), 200);
+      } catch (e) {
+        if (e instanceof UatError) {
+          return c.json({ error: e.message }, e.code === "not_found" ? 404 : 400);
+        }
+        throw e;
+      }
+    },
+  );
+
   // --- metrics ---------------------------------------------------------------
 
   app.openapi(
@@ -596,6 +852,31 @@ function summarize(row: Record<string, unknown>) {
 function serializeDeliverable(row: DeliverableRow) {
   const { study_id: _studyId, updated_at, ...rest } = row;
   return { ...rest, updated_at: new Date(updated_at).toISOString() };
+}
+
+function serializeUatCycle(row: UatCycleRow) {
+  const { study_id: _studyId, updated_at, ...rest } = row;
+  return {
+    ...rest,
+    cycle_number: Number(row.cycle_number),
+    scripts_planned: row.scripts_planned === null ? null : Number(row.scripts_planned),
+    scripts_executed: row.scripts_executed === null ? null : Number(row.scripts_executed),
+    open_defects: Number(row.open_defects),
+    resolved_defects: Number(row.resolved_defects),
+    closed_defects: Number(row.closed_defects),
+    withdrawn_defects: Number(row.withdrawn_defects),
+    total_defects: Number(row.total_defects),
+    updated_at: new Date(updated_at).toISOString(),
+  };
+}
+
+function serializeUatDefect(row: UatDefectRow) {
+  const { cycle_id: _cycleId, updated_at, ...rest } = row;
+  return {
+    ...rest,
+    defect_number: Number(row.defect_number),
+    updated_at: new Date(updated_at).toISOString(),
+  };
 }
 
 function serializeBoardRow(row: BoardRow) {

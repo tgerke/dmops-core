@@ -52,6 +52,19 @@ export function canWriteDeliverables(assignments: Assignment[], studyId: string)
 }
 
 /**
+ * UAT writes (ADR-0010): DM leadership plus analysts assigned to the study —
+ * the taxonomy's default owner for UAT.START/UAT.COMPLETE is analyst, and
+ * DM-P6 keeps data entry where the work happens. Deliberately wider than
+ * canWriteMilestones; milestone status stays a leadership assertion.
+ */
+export function canWriteUat(assignments: Assignment[], studyId: string): boolean {
+  return (
+    canWriteMilestones(assignments, studyId) ||
+    assignments.some((a) => a.studyId === studyId && a.role === "analyst")
+  );
+}
+
+/**
  * Re-baselining (ADR-0009): deliberately stricter than milestone writes —
  * moving the plan is governance, not an edit. dm_lead moves forecasts only.
  */

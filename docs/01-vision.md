@@ -36,9 +36,9 @@ by id, and the traceability matrix in `docs/validation/` joins on them.
 ## Scope
 
 In scope: study registry, DM milestone tracking, deliverable status with eTMF
-links, quality metrics from source adapters, and — in later phases — UAT and
-defect tracking, training and access mirrors, lock-readiness scoring, and
-portfolio roll-up.
+links, quality metrics from source adapters, UAT cycle and defect tracking
+(ADR-0010), and — in later phases — training and access mirrors,
+lock-readiness scoring, and portfolio roll-up.
 
 Out of scope, permanently: clinical data capture (the EDC), query issuance and
 resolution (the EDC), document authoring or e-signature (QMS/eTMF), site

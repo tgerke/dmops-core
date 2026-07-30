@@ -66,6 +66,24 @@ export const deliverableStatus = pgEnum("deliverable_status", [
   "superseded",
 ]);
 
+export const uatCycleStatus = pgEnum("uat_cycle_status", [
+  "planned",
+  "in_progress",
+  "complete",
+  "cancelled",
+]);
+
+// resolved = fix applied, awaiting retest; closed = verified; withdrawn = not
+// a defect or a duplicate (ADR-0010).
+export const uatDefectStatus = pgEnum("uat_defect_status", [
+  "open",
+  "resolved",
+  "closed",
+  "withdrawn",
+]);
+
+export const uatDefectSeverity = pgEnum("uat_defect_severity", ["critical", "major", "minor"]);
+
 export const extractStatus = pgEnum("extract_status", ["ok", "error"]);
 
 export const metricGrain = pgEnum("metric_grain", ["study", "site", "country", "portfolio"]);
@@ -214,6 +232,54 @@ export const deliverable = pgTable("deliverable", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ---------------------------------------------------------------------------
+// UAT cycles and defects (ADR-0010): operational status, not test evidence.
+// Script execution stays in the validated system; counts + evidence_uri only
+// (ADR-0006). Hand-written SQL in migrations/0004 is the source of truth.
+// ---------------------------------------------------------------------------
+
+export const uatCycle = pgTable(
+  "uat_cycle",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    studyId: uuid("study_id")
+      .notNull()
+      .references(() => study.id),
+    cycleNumber: integer("cycle_number").notNull(),
+    title: text("title").notNull(),
+    status: uatCycleStatus("status").notNull().default("planned"),
+    startedDate: date("started_date"),
+    completedDate: date("completed_date"),
+    scriptsPlanned: integer("scripts_planned"),
+    scriptsExecuted: integer("scripts_executed"),
+    evidenceUri: text("evidence_uri"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uat_cycle_seq_idx").on(t.studyId, t.cycleNumber)],
+);
+
+export const uatDefect = pgTable(
+  "uat_defect",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cycleId: uuid("cycle_id")
+      .notNull()
+      .references(() => uatCycle.id),
+    defectNumber: integer("defect_number").notNull(),
+    title: text("title").notNull(),
+    severity: uatDefectSeverity("severity").notNull(),
+    status: uatDefectStatus("status").notNull().default("open"),
+    raisedDate: date("raised_date").notNull(),
+    resolvedDate: date("resolved_date"),
+    resolutionNote: text("resolution_note"),
+    referenceUri: text("reference_uri"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uat_defect_seq_idx").on(t.cycleId, t.defectNumber)],
+);
 
 // ---------------------------------------------------------------------------
 // Source wiring (ADR-0005)

@@ -5,6 +5,7 @@ export {
   canRebaseline,
   canWriteDeliverables,
   canWriteMilestones,
+  canWriteUat,
   hasPortfolioRead,
   isSponsorOnly,
   type Assignment,
@@ -31,3 +32,19 @@ export {
   type RebaselineRecord,
 } from "./milestones.js";
 export { refreshStudyMetrics, type RefreshResult } from "./snapshots.js";
+export {
+  UatError,
+  createUatCycle,
+  createUatDefect,
+  listUatCycles,
+  listUatDefects,
+  updateUatCycle,
+  updateUatDefect,
+  type UatCyclePatch,
+  type UatCycleRow,
+  type UatCycleStatus,
+  type UatDefectPatch,
+  type UatDefectRow,
+  type UatDefectSeverity,
+  type UatDefectStatus,
+} from "./uat.js";

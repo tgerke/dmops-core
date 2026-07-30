@@ -109,6 +109,94 @@ export const DeliverablePatchSchema = z
   })
   .strict();
 
+// Cycle status, mirrored counts, and an evidence pointer — the executed
+// scripts live in the validated system and the eTMF (ADR-0010, ADR-0006).
+export const UatCycleSchema = z.object({
+  id: z.string().uuid(),
+  cycle_number: z.number(),
+  title: z.string(),
+  status: z.enum(["planned", "in_progress", "complete", "cancelled"]),
+  started_date: z.string().nullable(),
+  completed_date: z.string().nullable(),
+  scripts_planned: z.number().nullable(),
+  scripts_executed: z.number().nullable(),
+  evidence_uri: z.string().nullable(),
+  updated_at: z.string(),
+  open_defects: z.number(),
+  resolved_defects: z.number(),
+  closed_defects: z.number(),
+  withdrawn_defects: z.number(),
+  total_defects: z.number(),
+});
+
+export const StudyUatCyclesSchema = z.object({
+  study_id: z.string().uuid(),
+  cycles: z.array(UatCycleSchema),
+});
+
+export const UatCyclePostSchema = z
+  .object({
+    title: z.string().min(1).max(200),
+    started_date: z.string().date().nullable().optional(),
+    scripts_planned: z.number().int().positive().nullable().optional(),
+  })
+  .strict();
+
+// The writable surface. title and study_id are identity — a different round
+// of UAT is a new row (ADR-0010).
+export const UatCyclePatchSchema = z
+  .object({
+    status: z.enum(["planned", "in_progress", "complete", "cancelled"]).optional(),
+    started_date: z.string().date().nullable().optional(),
+    completed_date: z.string().date().nullable().optional(),
+    scripts_planned: z.number().int().positive().nullable().optional(),
+    scripts_executed: z.number().int().nonnegative().nullable().optional(),
+    evidence_uri: z.string().url().nullable().optional(),
+  })
+  .strict();
+
+// resolution_note is optional because the sponsor serialization omits it
+// entirely (DM-P5) — a curated view, not a blanked field.
+export const UatDefectSchema = z.object({
+  id: z.string().uuid(),
+  defect_number: z.number(),
+  title: z.string(),
+  severity: z.enum(["critical", "major", "minor"]),
+  status: z.enum(["open", "resolved", "closed", "withdrawn"]),
+  raised_date: z.string(),
+  resolved_date: z.string().nullable(),
+  resolution_note: z.string().nullable().optional(),
+  reference_uri: z.string().nullable(),
+  updated_at: z.string(),
+});
+
+export const CycleDefectsSchema = z.object({
+  study_id: z.string().uuid(),
+  cycle_id: z.string().uuid(),
+  defects: z.array(UatDefectSchema),
+});
+
+export const UatDefectPostSchema = z
+  .object({
+    title: z.string().min(1).max(500),
+    severity: z.enum(["critical", "major", "minor"]),
+    raised_date: z.string().date().nullable().optional(),
+    reference_uri: z.string().url().nullable().optional(),
+  })
+  .strict();
+
+// The writable surface. title is identity — a different finding is a new row
+// (ADR-0010).
+export const UatDefectPatchSchema = z
+  .object({
+    status: z.enum(["open", "resolved", "closed", "withdrawn"]).optional(),
+    severity: z.enum(["critical", "major", "minor"]).optional(),
+    resolved_date: z.string().date().nullable().optional(),
+    resolution_note: z.string().max(2000).nullable().optional(),
+    reference_uri: z.string().url().nullable().optional(),
+  })
+  .strict();
+
 // The only path that can move planned_date (ADR-0009). baseline_date has no
 // write path at all.
 export const RebaselinePostSchema = z

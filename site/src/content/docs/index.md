@@ -5,8 +5,9 @@ description: The DM PMO layer beside the EDC
 
 dmops-core is the system of record for how clinical Data Management work is
 planned, executed, evidenced, and reported. It sits beside the EDC, never
-inside it: milestone boards, deliverable status with eTMF links, and quality
-metrics computed from source systems through capability-declaring adapters.
+inside it: milestone boards, deliverable status with eTMF links, UAT cycle
+and defect tracking, and quality metrics computed from source systems
+through capability-declaring adapters.
 
 The problem it addresses is familiar to every DM team. Database build,
 edit-check specification, UAT, external data reconciliation, coding, and lock
@@ -26,5 +27,6 @@ compliance enforced by the database, derived-over-stored status, validation
 evidence generated from live runs, and integration over plain HTTP.
 
 Start with [Getting started](/dmops-core/getting-started/), then the guide
-pages on [milestones](/dmops-core/milestones/), [metrics](/dmops-core/metrics/),
-[adapters](/dmops-core/adapters/), and [compliance](/dmops-core/compliance/).
+pages on [milestones](/dmops-core/milestones/), [UAT](/dmops-core/uat/),
+[metrics](/dmops-core/metrics/), [adapters](/dmops-core/adapters/), and
+[compliance](/dmops-core/compliance/).

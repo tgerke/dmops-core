@@ -7,16 +7,21 @@ import {
   type MetricSiteRow,
   type Snapshot,
   type StudyMetric,
+  type UatCycle,
+  type UatDefect,
   api,
 } from "../api";
 import { currentPersona } from "../auth";
 import {
+  DefectChip,
   DeliverableChip,
   ErrorNote,
+  SeverityBadge,
   SlipBadge,
   Sparkline,
   Spinner,
   StatusChip,
+  UatCycleChip,
 } from "../components";
 
 const phaseGroups: [string, string][] = [
@@ -32,6 +37,7 @@ export function StudyBoardPage() {
   const [rows, setRows] = useState<BoardRow[] | null>(null);
   const [metrics, setMetrics] = useState<StudyMetric[] | null>(null);
   const [deliverables, setDeliverables] = useState<Deliverable[] | null>(null);
+  const [uatCycles, setUatCycles] = useState<UatCycle[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
@@ -48,6 +54,10 @@ export function StudyBoardPage() {
       .deliverables(studyId)
       .then((d) => setDeliverables(d.deliverables))
       .catch(() => setDeliverables(null));
+    api
+      .uatCycles(studyId)
+      .then((u) => setUatCycles(u.cycles))
+      .catch(() => setUatCycles(null));
   }, [studyId]);
   useEffect(() => {
     load();
@@ -61,6 +71,9 @@ export function StudyBoardPage() {
       {metrics && <MetricsStrip studyId={studyId} metrics={metrics} />}
       {deliverables && deliverables.length > 0 && (
         <DeliverablesSection studyId={studyId} deliverables={deliverables} onSaved={load} />
+      )}
+      {uatCycles && (uatCycles.length > 0 || currentPersona().canWriteUat) && (
+        <UatSection studyId={studyId} cycles={uatCycles} onSaved={load} />
       )}
       {phaseGroups.map(([group, title]) => {
         const groupRows = rows.filter((r) => r.phase_group === group);
@@ -332,6 +345,424 @@ function DeliverableRow({
             eTMF ↗
           </a>
         )}
+        {canWrite && (
+          <button
+            type="button"
+            className="text-xs text-slate-400 hover:text-slate-600"
+            onClick={() => {
+              setEditing(!editing);
+              setPendingStatus(null);
+            }}
+          >
+            {editing ? "done" : "edit"}
+          </button>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+function UatSection({
+  studyId,
+  cycles,
+  onSaved,
+}: {
+  studyId: string;
+  cycles: UatCycle[];
+  onSaved: () => void;
+}) {
+  const canWrite = currentPersona().canWriteUat;
+  const [newTitle, setNewTitle] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  const createCycle = async () => {
+    if (!newTitle.trim()) return;
+    try {
+      setCreateError(null);
+      await api.createUatCycle(studyId, { title: newTitle.trim() });
+      setNewTitle("");
+      onSaved();
+    } catch (e) {
+      setCreateError((e as ApiError).message);
+    }
+  };
+
+  return (
+    <section>
+      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">UAT</h2>
+      <div className="space-y-3">
+        {cycles.map((c) => (
+          <UatCycleCard key={c.id} studyId={studyId} cycle={c} onSaved={onSaved} />
+        ))}
+        {canWrite && (
+          <div className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-3">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newTitle}
+                placeholder="New UAT cycle title (e.g. Amendment 4 regression UAT)"
+                className="w-96 rounded border border-slate-300 px-2 py-1 text-xs"
+                onChange={(e) => setNewTitle(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && createCycle()}
+              />
+              <button
+                type="button"
+                className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 hover:bg-slate-200"
+                onClick={createCycle}
+              >
+                start cycle
+              </button>
+            </div>
+            {createError && <p className="mt-1 text-xs text-rose-600">{createError}</p>}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function UatCycleCard({
+  studyId,
+  cycle,
+  onSaved,
+}: {
+  studyId: string;
+  cycle: UatCycle;
+  onSaved: () => void;
+}) {
+  const canWrite = currentPersona().canWriteUat;
+  const [expanded, setExpanded] = useState(false);
+  const [defects, setDefects] = useState<UatDefect[] | null>(null);
+  const [pendingComplete, setPendingComplete] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  // UAT complete means defects resolved (ADR-0010); the server enforces this too.
+  const completeBlocked = cycle.open_defects + cycle.resolved_defects > 0;
+
+  const loadDefects = useCallback(() => {
+    api
+      .uatDefects(studyId, cycle.id)
+      .then((d) => setDefects(d.defects))
+      .catch(() => setDefects(null));
+  }, [studyId, cycle.id]);
+  useEffect(() => {
+    if (expanded) loadDefects();
+  }, [expanded, loadDefects]);
+
+  const save = async (patch: Record<string, unknown>) => {
+    try {
+      setSaveError(null);
+      await api.patchUatCycle(studyId, cycle.id, patch);
+      setPendingComplete(false);
+      onSaved();
+    } catch (e) {
+      setSaveError((e as ApiError).message);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white">
+      <div className="flex flex-wrap items-center gap-3 px-4 py-3">
+        <button
+          type="button"
+          className="text-xs text-slate-400 hover:text-slate-600"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? "▾" : "▸"}
+        </button>
+        <span className="font-medium">{cycle.title}</span>
+        <span className="font-mono text-xs text-slate-400">#{cycle.cycle_number}</span>
+        <UatCycleChip status={cycle.status} />
+        <span className="text-xs text-slate-500">
+          {cycle.open_defects > 0 && (
+            <span className="mr-2 font-medium text-rose-600">{cycle.open_defects} open</span>
+          )}
+          {cycle.resolved_defects > 0 && (
+            <span className="mr-2 font-medium text-amber-600">
+              {cycle.resolved_defects} awaiting retest
+            </span>
+          )}
+          {cycle.closed_defects} closed / {cycle.total_defects} defects
+        </span>
+        {cycle.scripts_planned !== null && (
+          <span className="text-xs text-slate-500">
+            scripts {cycle.scripts_executed ?? 0}/{cycle.scripts_planned}
+          </span>
+        )}
+        <span className="ml-auto flex items-center gap-2">
+          {cycle.evidence_uri && (
+            <a
+              href={cycle.evidence_uri}
+              target="_blank"
+              rel="noreferrer"
+              title="Executed scripts live in the eTMF; dmops-core links, never holds (ADR-0006)"
+              className="text-xs text-sky-600 hover:underline"
+            >
+              eTMF ↗
+            </a>
+          )}
+          {canWrite &&
+            cycle.status !== "complete" &&
+            cycle.status !== "cancelled" &&
+            (pendingComplete ? (
+              <input
+                type="date"
+                className="rounded border border-slate-300 px-1 py-0.5 text-xs"
+                title="The completion date on the validation record"
+                onBlur={(e) =>
+                  e.target.value && save({ status: "complete", completed_date: e.target.value })
+                }
+              />
+            ) : (
+              <button
+                type="button"
+                disabled={completeBlocked}
+                title={
+                  completeBlocked
+                    ? "UAT complete means defects resolved (ADR-0010): close or withdraw the remaining defects first"
+                    : "Mark this cycle complete"
+                }
+                className={`rounded px-2 py-1 text-xs ${
+                  completeBlocked
+                    ? "cursor-not-allowed bg-slate-50 text-slate-300"
+                    : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                }`}
+                onClick={() => setPendingComplete(true)}
+              >
+                complete
+              </button>
+            ))}
+        </span>
+      </div>
+      {saveError && <p className="px-4 pb-2 text-xs text-rose-600">{saveError}</p>}
+      {expanded && (
+        <div className="border-t border-slate-100 px-4 py-3">
+          {defects === null ? (
+            <Spinner label="Loading defects…" />
+          ) : (
+            <UatDefectTable
+              studyId={studyId}
+              cycle={cycle}
+              defects={defects}
+              onSaved={() => {
+                loadDefects();
+                onSaved();
+              }}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function UatDefectTable({
+  studyId,
+  cycle,
+  defects,
+  onSaved,
+}: {
+  studyId: string;
+  cycle: UatCycle;
+  defects: UatDefect[];
+  onSaved: () => void;
+}) {
+  const canWrite = currentPersona().canWriteUat;
+  const cycleActive = cycle.status !== "complete" && cycle.status !== "cancelled";
+  const [newTitle, setNewTitle] = useState("");
+  const [newSeverity, setNewSeverity] = useState("major");
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  const logDefect = async () => {
+    if (!newTitle.trim()) return;
+    try {
+      setCreateError(null);
+      await api.createUatDefect(studyId, cycle.id, {
+        title: newTitle.trim(),
+        severity: newSeverity,
+      });
+      setNewTitle("");
+      onSaved();
+    } catch (e) {
+      setCreateError((e as ApiError).message);
+    }
+  };
+
+  return (
+    <div>
+      {defects.length === 0 ? (
+        <p className="text-xs text-slate-400">No defects logged on this cycle.</p>
+      ) : (
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-400">
+              <th className="py-1 pr-4">Defect</th>
+              <th className="py-1 pr-4">Severity</th>
+              <th className="py-1 pr-4">Raised</th>
+              <th className="py-1 pr-4">Resolved</th>
+              <th className="py-1 pr-4">Status</th>
+              <th className="py-1" />
+            </tr>
+          </thead>
+          <tbody>
+            {defects.map((d) => (
+              <UatDefectRow
+                key={d.id}
+                studyId={studyId}
+                cycleId={cycle.id}
+                defect={d}
+                onSaved={onSaved}
+              />
+            ))}
+          </tbody>
+        </table>
+      )}
+      {canWrite && cycleActive && (
+        <div className="mt-3 flex items-center gap-2">
+          <input
+            type="text"
+            value={newTitle}
+            placeholder="Log a defect…"
+            className="w-96 rounded border border-slate-300 px-2 py-1 text-xs"
+            onChange={(e) => setNewTitle(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && logDefect()}
+          />
+          <select
+            value={newSeverity}
+            className="rounded border border-slate-300 px-1 py-1 text-xs"
+            onChange={(e) => setNewSeverity(e.target.value)}
+          >
+            {["critical", "major", "minor"].map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 hover:bg-slate-200"
+            onClick={logDefect}
+          >
+            log defect
+          </button>
+        </div>
+      )}
+      {createError && <p className="mt-1 text-xs text-rose-600">{createError}</p>}
+    </div>
+  );
+}
+
+function UatDefectRow({
+  studyId,
+  cycleId,
+  defect,
+  onSaved,
+}: {
+  studyId: string;
+  cycleId: string;
+  defect: UatDefect;
+  onSaved: () => void;
+}) {
+  const canWrite = currentPersona().canWriteUat;
+  const [editing, setEditing] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+  const [note, setNote] = useState(defect.resolution_note ?? "");
+  const [date, setDate] = useState(defect.resolved_date ?? "");
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const save = async (patch: Record<string, unknown>) => {
+    try {
+      setSaveError(null);
+      await api.patchUatDefect(studyId, cycleId, defect.id, patch);
+      setEditing(false);
+      setPendingStatus(null);
+      onSaved();
+    } catch (e) {
+      setSaveError((e as ApiError).message);
+    }
+  };
+
+  // Endings are dated facts and closure carries a note (ADR-0010); collect
+  // what the server will require before submitting.
+  const submitStatus = (status: string) => {
+    if (status === "open") {
+      save({ status, resolved_date: null });
+    } else if (status === "resolved") {
+      setPendingStatus(status);
+    } else {
+      setPendingStatus(status);
+    }
+  };
+
+  const needsNote = pendingStatus === "closed" || pendingStatus === "withdrawn";
+  const needsDate = pendingStatus === "resolved" || pendingStatus === "closed";
+
+  return (
+    <tr className="border-b border-slate-100 align-top last:border-0">
+      <td className="py-1.5 pr-4">
+        <span className="font-mono text-xs text-slate-400">#{defect.defect_number}</span>
+        <span className="ml-2">{defect.title}</span>
+        {defect.resolution_note && (
+          <p className="mt-0.5 max-w-md text-xs text-slate-400">{defect.resolution_note}</p>
+        )}
+        {saveError && <p className="mt-0.5 text-xs text-rose-600">{saveError}</p>}
+        {pendingStatus && (
+          <span className="mt-1 flex items-center gap-2">
+            {needsDate && (
+              <input
+                type="date"
+                value={date}
+                className="rounded border border-slate-300 px-1 py-0.5 text-xs"
+                onChange={(e) => setDate(e.target.value)}
+              />
+            )}
+            {needsNote && (
+              <input
+                type="text"
+                value={note}
+                placeholder="Resolution note (required)"
+                className="w-64 rounded border border-slate-300 px-1 py-0.5 text-xs"
+                onChange={(e) => setNote(e.target.value)}
+              />
+            )}
+            <button
+              type="button"
+              className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-200"
+              onClick={() =>
+                save({
+                  status: pendingStatus,
+                  ...(needsDate ? { resolved_date: date || null } : {}),
+                  ...(needsNote ? { resolution_note: note || null } : {}),
+                })
+              }
+            >
+              save
+            </button>
+          </span>
+        )}
+      </td>
+      <td className="py-1.5 pr-4">
+        <SeverityBadge severity={defect.severity} />
+      </td>
+      <td className="py-1.5 pr-4 text-slate-500">{defect.raised_date}</td>
+      <td className="py-1.5 pr-4 text-slate-500">{defect.resolved_date ?? "—"}</td>
+      <td className="py-1.5 pr-4">
+        {editing ? (
+          <select
+            defaultValue={defect.status}
+            className="rounded border border-slate-300 px-1 py-0.5 text-xs"
+            onChange={(e) => submitStatus(e.target.value)}
+          >
+            {["open", "resolved", "closed", "withdrawn"].map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <DefectChip status={defect.status} />
+        )}
+      </td>
+      <td className="py-1.5 text-right">
         {canWrite && (
           <button
             type="button"

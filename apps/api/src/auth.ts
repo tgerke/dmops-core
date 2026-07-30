@@ -49,6 +49,12 @@ export function configureTokens(): void {
     email: "daniel.reyes@pmo.example",
     roleLabel: "DM manager",
   });
+  // Analysts execute UAT and log defects (ADR-0010) — the first write-capable
+  // non-leadership seat.
+  tokenToEmail.set(process.env.DMOPS_TOKEN_ANALYST ?? "dev-analyst-token", {
+    email: "priya.natarajan@pmo.example",
+    roleLabel: "analyst",
+  });
   tokenToEmail.set(process.env.DMOPS_TOKEN_CLINOPS ?? "dev-clinops-token", {
     email: "grace.liu@pmo.example",
     roleLabel: "ClinOps",

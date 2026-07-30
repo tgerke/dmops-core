@@ -65,8 +65,8 @@ pnpm dev
 ```
 
 Open http://localhost:5175 and pick a persona: the DM lead can edit the
-board, ClinOps reads it, the sponsor seat gets the curated view, QA sees the
-whole portfolio. The seeded study DMOPS-001 is wired to a CSV fixture source,
+board, the analyst logs UAT defects, ClinOps reads it, the sponsor seat gets
+the curated view, QA sees the whole portfolio. The seeded study DMOPS-001 is wired to a CSV fixture source,
 so the metrics strip is live on first boot; DMOPS-002 has no source, which is
 how you see honest "unavailable" states instead of zeros.
 
@@ -77,18 +77,19 @@ report), `pnpm metrics:refresh` (cron-friendly snapshot computation).
 
 ## Status
 
-A working slice 2, not a product. What exists: the study registry, the full
+A working slice 3, not a product. What exists: the study registry, the full
 DM milestone taxonomy with a role-scoped board and audited writes, a
-deliverables surface with eTMF pointers and audited status updates, four
-qualified metrics flowing through the adapter pipeline into an immutable
-snapshot warehouse with trend and per-site drill-downs, governed
-re-baselining with an append-only history (ADR-0009), business-day metric
-calendars as v1.1 of the elapsed-time definitions (the version machinery of
-ADR-0004, exercised once for real), and the CSV + edc-core adapters. What
-does not exist yet: UAT and defect tracking, training and access mirrors,
-lock-readiness scoring, portfolio roll-up views, exports and KPI packs,
-holiday-aware metric calendars, and Medrio/Rave adapters (the contract is
-designed for them; see `docs/adapters/writing-an-adapter.md`).
+deliverables surface with eTMF pointers and audited status updates, UAT
+cycle and defect tracking with a completion gate ("UAT complete" refuses to
+land while defects are open, ADR-0010), four qualified metrics flowing
+through the adapter pipeline into an immutable snapshot warehouse with trend
+and per-site drill-downs, governed re-baselining with an append-only history
+(ADR-0009), business-day metric calendars as v1.1 of the elapsed-time
+definitions (the version machinery of ADR-0004, exercised once for real),
+and the CSV + edc-core adapters. What does not exist yet: training and
+access mirrors, lock-readiness scoring, portfolio roll-up views, exports and
+KPI packs, holiday-aware metric calendars, and Medrio/Rave adapters (the
+contract is designed for them; see `docs/adapters/writing-an-adapter.md`).
 
 This is not validated software. The IQ script, OQ report, and traceability
 matrix are generated raw material for a validation program; running that
