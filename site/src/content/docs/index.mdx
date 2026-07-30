@@ -6,8 +6,8 @@ tableOfContents: false
 hero:
   title: Data Management operations, beside the EDC
   tagline: >-
-    DM's operational load — database build, edit checks, UAT, reconciliation,
-    lock readiness — is tracked today in spreadsheets and email threads, and
+    DM's operational load (database build, edit checks, UAT, reconciliation,
+    lock readiness) is tracked today in spreadsheets and email threads, then
     re-assembled by hand for every governance meeting. dmops-core is the
     system of record for that work: governed milestone boards, deliverable
     status with eTMF links, UAT tracking, and quality metrics computed from
@@ -86,7 +86,7 @@ import board from "../../assets/screenshots/board-hero.png";
     <p>
       A hash-chained audit trail written by database triggers, verified end
       to end by <code>/health</code>, and an API role that cannot fabricate
-      or edit audit events — controls that hold even for ad-hoc psql
+      or edit audit events. These controls hold even for ad-hoc psql
       (<a href="/dmops-core/reference/decisions/0003-db-enforced-audit/">ADR-0003</a>).
     </p>
   </div>
@@ -180,7 +180,7 @@ import board from "../../assets/screenshots/board-hero.png";
   <strong>Status: early development.</strong> The milestone board,
   deliverables, UAT tracking, metrics engine, and the csv and edc-core
   adapters are implemented and tested, with validation evidence generated
-  from live runs — but there has been no release yet and dmops-core has not
+  from live runs. There has been no release yet, and dmops-core has not
   been used in production. Follow progress on
   <a href="https://github.com/tgerke/dmops-core">GitHub</a>.
 </div>

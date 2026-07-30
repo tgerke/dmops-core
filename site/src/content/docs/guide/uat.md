@@ -10,8 +10,8 @@ scripts themselves stay in the validated system that ran them.
 
 ## Cycles and defects, not test evidence
 
-UAT is tracked as bounded cycles per study — initial build, post-amendment
-regression — each carrying status, dates, mirrored script counts, and an
+UAT is tracked as bounded cycles per study (initial build, post-amendment
+regression), each carrying status, dates, mirrored script counts, and an
 evidence link to the executed package in the eTMF. Defects belong to a
 cycle: severity, a generic lifecycle (`open`, `resolved`, `closed`,
 `withdrawn`), a required raised date, and dated endings. `resolved` means
@@ -33,16 +33,16 @@ The milestone taxonomy names `UAT.COMPLETE` "UAT complete, defects
 resolved", and the API enforces the label: a cycle cannot be marked
 complete while any of its defects are open or awaiting retest. In the
 screenshot above, the second cycle's complete button is disabled for exactly
-this reason. The milestone itself is never auto-written — the cycle view
+this reason. The milestone itself is never auto-written: the cycle view
 derives the defect counts, and the milestone owner asserts completion with
 an evidence link.
 
 ## Who writes
 
 UAT writes are open to analysts assigned to the study, alongside DM
-leadership and admin — the first write predicate wider than milestone
-writes, because analysts are the taxonomy's default owners for the UAT
-milestones and data entry belongs where the work happens (DM-P6). In the
+leadership and admin. This is the first write predicate wider than
+milestone writes, because analysts are the taxonomy's default owners for
+the UAT milestones and data entry belongs where the work happens (DM-P6). In the
 demo, switch to Priya Natarajan to log a defect. Sponsors see cycles,
 counts, severities, and dates; defect resolution notes stay internal
 (DM-P5).

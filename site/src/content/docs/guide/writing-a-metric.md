@@ -47,7 +47,7 @@ target: "<= 5 business days"
 The `definition` block is the written definition a data manager would defend
 in a governance meeting: clock start and stop, calendar, inclusions,
 exclusions. `required_fields` is what the capability gate checks against the
-study's adapter — if the source cannot supply a field, the metric is skipped
+study's adapter: if the source cannot supply a field, the metric is skipped
 and reported as unavailable, never approximated
 ([ADR-0005](/dmops-core/reference/decisions/0005-adapter-capability-contract/)).
 `grain` names the levels the metric computes at: `study`, `site`, `country`,
@@ -73,7 +73,7 @@ Qualification is a test, not a ceremony: each metric version is verified
 against expected values on the fixture study
 (`fixtures/study-DMOPS-001`), where the expected numbers were computed from
 the CSVs by hand. The test names carry `DM-Q*` tokens, which join them into
-the generated traceability matrix — renaming a test away from its token
+the generated traceability matrix. Renaming a test away from its token
 silently drops it from the matrix, so don't.
 
 ## Checklist

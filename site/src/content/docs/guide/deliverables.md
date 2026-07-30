@@ -3,8 +3,8 @@ title: Deliverables
 description: Status and an eTMF link, never the document
 ---
 
-Every study produces a stack of controlled documents — the Data Management
-Plan, the edit check specification, the SDTM mapping spec — whose approval
+Every study produces a stack of controlled documents (the Data Management
+Plan, the edit check specification, the SDTM mapping spec) whose approval
 status everyone asks about and whose records live in the eTMF. dmops-core
 tracks exactly that split: the status is owned here, the record stays where
 it is signed.
@@ -19,7 +19,7 @@ A deliverable row is a type, a title, a version, an owner, a status chip
 are new rows or status changes, all audited; nothing is silently
 overwritten.
 
-Moving a deliverable to `approved` requires the approval date — the date on
+Moving a deliverable to `approved` requires the approval date: the date on
 the eTMF record, not the date someone clicked the dropdown. The board
 collects it inline before saving.
 

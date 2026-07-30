@@ -14,7 +14,7 @@ works on any fresh seed.
 Open http://localhost:5175 as **Maya Okafor — DM lead** (the default).
 DMOPS-001 is enrolling, 25 of 38 milestones complete, one blocked;
 DMOPS-002 is barely started. The progress bars and "next up" column are
-derived roll-ups — nobody maintains them.
+derived roll-ups; nobody maintains them.
 
 *Full guide: [Getting started](/dmops-core/getting-started/)*
 
@@ -34,9 +34,9 @@ Honest slips, visible to everyone who should see them.
 ## 3. Drill into a metric
 
 Click the **Query turnaround time** card. The detail opens with the trend
-across reporting periods and the by-site table — site 002 is slower than
-site 001. Every number traces to a versioned definition and a checksummed
-extract.
+across reporting periods and the by-site table, where site 002 is slower
+than site 001. Every number traces to a versioned definition and a
+checksummed extract.
 
 *Full guide: [Metrics](/dmops-core/guide/metrics/)*
 
@@ -44,7 +44,7 @@ extract.
 
 In the Conduct section, hit **edit** on the protocol amendment row and move
 its forecast date. That is a `dm_lead` write: forecasts are yours to keep
-honest. Notice there is no way to edit the planned date from here — that
+honest. Notice there is no way to edit the planned date from here. That
 door is deliberately missing.
 
 *Full guide: [Milestones](/dmops-core/guide/milestones/)*
@@ -53,7 +53,7 @@ door is deliberately missing.
 
 Switch to **Daniel Reyes — DM manager**. Moving a plan is governance, so it
 has its own path: re-baseline the interim lock (`COND.INTERIM`) through the
-API with a reason —
+API, with a reason:
 
 ```bash
 STUDY=$(curl -s -H "Authorization: Bearer dev-manager-token" \
@@ -69,7 +69,7 @@ curl -s -X POST \
 Reload the board: the planned date moved and a violet `⟲1` counter appeared
 next to it. The old date, the new date, and the reason are now an immutable
 governance record. Try the same call as Maya (`dev-dmlead-token`) and you
-get a 403 — leads move forecasts, managers move plans.
+get a 403: leads move forecasts, managers move plans.
 
 *Full guide: [Milestones](/dmops-core/guide/milestones/), [The API](/dmops-core/guide/api/)*
 
@@ -85,7 +85,7 @@ completion gate is enforced by the API, not by the button.
 ## 7. See what the sponsor sees, as Sylvia
 
 Switch to **Sylvia Tran — Sponsor (curated view)**. The SAE reconciliation
-milestone is still visibly Blocked and three weeks behind — but the rose
+milestone is still visibly Blocked and three weeks behind, but the rose
 blocker note about vendor discrepancies is gone, along with every edit
 control and the defect resolution notes. Same facts, curated fields.
 

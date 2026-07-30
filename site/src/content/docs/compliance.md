@@ -34,12 +34,12 @@ run. `DM-Q*` ids are per-metric qualification cases.
 
 | Requirement | Mechanism |
 | --- | --- |
-| DM-P1 — every field auto-derived or authoritative, never both | Source adapters with per-field capability declarations; metrics skip rather than approximate when a source cannot supply a field; milestone and deliverable facts owned here and nowhere else |
-| DM-P2 — metrics are code, not dashboard configuration | One YAML definition plus one tested compute function per metric version; registration copies the YAML verbatim with a checksum; changing a file without a version bump is a hard error |
-| DM-P3 — snapshots are immutable and dated | Forbid-mutation triggers on `metric_snapshot`, `source_extract`, `metric_definition`, and `milestone_rebaseline`; the DML-only app role additionally lacks UPDATE/DELETE on them; every snapshot references its extract checksum |
-| DM-P4 — displays regulated records, does not hold them | `deliverable` stores status plus an eTMF URI only; `uat_cycle` mirrors script execution as counts plus an evidence URI, never the executed package; no signature columns or file storage anywhere in the schema |
-| DM-P5 — role-scoped views over one set of facts | Role × study assignment scoping on every read; the sponsor serialization excludes internal fields (blocker notes, re-baseline reasons, defect resolution notes); one underlying view per fact |
-| DM-P6 — read-heavy, write-light | Board and summary reads are single-view queries; the operational writes are milestone, deliverable-status, and UAT operations plus the governed re-baseline action, all audited via `withActor` |
+| DM-P1: every field auto-derived or authoritative, never both | Source adapters with per-field capability declarations; metrics skip rather than approximate when a source cannot supply a field; milestone and deliverable facts owned here and nowhere else |
+| DM-P2: metrics are code, not dashboard configuration | One YAML definition plus one tested compute function per metric version; registration copies the YAML verbatim with a checksum; changing a file without a version bump is a hard error |
+| DM-P3: snapshots are immutable and dated | Forbid-mutation triggers on `metric_snapshot`, `source_extract`, `metric_definition`, and `milestone_rebaseline`; the DML-only app role additionally lacks UPDATE/DELETE on them; every snapshot references its extract checksum |
+| DM-P4: displays regulated records, does not hold them | `deliverable` stores status plus an eTMF URI only; `uat_cycle` mirrors script execution as counts plus an evidence URI, never the executed package; no signature columns or file storage anywhere in the schema |
+| DM-P5: role-scoped views over one set of facts | Role × study assignment scoping on every read; the sponsor serialization excludes internal fields (blocker notes, re-baseline reasons, defect resolution notes); one underlying view per fact |
+| DM-P6: read-heavy, write-light | Board and summary reads are single-view queries; the operational writes are milestone, deliverable-status, and UAT operations plus the governed re-baseline action, all audited via `withActor` |
 
 Supporting mechanisms, adopted from ctms-core
 ([ADR-0003](/dmops-core/reference/decisions/0003-db-enforced-audit/)):

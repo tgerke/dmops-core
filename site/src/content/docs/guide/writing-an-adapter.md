@@ -4,7 +4,7 @@ description: The SourceAdapter contract and its three obligations
 ---
 
 A source adapter connects dmops-core to the system where clinical-operations
-data already lives — an EDC, a CTMS, a safety database. Adapters are
+data already lives: an EDC, a CTMS, a safety database. Adapters are
 read-only: they extract normalized frames; they never write to the source
 ([ADR-0005](/dmops-core/reference/decisions/0005-adapter-capability-contract/)).
 
@@ -26,7 +26,7 @@ export const myAdapter: SourceAdapter = {
 Three obligations:
 
 1. **Normalized frames.** `extract` returns rows conforming to the zod
-   schemas in `@dmops/adapter-contract` — `queries`, `subjects`, `visits`,
+   schemas in `@dmops/adapter-contract`: `queries`, `subjects`, `visits`,
    `pages`. Keys are snake_case, timestamps are ISO 8601 strings, dates are
    ISO dates. Use `checksumFrames()` so your extraction checksum is
    comparable to every other adapter's, and `validateExtraction()` will be
@@ -34,7 +34,7 @@ Three obligations:
 
 2. **Honest capabilities.** Declare, per frame and per field, whether your
    data is `native` (the source stores exactly this), `derived` (you
-   computed it — say how in `notes`), or `unsupported`. Metrics gate on
+   computed it; say how in `notes`), or `unsupported`. Metrics gate on
    these declarations: an unsupported required field means the metric is
    reported as unavailable with the named gap, which is the correct outcome.
    Never approximate a field silently to make a metric light up.
@@ -47,9 +47,9 @@ Three obligations:
 
 ## Reference implementations
 
-- `packages/adapters/src/csv/` — the fixture adapter: reads a directory of
+- `packages/adapters/src/csv/`: the fixture adapter: reads a directory of
   CSV files, declares everything native. Start by copying this one.
-- `packages/adapters/src/edc-core/` — the reference EDC adapter:
+- `packages/adapters/src/edc-core/`: the reference EDC adapter:
   authenticates with an edc-core study-scoped API key, maps query threads to
   the queries frame (with `first_response_at` derived from message
   timestamps), and declares `visits` unsupported because edc-core does not
@@ -68,9 +68,9 @@ names it either way.
 The contract was designed so commercial EDC adapters can be added without
 touching the engine. Known targets, unimplemented:
 
-- **Medrio** — API capabilities to be confirmed against current Medrio
+- **Medrio**: API capabilities to be confirmed against current Medrio
   vendor documentation before any mapping is written.
-- **Medidata Rave** — likely via Rave Web Services / ODM export;
+- **Medidata Rave**: likely via Rave Web Services / ODM export;
   capabilities, query lifecycle timestamp granularity, and rate limits to be
   confirmed against current Medidata documentation before any mapping is
   written.

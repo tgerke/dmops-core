@@ -7,7 +7,7 @@ Access in dmops-core is derived from study assignments, not from a global
 role picker: a person holds a role (or several) on specific studies, and
 every read and write is scoped by those assignments. QA and admin see the
 whole portfolio; everyone else sees the studies they are assigned to. There
-is one set of facts underneath — role scoping changes which rows and fields
+is one set of facts underneath: role scoping changes which rows and fields
 you see, never the numbers themselves (DM-P5).
 
 ## What each role can do
@@ -19,7 +19,7 @@ you see, never the numbers themselves (DM-P5).
 | Write milestones (forecast, actual, status, blockers) | `dm_lead`, `dm_manager` on the study; `admin` |
 | Write deliverable status | same rule as milestones |
 | Write UAT cycles and defects | milestone writers plus `analyst` on the study |
-| Re-baseline a plan | `dm_manager` on the study; `admin` — deliberately stricter than milestone writes |
+| Re-baseline a plan | `dm_manager` on the study; `admin` (deliberately stricter than milestone writes) |
 | Curated sponsor serialization | a person whose only role on the study is `sponsor_user` |
 
 Two asymmetries are deliberate. UAT writes are wider than milestone writes
@@ -47,14 +47,14 @@ and as Sylvia Tran (sponsor):
 ![The same Closeout section as the sponsor sees it: the Blocked status and the +21d forecast slip remain visible, but the blocker note and the edit controls are gone](../../assets/screenshots/sponsor-view.png)
 
 The sponsor still sees that SAE reconciliation is blocked and three weeks
-behind — hiding status from the sponsor is not the goal. What stays
-internal is the working narrative.
+behind. Hiding status from the sponsor is not the goal; what stays internal
+is the working narrative.
 
 ## Dev tokens and production
 
 In the demo, personas are static bearer tokens mapped to seeded people
 (`DMOPS_AUTH_MODE=dev`); the header dropdown just swaps the token.
 Production replaces the token source with OIDC against a real identity
-provider — the assignment-scoping logic underneath is identical. Dev mode
-is a demo convenience, not an access-control posture; it appears on the
+provider; the assignment-scoping logic underneath is identical. Dev mode
+is a demo convenience, not an access-control posture, and it appears on the
 [honest gaps list](/dmops-core/compliance/#honest-gaps-current-phase).

@@ -13,7 +13,7 @@ overwritten so slip stays honest.
 
 The DM milestone taxonomy lives in `taxonomy/milestone_definitions.yaml`:
 stable dotted codes (`SPEC.DMP.APPROVED`, `CLOSE.LOCK`) grouped into five
-phases — specification, build, validation and release, conduct, closeout.
+phases: specification, build, validation and release, conduct, closeout.
 Studies instantiate milestones from the taxonomy and may mark any of them
 N/A, but cannot invent codes outside it
 ([ADR-0008](/dmops-core/reference/decisions/0008-governed-milestone-taxonomy/)).
@@ -37,7 +37,7 @@ number after the label. A violet `⟲N` counter next to the planned date means
 the plan has been re-baselined N times. The eTMF link on the right opens the
 evidence record in the system that owns it.
 
-## Planned, forecast, actual — never collapsed
+## Planned, forecast, actual: never collapsed
 
 Every study milestone carries four dates. `baseline_date` is the original
 commitment and survives re-baselining. `planned_date` is the current plan.

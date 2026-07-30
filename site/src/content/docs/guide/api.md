@@ -28,19 +28,19 @@ curl -s http://localhost:8788/studies \
 
 **Studies**
 
-- `GET /studies` — the portfolio, with per-study milestone roll-ups
-- `GET /studies/{studyId}` — one study's registry record
+- `GET /studies`: the portfolio, with per-study milestone roll-ups
+- `GET /studies/{studyId}`: one study's registry record
 
 **Milestones**
 
-- `GET /studies/{studyId}/milestones` — the full board
-- `PATCH /studies/{studyId}/milestones/{code}` — forecast, actual, status,
+- `GET /studies/{studyId}/milestones`: the full board
+- `PATCH /studies/{studyId}/milestones/{code}`: forecast, actual, status,
   blocker note, evidence URI. Deliberately cannot write `planned_date` or
   `baseline_date`.
-- `POST /studies/{studyId}/milestones/{code}/rebaseline` — the governance
+- `POST /studies/{studyId}/milestones/{code}/rebaseline`: the governance
   action that moves the plan
   ([ADR-0009](/dmops-core/reference/decisions/0009-append-only-rebaseline-governance/))
-- `GET /studies/{studyId}/milestones/{code}/rebaselines` — the append-only
+- `GET /studies/{studyId}/milestones/{code}/rebaselines`: the append-only
   re-baseline history
 
 **Deliverables**
@@ -51,23 +51,23 @@ curl -s http://localhost:8788/studies \
 **UAT**
 
 - `GET | POST /studies/{studyId}/uat-cycles`
-- `PATCH /studies/{studyId}/uat-cycles/{cycleId}` — enforces the completion
+- `PATCH /studies/{studyId}/uat-cycles/{cycleId}`: enforces the completion
   gate
 - `GET | POST /studies/{studyId}/uat-cycles/{cycleId}/defects`
 - `PATCH /studies/{studyId}/uat-cycles/{cycleId}/defects/{defectId}`
 
 **Metrics**
 
-- `GET /studies/{studyId}/metrics` — latest value per metric, including
+- `GET /studies/{studyId}/metrics`: latest value per metric, including
   unavailable states with their named gaps
-- `GET /studies/{studyId}/metrics/{metricId}/sites` — the by-site
+- `GET /studies/{studyId}/metrics/{metricId}/sites`: the by-site
   drill-down
-- `GET /studies/{studyId}/metrics/{metricId}/snapshots` — snapshot history
+- `GET /studies/{studyId}/metrics/{metricId}/snapshots`: snapshot history
   by grain
 
 **Health**
 
-- `GET /health` — public; reports migration count and verifies the audit
+- `GET /health`: public; reports migration count and verifies the audit
   chain end to end on every call
 
 ## Role-aware serialization
@@ -76,4 +76,4 @@ Responses are shaped per requester, not per endpoint. A sponsor-only
 requester receives the curated serialization: blocker notes, re-baseline
 reasons, and defect resolution notes are excluded, while dates, statuses,
 and counts pass through. There is no separate sponsor API to drift out of
-sync — one endpoint, one set of facts, role-scoped fields (DM-P5).
+sync: one endpoint, one set of facts, role-scoped fields (DM-P5).

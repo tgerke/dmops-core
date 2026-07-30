@@ -10,8 +10,8 @@ the board, works from what the adapters honestly declare they can supply.
 
 ## The contract
 
-A source adapter extracts normalized frames — `queries`, `subjects`,
-`visits`, `pages` — from the system where clinical-operations data already
+A source adapter extracts normalized frames (`queries`, `subjects`,
+`visits`, `pages`) from the system where clinical-operations data already
 lives. The contract (`@dmops/adapter-contract`) depends only on zod: frame
 schemas, a capability model, and a checksum helper so every adapter's
 extraction provenance is comparable.
@@ -37,9 +37,9 @@ approximates around source gaps publishes numbers nobody can defend.
 
 ## Shipped adapters
 
-- **csv** — reads a directory of CSV fixtures, declares everything native.
+- **csv**: reads a directory of CSV fixtures, declares everything native.
   The standalone-demo path and the template to copy.
-- **edc-core** — the reference EDC adapter. Authenticates with an edc-core
+- **edc-core**: the reference EDC adapter. Authenticates with an edc-core
   study-scoped API key (env indirection, never a key in the database), maps
   query threads to the queries frame, and derives `first_response_at` from
   the first thread message not authored by the query opener.

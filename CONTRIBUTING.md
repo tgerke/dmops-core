@@ -38,7 +38,7 @@ reproducible), creates the one reference state the seed lacks (a re-baseline
 on DMOPS-001's interim lock, so the `⟲1` badge renders), starts `pnpm dev` if
 it isn't running, and captures every PNG in `site/src/assets/screenshots/`
 at 2x resolution. Never point it at a database whose contents you care
-about — `--yes` is the acknowledgment of the reseed.
+about; `--yes` is the acknowledgment of the reseed.
 
 `--only name,name` re-captures specific shots (names are the PNG basenames).
 Commit the changed PNGs with the change that altered the UI.

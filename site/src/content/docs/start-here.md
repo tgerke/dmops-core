@@ -45,7 +45,7 @@ You run UAT, wire source systems, or add metrics. Work as
 1. [UAT](/dmops-core/guide/uat/): cycles, the defect lifecycle, and the
    completion gate you will run into on purpose.
 2. [Adapters](/dmops-core/guide/adapters/): frames and the capability
-   model — the reason a metric says unavailable instead of lying.
+   model, which is the reason a metric says unavailable instead of lying.
 3. [Writing an adapter](/dmops-core/guide/writing-an-adapter/): the
    contract's three obligations, with the reference implementations.
 4. [Writing a metric](/dmops-core/guide/writing-a-metric/): the YAML

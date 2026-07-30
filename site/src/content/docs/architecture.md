@@ -25,30 +25,30 @@ These are the system's requirement tokens (`DM-P1`…`DM-P6`); tests cite them
 by id, and the generated traceability matrix joins on them (see
 [Compliance](/dmops-core/compliance/)).
 
-- **DM-P1 — Every field is auto-derived or authoritative, never both.** If a
+- **DM-P1: Every field is auto-derived or authoritative, never both.** If a
   data point lives in the EDC, CTMS, safety DB, or LMS, this system reads it
   through an adapter. If it exists nowhere else, this system owns it
   outright. Dual entry is the failure mode that kills these portals.
-- **DM-P2 — Metrics are code, not dashboard configuration.** One versioned
+- **DM-P2: Metrics are code, not dashboard configuration.** One versioned
   definition per KPI, consumed by every view
   ([ADR-0004](/dmops-core/reference/decisions/0004-metrics-are-versioned-code/)).
-- **DM-P3 — Snapshots are immutable and dated.** Metric history is
+- **DM-P3: Snapshots are immutable and dated.** Metric history is
   append-only and reproduces the number as reported then
   ([ADR-0007](/dmops-core/reference/decisions/0007-append-only-snapshot-warehouse/)).
-- **DM-P4 — The portal displays regulated records; it does not hold them.**
+- **DM-P4: The portal displays regulated records; it does not hold them.**
   Status plus a link; signatures stay in the QMS/eTMF
   ([ADR-0006](/dmops-core/reference/decisions/0006-display-only-regulated-records/)).
-- **DM-P5 — Role-scoped views over one set of facts.** One truth, sliced per
+- **DM-P5: Role-scoped views over one set of facts.** One truth, sliced per
   audience; never a "sponsor version" of a number.
-- **DM-P6 — Read-heavy, write-light.** Optimize for the daily 30-second
+- **DM-P6: Read-heavy, write-light.** Optimize for the daily 30-second
   glance; keep data entry minimal and where the work already happens.
 
 ## Scope
 
 In scope: study registry, DM milestone tracking, deliverable status with
 eTMF links, quality metrics from source adapters, UAT cycle and defect
-tracking, and — in later phases — training and access mirrors,
-lock-readiness scoring, and portfolio roll-up.
+tracking, and, in later phases, training and access mirrors, lock-readiness
+scoring, and portfolio roll-up.
 
 Out of scope, permanently: clinical data capture (the EDC), query issuance
 and resolution (the EDC), document authoring or e-signature (QMS/eTMF), site
