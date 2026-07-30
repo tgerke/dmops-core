@@ -3,12 +3,21 @@ export {
   assignmentsFor,
   canReadStudy,
   canRebaseline,
+  canWriteDeliverables,
   canWriteMilestones,
   hasPortfolioRead,
   isSponsorOnly,
   type Assignment,
   type Role,
 } from "./authz.js";
+export {
+  DeliverableError,
+  listDeliverables,
+  updateDeliverable,
+  type DeliverablePatch,
+  type DeliverableRow,
+  type DeliverableStatus,
+} from "./deliverables.js";
 export { registerMetrics } from "./metric-registration.js";
 export {
   MilestoneError,

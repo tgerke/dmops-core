@@ -160,6 +160,86 @@ describe("milestone writes (ADR-0003, ADR-0008)", () => {
   });
 });
 
+describe("deliverable surface (ADR-0006)", () => {
+  const deliverableId = async (title: string) => {
+    const body = await (await get(`/studies/${study1}/deliverables`, "dev-dmlead-token")).json();
+    return body.deliverables.find((d: { title: string }) => d.title === title).id as string;
+  };
+
+  it("DM-P4: deliverables serve status and an eTMF pointer, never content or signatures", async () => {
+    const res = await get(`/studies/${study1}/deliverables`, "dev-dmlead-token");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.deliverables.length).toBe(3);
+    const dmp = body.deliverables.find((d: { type: string }) => d.type === "dmp");
+    expect(dmp.status).toBe("approved");
+    expect(dmp.etmf_uri).toMatch(/ctms\.example\/tmf/);
+    for (const d of body.deliverables) {
+      expect(Object.keys(d).some((k) => /content|file|blob|body|signature|signed/.test(k))).toBe(
+        false,
+      );
+    }
+  });
+
+  it("DM-P5: deliverable reads are row-scoped; the sponsor seat sees its study only", async () => {
+    const sponsor = await get(`/studies/${study1}/deliverables`, "dev-sponsor-token");
+    expect(sponsor.status).toBe(200);
+    const body = await sponsor.json();
+    expect(body.deliverables.length).toBe(3);
+    expect(body.deliverables[0].etmf_uri).not.toBeUndefined();
+    expect((await get(`/studies/${study2}/deliverables`, "dev-sponsor-token")).status).toBe(403);
+    expect((await get(`/studies/${study2}/deliverables`, "dev-qa-token")).status).toBe(200);
+  });
+
+  it("DM-P6: read-only roles cannot write deliverable status; the DM lead's write is audit-attributed (ADR-0003)", async () => {
+    const id = await deliverableId("SDTM Mapping Specification");
+    for (const token of ["dev-clinops-token", "dev-sponsor-token"]) {
+      expect(
+        (await patch(`/studies/${study1}/deliverables/${id}`, token, { status: "approved" }))
+          .status,
+      ).toBe(403);
+    }
+
+    const res = await patch(`/studies/${study1}/deliverables/${id}`, "dev-dmlead-token", {
+      status: "approved",
+      approved_date: "2026-07-15",
+    });
+    expect(res.status).toBe(200);
+    const row = await res.json();
+    expect(row.status).toBe("approved");
+    expect(row.approved_date).toBe("2026-07-15");
+
+    const [event] = await owner`
+      SELECT * FROM audit_event
+      WHERE action = 'deliverable.update' ORDER BY id DESC LIMIT 1`;
+    expect(event!.actor_label).toMatch(/Maya Okafor/);
+    expect(event!.before.status).toBe("in_review");
+    expect(event!.after.status).toBe("approved");
+
+    // restore for repeatable local runs (also audited)
+    await patch(`/studies/${study1}/deliverables/${id}`, "dev-dmlead-token", {
+      status: "in_review",
+      approved_date: null,
+    });
+  });
+
+  it("approving without an approved_date is rejected: approvals are dated facts (ADR-0006)", async () => {
+    const id = await deliverableId("SDTM Mapping Specification");
+    const res = await patch(`/studies/${study1}/deliverables/${id}`, "dev-dmlead-token", {
+      status: "approved",
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("ADR-0006: identity fields are not writable and unknown fields are rejected", async () => {
+    const id = await deliverableId("Data Management Plan");
+    const res = await patch(`/studies/${study1}/deliverables/${id}`, "dev-dmlead-token", {
+      title: "Renamed Plan",
+    });
+    expect(res.status).toBe(400);
+  });
+});
+
 describe("re-baselining governance (ADR-0009, ADR-0003)", () => {
   // milestone_rebaseline is append-only, so records accumulate across local
   // runs without a re-seed; assertions are relative to the pre-test history.

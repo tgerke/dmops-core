@@ -1,16 +1,21 @@
 import { getAdapter } from "@dmops/adapters";
 import {
   type BoardRow,
+  DeliverableError,
+  type DeliverableRow,
   MilestoneError,
   type RebaselineRecord,
   canReadStudy,
   canRebaseline,
+  canWriteDeliverables,
   canWriteMilestones,
   hasPortfolioRead,
   isSponsorOnly,
+  listDeliverables,
   milestoneBoard,
   rebaselineHistory,
   rebaselineMilestone,
+  updateDeliverable,
   updateMilestone,
 } from "@dmops/core";
 import type { Sql } from "@dmops/db";
@@ -20,6 +25,8 @@ import { cors } from "hono/cors";
 import { type Env, authMiddleware, authMode, configureTokens } from "./auth.js";
 import {
   BoardRowSchema,
+  DeliverablePatchSchema,
+  DeliverableSchema,
   ErrorSchema,
   HealthSchema,
   MilestoneBoardSchema,
@@ -28,6 +35,7 @@ import {
   RebaselineRecordSchema,
   RebaselineResultSchema,
   SnapshotSchema,
+  StudyDeliverablesSchema,
   StudyDetailSchema,
   StudyMetricsSchema,
   StudySummarySchema,
@@ -347,6 +355,77 @@ export function buildApp(sql: Sql) {
     },
   );
 
+  // --- deliverables (ADR-0006: status + eTMF pointer, display-only) ---------
+
+  app.openapi(
+    createRoute({
+      method: "get",
+      path: "/studies/{studyId}/deliverables",
+      security,
+      request: { params: z.object({ studyId: z.string().uuid() }) },
+      responses: {
+        200: json(
+          StudyDeliverablesSchema,
+          "Deliverable status with eTMF pointers — display-only, never the record (ADR-0006, DM-P4)",
+        ),
+        403: json(ErrorSchema, "Not assigned to this study"),
+      },
+    }),
+    async (c) => {
+      const { studyId } = c.req.valid("param");
+      const denied = requireRead(c.get("assignments"), studyId);
+      if (denied) return c.json(denied, 403);
+      const rows = await listDeliverables(sql, studyId);
+      return c.json({ study_id: studyId, deliverables: rows.map(serializeDeliverable) }, 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: "patch",
+      path: "/studies/{studyId}/deliverables/{deliverableId}",
+      security,
+      request: {
+        params: z.object({ studyId: z.string().uuid(), deliverableId: z.string().uuid() }),
+        body: {
+          content: { "application/json": { schema: DeliverablePatchSchema } },
+          required: true,
+        },
+      },
+      responses: {
+        200: json(
+          DeliverableSchema,
+          "Updated deliverable (write audited via withActor, ADR-0003; status and pointer only, ADR-0006)",
+        ),
+        400: json(ErrorSchema, "Invalid patch, or approved without an approved_date"),
+        403: json(ErrorSchema, "Deliverable writes require DM leadership on the study"),
+        404: json(ErrorSchema, "No such deliverable on this study"),
+      },
+    }),
+    async (c) => {
+      const { studyId, deliverableId } = c.req.valid("param");
+      if (!canWriteDeliverables(c.get("assignments"), studyId)) {
+        return c.json(
+          { error: "deliverable writes require a dm_lead, dm_manager, or admin assignment" },
+          403,
+        );
+      }
+      try {
+        const row = await updateDeliverable(sql, c.get("actor"), {
+          studyId,
+          deliverableId,
+          patch: c.req.valid("json"),
+        });
+        return c.json(serializeDeliverable(row), 200);
+      } catch (e) {
+        if (e instanceof DeliverableError) {
+          return c.json({ error: e.message }, e.code === "not_found" ? 404 : 400);
+        }
+        throw e;
+      }
+    },
+  );
+
   // --- metrics ---------------------------------------------------------------
 
   app.openapi(
@@ -468,6 +547,11 @@ function summarize(row: Record<string, unknown>) {
     next_milestone_label: row.next_milestone_label as string | null,
     next_milestone_planned: row.next_milestone_planned as string | null,
   };
+}
+
+function serializeDeliverable(row: DeliverableRow) {
+  const { study_id: _studyId, updated_at, ...rest } = row;
+  return { ...rest, updated_at: new Date(updated_at).toISOString() };
 }
 
 function serializeBoardRow(row: BoardRow) {

@@ -44,6 +44,14 @@ export function canWriteMilestones(assignments: Assignment[], studyId: string): 
 }
 
 /**
+ * Deliverable status writes: the same DM-leadership rule as milestones today,
+ * as a named export so the rules can diverge without a hunt.
+ */
+export function canWriteDeliverables(assignments: Assignment[], studyId: string): boolean {
+  return canWriteMilestones(assignments, studyId);
+}
+
+/**
  * Re-baselining (ADR-0009): deliberately stricter than milestone writes —
  * moving the plan is governance, not an edit. dm_lead moves forecasts only.
  */

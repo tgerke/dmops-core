@@ -78,6 +78,37 @@ export const MilestonePatchSchema = z
   })
   .strict();
 
+// Status + eTMF pointer only, never content or signatures (ADR-0006).
+export const DeliverableSchema = z.object({
+  id: z.string().uuid(),
+  type: z.string(),
+  title: z.string(),
+  version: z.string().nullable(),
+  status: z.enum(["draft", "in_review", "approved", "superseded"]),
+  approved_date: z.string().nullable(),
+  etmf_uri: z.string().nullable(),
+  owner_id: z.string().nullable(),
+  owner_name: z.string().nullable(),
+  updated_at: z.string(),
+});
+
+export const StudyDeliverablesSchema = z.object({
+  study_id: z.string().uuid(),
+  deliverables: z.array(DeliverableSchema),
+});
+
+// The writable surface. type and title are identity, not status — a
+// different deliverable is a new row (ADR-0006).
+export const DeliverablePatchSchema = z
+  .object({
+    status: z.enum(["draft", "in_review", "approved", "superseded"]).optional(),
+    approved_date: z.string().date().nullable().optional(),
+    etmf_uri: z.string().url().nullable().optional(),
+    owner_id: z.string().uuid().nullable().optional(),
+    version: z.string().max(50).nullable().optional(),
+  })
+  .strict();
+
 // The only path that can move planned_date (ADR-0009). baseline_date has no
 // write path at all.
 export const RebaselinePostSchema = z
