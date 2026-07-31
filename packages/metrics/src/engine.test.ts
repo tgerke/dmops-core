@@ -1,4 +1,5 @@
 import type { AdapterCapabilities } from "@dmops/adapter-contract";
+import { medrioAdapter, raveAdapter } from "@dmops/adapters";
 import { describe, expect, it } from "vitest";
 import { metricAvailability } from "./engine.js";
 import { assertRegistryMatchesSpecs } from "./registry.js";
@@ -61,5 +62,34 @@ describe("capability gating (DM-P1: skip, never silently approximate)", () => {
       const result = metricAvailability(byId(id), { adapter: "anything", frames: {} });
       expect(result.available).toBe(true);
     }
+  });
+
+  // The vendor adapters' real postures (ADR-0017): honest capabilities, not
+  // hypothetical ones, drive what a study computes.
+  it("the medrio adapter's honest capabilities gate off the whole EDC metric set with named gaps (ADR-0017, DM-P1)", () => {
+    const caps = medrioAdapter.capabilities();
+    for (const id of ["query_tat_median", "query_open_aging"]) {
+      const result = metricAvailability(byId(id), caps);
+      expect(result.available).toBe(false);
+      if (!result.available) expect(result.missing).toContain("queries.opened_at");
+    }
+    const entryLag = metricAvailability(byId("entry_lag"), caps);
+    expect(entryLag.available).toBe(false);
+    if (!entryLag.available) {
+      expect(entryLag.missing).toContain("visits.visit_date");
+      expect(entryLag.missing).toContain("pages.first_entered_at");
+    }
+  });
+
+  it("the rave adapter lights the query metrics as derived and keeps entry_lag off (ADR-0017, DM-P1)", () => {
+    const caps = raveAdapter.capabilities();
+    for (const id of ["query_tat_median", "query_open_aging"]) {
+      const result = metricAvailability(byId(id), caps);
+      expect(result.available).toBe(true);
+      if (result.available) expect(result.derived).toContain("queries.opened_at");
+    }
+    const entryLag = metricAvailability(byId("entry_lag"), caps);
+    expect(entryLag.available).toBe(false);
+    if (!entryLag.available) expect(entryLag.missing).toEqual(["visits.visit_date"]);
   });
 });

@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import { csvAdapter } from "./csv/index.js";
 import { createEdcCoreAdapter } from "./edc-core/index.js";
 import { createGithubAdapter } from "./github/index.js";
+import { createMedrioAdapter } from "./medrio/index.js";
+import { createRaveAdapter } from "./rave/index.js";
 
 describe("csv adapter (the reference implementation)", () => {
   it("extracts all four frames from the fixture study and passes contract validation", async () => {
@@ -427,5 +429,606 @@ describe("github adapter (recorded fixtures, ADR-0012)", () => {
     await expect(
       adapter.extract({ sourceStudyKey: "DMOPS-001", frames: ["issues"], config }),
     ).rejects.toThrow(/DMOPS_TEST_GITHUB_TOKEN/);
+  });
+});
+
+// Recorded response fixtures: shapes per the Medrio OpenAPI document
+// (connectapi.medrio.com/swagger/v1/swagger.json, "Medrio OpenApi
+// v.42.14.0.201", fetched 2026-07-31 — see the adapter header, ADR-0017).
+// No live EDC in CI — the mapping is what's under test. Fixtures carry PII
+// fields (firstName, lastName, dateOfBirth) the adapter must never read.
+const medrioEnvelope = (response: unknown) => ({
+  processedSuccessfully: true,
+  processMessage: null,
+  response,
+});
+
+const medrioSites = [
+  { siteId: "ms-1", externalId: "S1", name: "General", siteNumber: "101" },
+  { siteId: "ms-2", externalId: "S2", name: "Memorial", siteNumber: "102" },
+];
+
+const medrioSubjects = [
+  {
+    subjectId: "uuid-1",
+    subjectIdentifier: "101-001",
+    firstName: "Pat",
+    lastName: "Doe",
+    dateOfBirth: "1970-01-01T00:00:00",
+    siteId: "ms-1",
+    siteName: "General",
+    statusId: "st-1",
+    statusName: "Enrolled",
+    enrollmentDate: "2026-05-12T00:00:00",
+  },
+  {
+    subjectId: "uuid-2",
+    subjectIdentifier: "102-002",
+    firstName: "Sam",
+    lastName: "Roe",
+    dateOfBirth: "1980-02-02T00:00:00",
+    siteId: "ms-2",
+    siteName: "Memorial",
+    statusId: "st-2",
+    statusName: "Screen Failure",
+    enrollmentDate: null,
+  },
+];
+
+// One row per (visit instance × form), keyed by collectionPointId.
+const medrioVisitsBySubject: Record<string, unknown[]> = {
+  "uuid-1": [
+    {
+      collectionPointId: "cp-1",
+      visitId: "v-1",
+      visitName: "Screening",
+      visitSequenceNumber: 1,
+      formId: "f-1",
+      formName: "Demographics",
+      dataEntered: true,
+      locked: true,
+      isMonitored: true,
+      status: "some-free-string",
+    },
+    {
+      collectionPointId: "cp-2",
+      visitId: "v-1",
+      visitName: "Screening",
+      visitSequenceNumber: 1,
+      formId: "f-2",
+      formName: "Vitals",
+      dataEntered: true,
+      locked: false,
+      isMonitored: null,
+      status: "some-free-string",
+    },
+    {
+      collectionPointId: "cp-3",
+      visitId: "v-2",
+      visitName: "Cycle 1",
+      visitSequenceNumber: 1,
+      formId: "f-2",
+      formName: "Vitals",
+      dataEntered: false,
+      locked: false,
+      isMonitored: null,
+      status: "some-free-string",
+    },
+  ],
+  "uuid-2": [
+    {
+      collectionPointId: "cp-4",
+      visitId: "v-1",
+      visitName: "Screening",
+      visitSequenceNumber: 1,
+      formId: "f-1",
+      formName: "Demographics",
+      dataEntered: false,
+      locked: false,
+      isMonitored: null,
+      status: "some-free-string",
+    },
+  ],
+};
+
+function fakeMedrioFetch(): typeof fetch {
+  return (async (url: URL | RequestInfo, init?: RequestInit) => {
+    const u = new URL(url.toString());
+    const respond = (body: unknown) =>
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    if (u.pathname === "/Oauth/token" && init?.method === "POST") {
+      return respond({
+        accessToken: "medrio-access-token",
+        expiresIn: 3600,
+        tokenType: "Bearer",
+        userId: "u-1",
+        userName: "api-user",
+      });
+    }
+    if (u.pathname === "/api/study/med-study-1/site") return respond(medrioEnvelope(medrioSites));
+    if (u.pathname === "/api/study/med-study-1/subject") {
+      return respond(medrioEnvelope(medrioSubjects));
+    }
+    const visit = u.pathname.match(/^\/api\/study\/med-study-1\/subject\/([^/]+)\/visit$/);
+    if (visit) return respond(medrioEnvelope(medrioVisitsBySubject[visit[1]!] ?? []));
+    if (u.pathname === "/api/study/denied-study/subject") {
+      return respond({
+        processedSuccessfully: false,
+        processMessage: "Study access denied",
+        response: null,
+      });
+    }
+    return new Response("not found", { status: 404 });
+  }) as typeof fetch;
+}
+
+describe("medrio adapter (recorded fixtures, ADR-0017)", () => {
+  const adapter = createMedrioAdapter(fakeMedrioFetch());
+  const config = {
+    baseUrl: "https://connectapi.medrio.example/",
+    usernameEnv: "DMOPS_TEST_MEDRIO_USERNAME",
+    passwordEnv: "DMOPS_TEST_MEDRIO_PASSWORD",
+    customerApiKeyEnv: "DMOPS_TEST_MEDRIO_KEY",
+    statusMap: { Enrolled: "enrolled", "Screen Failure": "screen_failed" },
+  };
+  const setEnv = () => {
+    process.env.DMOPS_TEST_MEDRIO_USERNAME = "api-user";
+    process.env.DMOPS_TEST_MEDRIO_PASSWORD = "api-password";
+    process.env.DMOPS_TEST_MEDRIO_KEY = "tenant-key";
+  };
+
+  it("maps subjects through the study-configured statusMap and never emits PII (DM-P1)", async () => {
+    setEnv();
+    const result = await adapter.extract({
+      sourceStudyKey: "med-study-1",
+      frames: ["subjects"],
+      config,
+    });
+    expect(() => validateExtraction(result)).not.toThrow();
+    expect(result.row_counts).toEqual({ subjects: 2 });
+    // Exact equality: the fixture's firstName/lastName/dateOfBirth never
+    // reach the frame.
+    expect(result.frames.subjects).toEqual([
+      {
+        subject_key: "101-001",
+        site_key: "101", // derived: siteId → siteNumber via the site listing
+        status: "enrolled",
+        enrolled_date: "2026-05-12", // derived: date part, timezone undeclared
+      },
+      { subject_key: "102-002", site_key: "102", status: "screen_failed", enrolled_date: null },
+    ]);
+    expect(result.checksum).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("dedupes visit instances and derives page status without claiming complete (DM-P1)", async () => {
+    setEnv();
+    const result = await adapter.extract({
+      sourceStudyKey: "med-study-1",
+      frames: ["visits", "pages"],
+      config,
+    });
+    expect(() => validateExtraction(result)).not.toThrow();
+    expect(result.row_counts).toEqual({ visits: 3, pages: 4 });
+    expect(result.frames.visits).toEqual([
+      { subject_key: "101-001", visit_key: "Screening#1", visit_date: null, occurred: true },
+      { subject_key: "101-001", visit_key: "Cycle 1#1", visit_date: null, occurred: false },
+      { subject_key: "102-002", visit_key: "Screening#1", visit_date: null, occurred: false },
+    ]);
+    expect(result.frames.pages).toEqual([
+      {
+        subject_key: "101-001",
+        visit_key: "Screening#1",
+        form_key: "Demographics",
+        status: "locked",
+        first_entered_at: null, // unsupported: the API has no entry timestamp
+        sdv_status: null, // unsupported: isMonitored ≠ documented SDV
+      },
+      {
+        subject_key: "101-001",
+        visit_key: "Screening#1",
+        form_key: "Vitals",
+        status: "in_progress", // dataEntered, but complete is never claimed
+        first_entered_at: null,
+        sdv_status: null,
+      },
+      {
+        subject_key: "101-001",
+        visit_key: "Cycle 1#1",
+        form_key: "Vitals",
+        status: "not_started",
+        first_entered_at: null,
+        sdv_status: null,
+      },
+      {
+        subject_key: "102-002",
+        visit_key: "Screening#1",
+        form_key: "Demographics",
+        status: "not_started",
+        first_entered_at: null,
+        sdv_status: null,
+      },
+    ]);
+  });
+
+  it("fails loudly on a subject status with no statusMap entry (ADR-0017)", async () => {
+    setEnv();
+    await expect(
+      adapter.extract({
+        sourceStudyKey: "med-study-1",
+        frames: ["subjects"],
+        config: { ...config, statusMap: { Enrolled: "enrolled" } },
+      }),
+    ).rejects.toThrow(/Screen Failure/);
+  });
+
+  it("surfaces the envelope's processMessage when a call is not processed", async () => {
+    setEnv();
+    await expect(
+      adapter.extract({ sourceStudyKey: "denied-study", frames: ["subjects"], config }),
+    ).rejects.toThrow(/Study access denied/);
+  });
+
+  it("declares queries unsupported — the public Medrio API has no query surface (DM-P1: no silent approximation)", async () => {
+    setEnv();
+    expect(adapter.capabilities().frames.queries?.supported).toBe(false);
+    await expect(
+      adapter.extract({ sourceStudyKey: "med-study-1", frames: ["queries"], config }),
+    ).rejects.toThrow(/unsupported/);
+  });
+
+  it("fails with an actionable message when a credential env var is missing", async () => {
+    setEnv();
+    process.env.DMOPS_TEST_MEDRIO_PASSWORD = "";
+    await expect(
+      adapter.extract({ sourceStudyKey: "med-study-1", frames: ["subjects"], config }),
+    ).rejects.toThrow(/DMOPS_TEST_MEDRIO_PASSWORD/);
+  });
+});
+
+// Recorded response fixtures: ODM shapes per Medidata's own open-source
+// rwslib audit parser (github.com/mdsol/rwslib, extras/audit_event, master
+// @ 2026-07-31) and the rwslib-documented subjects sample — see the adapter
+// header (ADR-0017). No live Rave in CI — the mapping is what's under test.
+const raveOdmOpen = `<?xml version="1.0" encoding="UTF-8"?>
+<ODM xmlns="http://www.cdisc.org/ns/odm/v1.3" xmlns:mdsol="http://www.mdsol.com/ns/odm/metadata" FileType="Transactional">`;
+
+// Audit tape page 1 (startid 1): subject creation, a first entry (with an
+// offset-less DateTimeStamp), and a query opening.
+const raveAuditPage1 = `${raveOdmOpen}
+  <ClinicalData StudyOID="Mediflex(Prod)" MetaDataVersionOID="1" mdsol:AuditSubCategoryName="SubjectCreated">
+    <SubjectData SubjectKey="1001" TransactionType="Upsert">
+      <AuditRecord>
+        <UserRef UserOID="cra.jones"/>
+        <LocationRef LocationOID="101"/>
+        <DateTimeStamp>2026-05-12T08:00:00Z</DateTimeStamp>
+        <SourceID>9001</SourceID>
+      </AuditRecord>
+    </SubjectData>
+  </ClinicalData>
+  <ClinicalData StudyOID="Mediflex(Prod)" MetaDataVersionOID="1" mdsol:AuditSubCategoryName="Entered">
+    <SubjectData SubjectKey="1001" TransactionType="Upsert">
+      <StudyEventData StudyEventOID="VISIT_SCREEN">
+        <FormData FormOID="FORM_DM" mdsol:DataPageName="Demographics">
+          <ItemGroupData ItemGroupOID="IG_DM" ItemGroupRepeatKey="1">
+            <ItemData ItemOID="DM.BRTHDAT" Value="1970-01-01">
+              <AuditRecord>
+                <UserRef UserOID="site.coordinator"/>
+                <LocationRef LocationOID="101"/>
+                <DateTimeStamp>2026-06-01T09:00:00</DateTimeStamp>
+                <SourceID>9002</SourceID>
+              </AuditRecord>
+            </ItemData>
+          </ItemGroupData>
+        </FormData>
+      </StudyEventData>
+    </SubjectData>
+  </ClinicalData>
+  <ClinicalData StudyOID="Mediflex(Prod)" MetaDataVersionOID="1" mdsol:AuditSubCategoryName="QueryOpen">
+    <SubjectData SubjectKey="1001" TransactionType="Upsert">
+      <StudyEventData StudyEventOID="VISIT_SCREEN">
+        <FormData FormOID="FORM_DM" mdsol:DataPageName="Demographics">
+          <ItemGroupData ItemGroupOID="IG_DM" ItemGroupRepeatKey="1">
+            <ItemData ItemOID="DM.BRTHDAT">
+              <AuditRecord>
+                <UserRef UserOID="cra.jones"/>
+                <LocationRef LocationOID="101"/>
+                <DateTimeStamp>2026-06-02T10:00:00Z</DateTimeStamp>
+                <SourceID>9003</SourceID>
+              </AuditRecord>
+              <mdsol:Query QueryRepeatKey="55" Status="Open" Recipient="Site from CRA"/>
+            </ItemData>
+          </ItemGroupData>
+        </FormData>
+      </StudyEventData>
+    </SubjectData>
+  </ClinicalData>
+</ODM>`;
+
+// Audit tape page 2 (startid 4): the query is answered then closed, a second
+// subject enters data, and a second query stays open.
+const raveAuditPage2 = `${raveOdmOpen}
+  <ClinicalData StudyOID="Mediflex(Prod)" MetaDataVersionOID="1" mdsol:AuditSubCategoryName="QueryAnswer">
+    <SubjectData SubjectKey="1001" TransactionType="Upsert">
+      <StudyEventData StudyEventOID="VISIT_SCREEN">
+        <FormData FormOID="FORM_DM" mdsol:DataPageName="Demographics">
+          <ItemGroupData ItemGroupOID="IG_DM" ItemGroupRepeatKey="1">
+            <ItemData ItemOID="DM.BRTHDAT">
+              <AuditRecord>
+                <UserRef UserOID="site.coordinator"/>
+                <LocationRef LocationOID="101"/>
+                <DateTimeStamp>2026-06-04T08:00:00Z</DateTimeStamp>
+                <SourceID>9004</SourceID>
+              </AuditRecord>
+              <mdsol:Query QueryRepeatKey="55" Status="Answered" Response="Corrected"/>
+            </ItemData>
+          </ItemGroupData>
+        </FormData>
+      </StudyEventData>
+    </SubjectData>
+  </ClinicalData>
+  <ClinicalData StudyOID="Mediflex(Prod)" MetaDataVersionOID="1" mdsol:AuditSubCategoryName="QueryClose">
+    <SubjectData SubjectKey="1001" TransactionType="Upsert">
+      <StudyEventData StudyEventOID="VISIT_SCREEN">
+        <FormData FormOID="FORM_DM" mdsol:DataPageName="Demographics">
+          <ItemGroupData ItemGroupOID="IG_DM" ItemGroupRepeatKey="1">
+            <ItemData ItemOID="DM.BRTHDAT">
+              <AuditRecord>
+                <UserRef UserOID="cra.jones"/>
+                <LocationRef LocationOID="101"/>
+                <DateTimeStamp>2026-06-06T10:00:00Z</DateTimeStamp>
+                <SourceID>9005</SourceID>
+              </AuditRecord>
+              <mdsol:Query QueryRepeatKey="55" Status="Closed"/>
+            </ItemData>
+          </ItemGroupData>
+        </FormData>
+      </StudyEventData>
+    </SubjectData>
+  </ClinicalData>
+  <ClinicalData StudyOID="Mediflex(Prod)" MetaDataVersionOID="1" mdsol:AuditSubCategoryName="Entered">
+    <SubjectData SubjectKey="1002" TransactionType="Upsert">
+      <StudyEventData StudyEventOID="VISIT_SCREEN">
+        <FormData FormOID="FORM_VS" mdsol:DataPageName="Vitals">
+          <ItemGroupData ItemGroupOID="IG_VS" ItemGroupRepeatKey="1">
+            <ItemData ItemOID="VS.SYSBP" Value="120">
+              <AuditRecord>
+                <UserRef UserOID="site.coordinator"/>
+                <LocationRef LocationOID="102"/>
+                <DateTimeStamp>2026-06-09T09:00:00Z</DateTimeStamp>
+                <SourceID>9006</SourceID>
+              </AuditRecord>
+            </ItemData>
+          </ItemGroupData>
+        </FormData>
+      </StudyEventData>
+    </SubjectData>
+  </ClinicalData>
+  <ClinicalData StudyOID="Mediflex(Prod)" MetaDataVersionOID="1" mdsol:AuditSubCategoryName="QueryOpen">
+    <SubjectData SubjectKey="1002" TransactionType="Upsert">
+      <StudyEventData StudyEventOID="VISIT_SCREEN">
+        <FormData FormOID="FORM_VS" mdsol:DataPageName="Vitals">
+          <ItemGroupData ItemGroupOID="IG_VS" ItemGroupRepeatKey="1">
+            <ItemData ItemOID="VS.SYSBP">
+              <AuditRecord>
+                <UserRef UserOID="system"/>
+                <LocationRef LocationOID="102"/>
+                <DateTimeStamp>2026-06-10T10:00:00Z</DateTimeStamp>
+                <SourceID>9007</SourceID>
+              </AuditRecord>
+              <mdsol:Query QueryRepeatKey="56" Status="Open" Recipient="Site from System"/>
+            </ItemData>
+          </ItemGroupData>
+        </FormData>
+      </StudyEventData>
+    </SubjectData>
+  </ClinicalData>
+</ODM>`;
+
+// A status outside the conservative canonicalization — the vocabulary is not
+// publicly enumerated, so the adapter must fail loudly (ADR-0017).
+const raveAuditUnknownStatus = `${raveOdmOpen}
+  <ClinicalData StudyOID="Mediflex(Weird)" MetaDataVersionOID="1" mdsol:AuditSubCategoryName="QueryForward">
+    <SubjectData SubjectKey="2001" TransactionType="Upsert">
+      <StudyEventData StudyEventOID="VISIT_SCREEN">
+        <FormData FormOID="FORM_DM">
+          <ItemGroupData ItemGroupOID="IG_DM" ItemGroupRepeatKey="1">
+            <ItemData ItemOID="DM.BRTHDAT">
+              <AuditRecord>
+                <UserRef UserOID="cra.jones"/>
+                <LocationRef LocationOID="101"/>
+                <DateTimeStamp>2026-06-02T10:00:00Z</DateTimeStamp>
+                <SourceID>9101</SourceID>
+              </AuditRecord>
+              <mdsol:Query QueryRepeatKey="77" Status="Forwarded"/>
+            </ItemData>
+          </ItemGroupData>
+        </FormData>
+      </StudyEventData>
+    </SubjectData>
+  </ClinicalData>
+</ODM>`;
+
+// Subjects listing per the rwslib-documented sample: SubjectData with a
+// SiteRef; mdsol:Status carries the workflow status (see adapter header).
+const raveSubjects = `${raveOdmOpen}
+  <ClinicalData StudyOID="Mediflex(Prod)" MetaDataVersionOID="1">
+    <SubjectData SubjectKey="1001" mdsol:Status="Enrolled">
+      <SiteRef LocationOID="101"/>
+    </SubjectData>
+    <SubjectData SubjectKey="1002" mdsol:Status="Screen Failure">
+      <SiteRef LocationOID="102"/>
+    </SubjectData>
+  </ClinicalData>
+</ODM>`;
+
+const raveSubjectsNoStatus = `${raveOdmOpen}
+  <ClinicalData StudyOID="Mediflex(NoStatus)" MetaDataVersionOID="1">
+    <SubjectData SubjectKey="3001">
+      <SiteRef LocationOID="101"/>
+    </SubjectData>
+  </ClinicalData>
+</ODM>`;
+
+function fakeRaveFetch(): typeof fetch {
+  return (async (url: URL | RequestInfo) => {
+    const u = new URL(url.toString());
+    const respond = (body: string, headers: Record<string, string> = {}) =>
+      new Response(body, { status: 200, headers: { "content-type": "text/xml", ...headers } });
+    if (u.pathname === "/RaveWebServices/datasets/ClinicalAuditRecords.odm") {
+      const studyOid = u.searchParams.get("studyoid");
+      if (studyOid === "Mediflex(Weird)") return respond(raveAuditUnknownStatus);
+      if (studyOid !== "Mediflex(Prod)") return new Response("not found", { status: 404 });
+      // The tape pages: startid 1 links to startid 4 via the Link header.
+      if (u.searchParams.get("startid") === "1") {
+        return respond(raveAuditPage1, {
+          link: `<${u.origin}/RaveWebServices/datasets/ClinicalAuditRecords.odm?studyoid=Mediflex%28Prod%29&startid=4&per_page=100>; rel="next"`,
+        });
+      }
+      return respond(raveAuditPage2);
+    }
+    if (u.pathname === "/RaveWebServices/studies/Mediflex(Prod)/subjects") {
+      return respond(raveSubjects);
+    }
+    if (u.pathname === "/RaveWebServices/studies/Mediflex(NoStatus)/subjects") {
+      return respond(raveSubjectsNoStatus);
+    }
+    return new Response("not found", { status: 404 });
+  }) as typeof fetch;
+}
+
+describe("rave adapter (recorded fixtures, ADR-0017)", () => {
+  const adapter = createRaveAdapter(fakeRaveFetch());
+  const config = {
+    baseUrl: "https://rave.example/",
+    usernameEnv: "DMOPS_TEST_RAVE_USERNAME",
+    passwordEnv: "DMOPS_TEST_RAVE_PASSWORD",
+    statusMap: { Enrolled: "enrolled", "Screen Failure": "screen_failed" },
+  };
+  const setEnv = () => {
+    process.env.DMOPS_TEST_RAVE_USERNAME = "rws-user";
+    process.env.DMOPS_TEST_RAVE_PASSWORD = "rws-password";
+  };
+
+  it("reconstructs query lifecycles from the audit tape, following the Link cursor", async () => {
+    setEnv();
+    const result = await adapter.extract({
+      sourceStudyKey: "Mediflex(Prod)",
+      frames: ["queries"],
+      config,
+    });
+    expect(() => validateExtraction(result)).not.toThrow();
+    expect(result.row_counts).toEqual({ queries: 2 });
+    expect(result.frames.queries).toEqual([
+      {
+        source_query_id: "1001|VISIT_SCREEN|FORM_DM|IG_DM|1|DM.BRTHDAT|55",
+        site_key: "101",
+        subject_key: "1001",
+        form_key: "FORM_DM",
+        origin: null, // unsupported: attribution not publicly confirmable
+        status: "closed",
+        opened_at: "2026-06-02T10:00:00Z",
+        first_response_at: "2026-06-04T08:00:00Z",
+        closed_at: "2026-06-06T10:00:00Z",
+      },
+      {
+        source_query_id: "1002|VISIT_SCREEN|FORM_VS|IG_VS|1|VS.SYSBP|56",
+        site_key: "102",
+        subject_key: "1002",
+        form_key: "FORM_VS",
+        origin: null,
+        status: "open",
+        opened_at: "2026-06-10T10:00:00Z",
+        first_response_at: null, // never answered → null, not a guess (DM-P1)
+        closed_at: null,
+      },
+    ]);
+    // Same tape, same rows, same checksum (extract provenance).
+    const again = await adapter.extract({
+      sourceStudyKey: "Mediflex(Prod)",
+      frames: ["queries"],
+      config,
+    });
+    expect(again.checksum).toBe(result.checksum);
+  });
+
+  it("derives visits and pages from Entered audit events, stamping undeclared offsets as Z (declared assumption, DM-P1)", async () => {
+    setEnv();
+    const result = await adapter.extract({
+      sourceStudyKey: "Mediflex(Prod)",
+      frames: ["visits", "pages"],
+      config,
+    });
+    expect(() => validateExtraction(result)).not.toThrow();
+    expect(result.row_counts).toEqual({ visits: 2, pages: 2 });
+    expect(result.frames.visits).toEqual([
+      { subject_key: "1001", visit_key: "VISIT_SCREEN", visit_date: null, occurred: true },
+      { subject_key: "1002", visit_key: "VISIT_SCREEN", visit_date: null, occurred: true },
+    ]);
+    expect(result.frames.pages).toEqual([
+      {
+        subject_key: "1001",
+        visit_key: "VISIT_SCREEN",
+        form_key: "FORM_DM",
+        status: "in_progress", // conservative: complete is never claimed
+        first_entered_at: "2026-06-01T09:00:00Z", // offset-less fixture value, stamped Z
+        sdv_status: null, // unsupported: no page-level SDV rollup
+      },
+      {
+        subject_key: "1002",
+        visit_key: "VISIT_SCREEN",
+        form_key: "FORM_VS",
+        status: "in_progress",
+        first_entered_at: "2026-06-09T09:00:00Z",
+        sdv_status: null,
+      },
+    ]);
+  });
+
+  it("maps the subjects listing through statusMap and SiteRef (ADR-0017)", async () => {
+    setEnv();
+    const result = await adapter.extract({
+      sourceStudyKey: "Mediflex(Prod)",
+      frames: ["subjects"],
+      config,
+    });
+    expect(() => validateExtraction(result)).not.toThrow();
+    expect(result.frames.subjects).toEqual([
+      { subject_key: "1001", site_key: "101", status: "enrolled", enrolled_date: null },
+      { subject_key: "1002", site_key: "102", status: "screen_failed", enrolled_date: null },
+    ]);
+    expect(adapter.capabilities().frames.subjects?.fields.enrolled_date).toBe("unsupported");
+  });
+
+  it("fails loudly on a query status outside the public vocabulary (ADR-0017, DM-P1: no silent approximation)", async () => {
+    setEnv();
+    await expect(
+      adapter.extract({ sourceStudyKey: "Mediflex(Weird)", frames: ["queries"], config }),
+    ).rejects.toThrow(/Forwarded/);
+  });
+
+  it("fails loudly when a subject carries no readable workflow status (ADR-0017)", async () => {
+    setEnv();
+    await expect(
+      adapter.extract({ sourceStudyKey: "Mediflex(NoStatus)", frames: ["subjects"], config }),
+    ).rejects.toThrow(/no readable workflow status/);
+  });
+
+  it("declares repository frames unsupported and refuses to extract them (DM-P1: no silent approximation)", async () => {
+    setEnv();
+    expect(adapter.capabilities().frames.issues).toBeUndefined();
+    await expect(
+      adapter.extract({ sourceStudyKey: "Mediflex(Prod)", frames: ["issues"], config }),
+    ).rejects.toThrow(/unsupported/);
+  });
+
+  it("fails with an actionable message when a credential env var is missing", async () => {
+    setEnv();
+    process.env.DMOPS_TEST_RAVE_PASSWORD = "";
+    await expect(
+      adapter.extract({ sourceStudyKey: "Mediflex(Prod)", frames: ["queries"], config }),
+    ).rejects.toThrow(/DMOPS_TEST_RAVE_PASSWORD/);
   });
 });

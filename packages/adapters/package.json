@@ -7,6 +7,8 @@
     "./csv": "./src/csv/index.ts",
     "./edc-core": "./src/edc-core/index.ts",
     "./github": "./src/github/index.ts",
+    "./medrio": "./src/medrio/index.ts",
+    "./rave": "./src/rave/index.ts",
     "./registry": "./src/registry.ts"
   },
   "scripts": {
@@ -14,6 +16,7 @@
   },
   "dependencies": {
     "@dmops/adapter-contract": "workspace:*",
+    "fast-xml-parser": "^5.10.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {
