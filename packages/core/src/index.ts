@@ -47,6 +47,16 @@ export {
   type RebaselineInput,
   type RebaselineRecord,
 } from "./milestones.js";
+export {
+  portfolioRollup,
+  type Portfolio,
+  type PortfolioLock,
+  type PortfolioLockStudyRow,
+  type PortfolioLockTrendPoint,
+  type PortfolioMetric,
+  type PortfolioStudyCounts,
+  type PortfolioStudyValue,
+} from "./portfolio.js";
 export { refreshStudyMetrics, type RefreshResult } from "./snapshots.js";
 export {
   UatError,

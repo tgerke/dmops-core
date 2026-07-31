@@ -6,6 +6,8 @@ import {
   type DeliverableRow,
   type LockGateRow,
   MilestoneError,
+  type Portfolio,
+  type PortfolioMetric,
   type RebaselineRecord,
   type RosterRow,
   type TrainingStatusRow,
@@ -28,6 +30,7 @@ import {
   listUatDefects,
   lockReadiness,
   milestoneBoard,
+  portfolioRollup,
   rebaselineHistory,
   rebaselineMilestone,
   trainingStatus,
@@ -53,6 +56,7 @@ import {
   MetricSitesSchema,
   MilestoneBoardSchema,
   MilestonePatchSchema,
+  PortfolioSchema,
   RebaselinePostSchema,
   RebaselineRecordSchema,
   RebaselineResultSchema,
@@ -114,6 +118,7 @@ export function buildApp(sql: Sql) {
   const auth = authMiddleware(sql);
   app.use("/studies", auth);
   app.use("/studies/*", auth);
+  app.use("/portfolio", auth);
 
   // --- health (public: deploy probes) ---------------------------------------
 
@@ -847,6 +852,38 @@ export function buildApp(sql: Sql) {
     },
   );
 
+  // --- portfolio roll-up (ADR-0015) -------------------------------------------
+
+  app.openapi(
+    createRoute({
+      method: "get",
+      path: "/portfolio",
+      security,
+      responses: {
+        200: json(
+          PortfolioSchema,
+          "Portfolio roll-up derived from stored study snapshots (ADR-0015): " +
+            "ratio and count metrics pooled exactly from numerators and " +
+            "denominators (ADR-0007), medians served as a named absence with " +
+            "the per-study spread — never a pooled median — and the " +
+            "lock-readiness burn-up from the monthly DM-Q9 snapshots " +
+            "(ADR-0014). One fact at portfolio grain: requires portfolio read " +
+            "(qa or admin), because a value pooled over whichever studies the " +
+            "caller holds would be a different portfolio number per audience " +
+            "(DM-P5).",
+        ),
+        403: json(ErrorSchema, "Portfolio read requires a qa or admin assignment"),
+      },
+    }),
+    async (c) => {
+      if (!hasPortfolioRead(c.get("assignments"))) {
+        return c.json({ error: "portfolio read requires a qa or admin assignment" }, 403);
+      }
+      const portfolio = await portfolioRollup(sql);
+      return c.json(serializePortfolio(portfolio), 200);
+    },
+  );
+
   // --- metrics ---------------------------------------------------------------
 
   app.openapi(
@@ -1097,6 +1134,55 @@ function serializeRosterRow(row: RosterRow) {
 function serializeTrainingRow(row: TrainingStatusRow) {
   const { study_id: _studyId, ...rest } = row;
   return { ...rest, mirrored_at: new Date(row.mirrored_at).toISOString() };
+}
+
+function serializePortfolioMetric(m: PortfolioMetric) {
+  return {
+    ...m,
+    studies_in_scope: Number(m.studies_in_scope),
+    studies_reporting: Number(m.studies_reporting),
+    pooled:
+      m.pooled === null
+        ? null
+        : {
+            numerator: Number(m.pooled.numerator),
+            denominator: Number(m.pooled.denominator),
+            pct: m.pooled.pct === null ? null : Number(m.pooled.pct),
+          },
+    per_study: m.per_study.map((r) => ({
+      ...r,
+      n_records: r.n_records === null ? null : Number(r.n_records),
+    })),
+  };
+}
+
+function serializePortfolio(p: Portfolio) {
+  return {
+    studies: p.studies,
+    metrics: p.metrics.map(serializePortfolioMetric),
+    lock: {
+      studies: Number(p.lock.studies),
+      gates_applicable: Number(p.lock.gates_applicable),
+      gates_satisfied: Number(p.lock.gates_satisfied),
+      readiness_pct: p.lock.readiness_pct === null ? null : Number(p.lock.readiness_pct),
+      studies_with_blocked_gates: Number(p.lock.studies_with_blocked_gates),
+      studies_locked: Number(p.lock.studies_locked),
+      per_study: p.lock.per_study.map((r) => ({
+        ...r,
+        readiness_pct: r.readiness_pct === null ? null : Number(r.readiness_pct),
+        gates_satisfied: Number(r.gates_satisfied),
+        gates_applicable: Number(r.gates_applicable),
+        gates_blocked: Number(r.gates_blocked),
+      })),
+      trend: p.lock.trend.map((t) => ({
+        ...t,
+        studies_reporting: Number(t.studies_reporting),
+        gates_satisfied: Number(t.gates_satisfied),
+        gates_applicable: Number(t.gates_applicable),
+        readiness_pct: t.readiness_pct === null ? null : Number(t.readiness_pct),
+      })),
+    },
+  };
 }
 
 function serializeSnapshot(row: Record<string, unknown>) {

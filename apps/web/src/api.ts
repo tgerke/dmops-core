@@ -189,6 +189,79 @@ export interface StudyMetric {
   } | null;
 }
 
+// Portfolio roll-up (ADR-0015): derived from stored study snapshots. pooled
+// is null when pooling is not honest (medians, mixed versions) — render
+// not_pooled_reason and the per_study spread instead.
+export interface PortfolioStudyValue {
+  study_id: string;
+  protocol_number: string;
+  metric_version: string;
+  value: string | null;
+  n_records: number | null;
+  period_end: string;
+}
+
+export interface PortfolioMetric {
+  metric_id: string;
+  version: string;
+  label: string;
+  module: string;
+  target: string | null;
+  pooling: "sum" | "ratio" | "median";
+  studies_in_scope: number;
+  studies_reporting: number;
+  poolable: boolean;
+  not_pooled_reason: string | null;
+  pooled: { numerator: number; denominator: number; pct: number | null } | null;
+  min_value: string | null;
+  max_value: string | null;
+  per_study: PortfolioStudyValue[];
+  earliest_period_end: string | null;
+  latest_period_end: string | null;
+}
+
+export interface PortfolioLockStudy {
+  study_id: string;
+  protocol_number: string;
+  readiness_pct: number | null;
+  gates_satisfied: number;
+  gates_applicable: number;
+  gates_blocked: number;
+  next_gate_code: string | null;
+  next_gate_label: string | null;
+  lock_planned_date: string | null;
+  lock_forecast_date: string | null;
+  lock_actual_date: string | null;
+}
+
+export interface PortfolioLockTrendPoint {
+  period_start: string;
+  period_end: string;
+  studies_reporting: number;
+  gates_satisfied: number;
+  gates_applicable: number;
+  readiness_pct: number | null;
+}
+
+export interface Portfolio {
+  studies: {
+    total: number;
+    by_status: Record<string, number>;
+    stat_enabled: number;
+  };
+  metrics: PortfolioMetric[];
+  lock: {
+    studies: number;
+    gates_applicable: number;
+    gates_satisfied: number;
+    readiness_pct: number | null;
+    studies_with_blocked_gates: number;
+    studies_locked: number;
+    per_study: PortfolioLockStudy[];
+    trend: PortfolioLockTrendPoint[];
+  };
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -216,6 +289,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   studies: () => request<StudySummary[]>("/studies"),
+  portfolio: () => request<Portfolio>("/portfolio"),
   milestones: (studyId: string) =>
     request<{ milestones: BoardRow[] }>(`/studies/${studyId}/milestones`),
   metrics: (studyId: string) => request<{ metrics: StudyMetric[] }>(`/studies/${studyId}/metrics`),

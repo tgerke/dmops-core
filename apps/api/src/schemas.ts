@@ -351,6 +351,86 @@ export const LockReadinessSchema = z.object({
   evidence_conflicts: z.array(EvidenceConflictSchema),
 });
 
+// Portfolio roll-up (ADR-0015): every number derives from stored study-grain
+// snapshots or the lock-readiness views. pooled is null when pooling is not
+// honest — medians, mixed versions — and not_pooled_reason plus the
+// per_study spread are served instead (ADR-0005 fail-closed on aggregation).
+export const PortfolioStudyValueSchema = z.object({
+  study_id: z.string().uuid(),
+  protocol_number: z.string(),
+  metric_version: z.string(),
+  value: z.string().nullable(),
+  n_records: z.number().nullable(),
+  period_end: z.string(),
+});
+
+export const PortfolioMetricSchema = z.object({
+  metric_id: z.string(),
+  version: z.string(),
+  label: z.string(),
+  module: z.string(),
+  target: z.string().nullable(),
+  pooling: z.enum(["sum", "ratio", "median"]),
+  studies_in_scope: z.number(),
+  studies_reporting: z.number(),
+  poolable: z.boolean(),
+  not_pooled_reason: z.string().nullable(),
+  pooled: z
+    .object({
+      numerator: z.number(),
+      denominator: z.number(),
+      pct: z.number().nullable(),
+    })
+    .nullable(),
+  min_value: z.string().nullable(),
+  max_value: z.string().nullable(),
+  per_study: z.array(PortfolioStudyValueSchema),
+  earliest_period_end: z.string().nullable(),
+  latest_period_end: z.string().nullable(),
+});
+
+export const PortfolioLockStudySchema = z.object({
+  study_id: z.string().uuid(),
+  protocol_number: z.string(),
+  readiness_pct: z.number().nullable(),
+  gates_satisfied: z.number(),
+  gates_applicable: z.number(),
+  gates_blocked: z.number(),
+  next_gate_code: z.string().nullable(),
+  next_gate_label: z.string().nullable(),
+  lock_planned_date: z.string().nullable(),
+  lock_forecast_date: z.string().nullable(),
+  lock_actual_date: z.string().nullable(),
+});
+
+export const PortfolioLockTrendPointSchema = z.object({
+  period_start: z.string(),
+  period_end: z.string(),
+  studies_reporting: z.number(),
+  gates_satisfied: z.number(),
+  gates_applicable: z.number(),
+  readiness_pct: z.number().nullable(),
+});
+
+export const PortfolioSchema = z.object({
+  studies: z.object({
+    total: z.number(),
+    by_status: z.record(z.string(), z.number()),
+    stat_enabled: z.number(),
+  }),
+  metrics: z.array(PortfolioMetricSchema),
+  lock: z.object({
+    studies: z.number(),
+    gates_applicable: z.number(),
+    gates_satisfied: z.number(),
+    readiness_pct: z.number().nullable(),
+    studies_with_blocked_gates: z.number(),
+    studies_locked: z.number(),
+    per_study: z.array(PortfolioLockStudySchema),
+    trend: z.array(PortfolioLockTrendPointSchema),
+  }),
+});
+
 export const HealthSchema = z.object({
   status: z.string(),
   migrations: z.number(),

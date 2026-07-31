@@ -55,7 +55,7 @@ describe("authentication", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.audit_chain_verified).toBe(true);
-    expect(body.migrations).toBe(8);
+    expect(body.migrations).toBe(9);
   });
 });
 
@@ -901,5 +901,102 @@ describe("metrics surface (DM-P1, DM-P2, DM-P3)", () => {
     const res = await get(`/studies/${study1}/metrics/milestone_slip/sites`, "dev-dmlead-token");
     expect(res.status).toBe(200);
     expect((await res.json()).sites).toEqual([]);
+  });
+});
+
+describe("portfolio roll-up (ADR-0015)", () => {
+  const portfolio = async (token = "dev-qa-token") => await (await get("/portfolio", token)).json();
+  const metric = async (id: string) =>
+    (await portfolio()).metrics.find((m: { metric_id: string }) => m.metric_id === id);
+
+  it("DM-P5: the portfolio is one fact at portfolio grain — portfolio readers see it, study-scoped seats get 403, not a smaller number", async () => {
+    expect((await get("/portfolio", "dev-qa-token")).status).toBe(200);
+    expect((await get("/portfolio", "dev-admin-token")).status).toBe(200);
+    for (const token of ["dev-dmlead-token", "dev-manager-token", "dev-sponsor-token"]) {
+      expect((await get("/portfolio", token)).status).toBe(403);
+    }
+  });
+
+  it("DM-P2: every dictionary metric appears once with a declared pooling kind, scoped to the studies that enabled its module", async () => {
+    const body = await portfolio();
+    expect(body.studies.total).toBe(2);
+    expect(body.studies.stat_enabled).toBe(1);
+    const ids = body.metrics.map((m: { metric_id: string }) => m.metric_id).sort();
+    expect(ids).toEqual([
+      "access_training_gap",
+      "entry_lag",
+      "issue_closure_lag_median",
+      "issue_open_aging",
+      "lock_readiness_pct",
+      "milestone_slip",
+      "pr_cycle_time_median",
+      "pr_review_tat_median",
+      "query_open_aging",
+      "query_tat_median",
+      "training_current_pct",
+    ]);
+    for (const m of body.metrics) {
+      expect(["sum", "ratio", "median"]).toContain(m.pooling);
+      // Module-aware scope (ADR-0011): only DMOPS-001 enabled stat.
+      expect(m.studies_in_scope).toBe(m.module === "stat" ? 1 : 2);
+    }
+  });
+
+  it("DM-P3: ratio metrics pool exactly from stored numerators and denominators — 0 of 16 lock gates across the portfolio", async () => {
+    const lock = await metric("lock_readiness_pct");
+    expect(lock.studies_reporting).toBe(2);
+    expect(lock.poolable).toBe(true);
+    // 0/8 satisfied on each study's latest snapshot (June): sums, not means.
+    expect(lock.pooled).toEqual({ numerator: 0, denominator: 16, pct: 0 });
+    // Fixture truth (DM-Q7): one study reports, so the pool is its parts.
+    const training = await metric("training_current_pct");
+    expect(training.pooled).toEqual({ numerator: 16, denominator: 19, pct: 84.2 });
+  });
+
+  it("medians never pool — a named absence with the per-study spread, not a fake portfolio median (ADR-0005)", async () => {
+    const tat = await metric("query_tat_median");
+    expect(tat.pooling).toBe("median");
+    expect(tat.poolable).toBe(false);
+    expect(tat.pooled).toBeNull();
+    expect(tat.not_pooled_reason).toMatch(/median/);
+    // The spread is the display: one reporting study, its June v1.1 value.
+    expect(tat.per_study.length).toBe(1);
+    expect(Number(tat.per_study[0].value)).toBe(4.0);
+    // A dmops-native metric with nothing to measure still reports honestly:
+    // DMOPS-002 has no completed milestones, so its value is null, not 0.
+    const slip = await metric("milestone_slip");
+    expect(slip.per_study.length).toBe(2);
+    const study2Row = slip.per_study.find(
+      (r: { protocol_number: string }) => r.protocol_number === "DMOPS-002",
+    );
+    expect(study2Row.value).toBeNull();
+  });
+
+  it("DM-P1: a metric no source can feed reports its honest scope — one of two studies reporting, pooled over the reporting study only", async () => {
+    const aging = await metric("query_open_aging");
+    expect(aging.studies_in_scope).toBe(2);
+    expect(aging.studies_reporting).toBe(1);
+    // Fixture truth (DM-Q2): 2 aged of 4 open as of the June period end.
+    expect(aging.pooled).toEqual({ numerator: 2, denominator: 4, pct: 50 });
+  });
+
+  it("DM-Q9: the readiness burn-up serves one pooled point per reporting period from the monthly snapshots", async () => {
+    const body = await portfolio();
+    expect(body.lock.studies).toBe(2);
+    expect(body.lock.gates_applicable).toBe(16);
+    expect(body.lock.gates_satisfied).toBe(0);
+    expect(body.lock.readiness_pct).toBe(0);
+    const may = body.lock.trend.find(
+      (t: { period_start: string }) => t.period_start === "2026-05-01",
+    );
+    const june = body.lock.trend.find(
+      (t: { period_start: string }) => t.period_start === "2026-06-01",
+    );
+    for (const point of [may, june]) {
+      expect(point.studies_reporting).toBe(2);
+      expect(point.gates_applicable).toBe(16);
+      expect(point.readiness_pct).toBe(0);
+    }
+    expect(june.period_end).toBe("2026-06-30");
   });
 });

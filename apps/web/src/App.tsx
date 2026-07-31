@@ -1,5 +1,6 @@
 import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
 import { currentPersona, personas, setPersona } from "./auth";
+import { PortfolioPage } from "./pages/PortfolioPage";
 import { StudiesPage } from "./pages/StudiesPage";
 import { StudyBoardPage } from "./pages/StudyBoardPage";
 
@@ -15,6 +16,16 @@ export function App() {
                 DM operations, beside the EDC
               </span>
             </Link>
+            {/* Visible to every persona; a study-scoped seat that follows it
+                gets an explanation, not a hidden feature (ADR-0015). */}
+            <nav className="flex items-center gap-4 text-sm">
+              <Link to="/" className="text-slate-500 hover:text-slate-900">
+                Studies
+              </Link>
+              <Link to="/portfolio" className="text-slate-500 hover:text-slate-900">
+                Portfolio
+              </Link>
+            </nav>
             <label className="flex items-center gap-2 text-sm text-slate-500">
               Viewing as
               <select
@@ -37,6 +48,7 @@ export function App() {
         <main className="mx-auto max-w-6xl px-4 py-6">
           <Routes>
             <Route path="/" element={<StudiesPage />} />
+            <Route path="/portfolio" element={<PortfolioPage />} />
             <Route path="/studies/:studyId" element={<StudyBoardPage />} />
           </Routes>
         </main>
