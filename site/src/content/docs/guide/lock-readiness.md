@@ -65,7 +65,8 @@ warehouse, computed like `milestone_slip` from dmops-core's own facts — no
 adapter needed, so it works on every study from day one. "Satisfied as of
 period end" means an actual completion date on or before period end, so the
 history reproduces what was true then, not what the board says now. The
-trend is the burn-up the portfolio roll-up (the next slice) will draw.
+trend is the burn-up [the portfolio page](/dmops-core/guide/portfolio/)
+draws across studies (ADR-0015).
 
 Sponsors see the same checklist with gate blocker notes omitted — the
 board's rule (DM-P5). Everything else here is dates and statuses, which is

@@ -112,11 +112,15 @@ by side (ADR-0012), and training and access mirrors: the LMS transcript and
 the source system's access list read through the same adapter contract into
 display-only, extract-provenanced mirror tables, a roster that flags active
 access with missing, overdue, or expired training, and two roster metrics
-that snapshot that answer monthly (ADR-0013). What comes next, in order:
+that snapshot that answer monthly (ADR-0013), and the portfolio roll-up:
+every module's metrics pooled across studies as derived views over the
+stored snapshots — ratios and counts pooled exactly from numerators and
+denominators, medians served as per-study spreads because a median of
+medians is not a median, and the lock-readiness burn-up drawn from the
+monthly snapshots (ADR-0015). What comes next, in order:
 
-1. Portfolio roll-up views, over every module's metrics.
-2. Exports and KPI packs, and holiday-aware metric calendars.
-3. Medrio and Rave adapters (the contract is designed for them; see
+1. Exports and KPI packs, and holiday-aware metric calendars.
+2. Medrio and Rave adapters (the contract is designed for them; see
    [Writing an adapter](https://tgerke.github.io/dmops-core/guide/writing-an-adapter/)).
 
 This is not validated software. The IQ script, OQ report, and traceability

@@ -44,7 +44,10 @@ appear only on studies that run the stat module, never as permanent
 ![The expanded query turnaround card: a trend sparkline across two reporting periods next to a by-site table listing two US sites with their values and record counts](../../../assets/screenshots/metric-drilldown.png)
 
 Metrics declare their grains in the dictionary: `study` and `site` today,
-with `country` and `portfolio` grains already in the schema for roll-up work.
+with `country` still reserved in the schema. There is no `portfolio` grain
+in any definition — the [portfolio page](/dmops-core/guide/portfolio/)
+derives its numbers from the stored study-grain snapshots instead
+([ADR-0015](/dmops-core/reference/decisions/0015-portfolio-rollup-derived-from-study-snapshots/)).
 A study-grain-only metric says so in the drill-down instead of showing an
 empty table.
 

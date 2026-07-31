@@ -57,7 +57,8 @@ user administration
 ([ADR-0013](/dmops-core/reference/decisions/0013-training-and-access-mirrors/)),
 lock-readiness scoring derived from the taxonomy's dependency graph
 ([ADR-0014](/dmops-core/reference/decisions/0014-lock-readiness-derived-from-the-taxonomy/)),
-and, in a later phase, portfolio roll-up. The
+and portfolio roll-up derived from the stored metric snapshots
+([ADR-0015](/dmops-core/reference/decisions/0015-portfolio-rollup-derived-from-study-snapshots/)). The
 DM-only deployment is the default and complete on its own; a study that
 never enables the stat module sees none of it.
 

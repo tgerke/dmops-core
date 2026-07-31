@@ -50,7 +50,8 @@ milestones, delivery status, and programming-work metrics read from the
 team's own repositories (ADR-0011, ADR-0012), training and access status
 mirrored from the LMS and the source system's user administration
 (ADR-0013), lock-readiness scoring derived from the milestone taxonomy's
-dependency graph (ADR-0014), and — in a later phase — portfolio roll-up.
+dependency graph (ADR-0014), and portfolio roll-up derived from the stored
+metric snapshots (ADR-0015).
 
 Out of scope, permanently: clinical data capture (the EDC), query issuance and
 resolution (the EDC), document authoring or e-signature (QMS/eTMF), site

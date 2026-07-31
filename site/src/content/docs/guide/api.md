@@ -73,6 +73,16 @@ from the taxonomy's dependency graph,
 - `GET /studies/{studyId}/lock-readiness`: the gate checklist with the
   unweighted score, live signals, and any named evidence conflicts
 
+**Portfolio** (read-only by construction: derived views over the stored
+snapshots,
+[ADR-0015](/dmops-core/reference/decisions/0015-portfolio-rollup-derived-from-study-snapshots/))
+
+- `GET /portfolio`: every module's metrics rolled up across studies —
+  pooled exactly where the parts allow it, per-study spreads where they
+  don't — plus the lock-readiness roll-up and its monthly burn-up.
+  Requires portfolio read (`qa` or `admin`): the portfolio number is one
+  fact, not one per audience (DM-P5).
+
 **Metrics**
 
 - `GET /studies/{studyId}/metrics`: latest value per metric, including

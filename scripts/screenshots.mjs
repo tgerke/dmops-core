@@ -42,6 +42,7 @@ const TOKENS = {
   dmlead: "dev-dmlead-token",
   manager: "dev-manager-token",
   sponsor: "dev-sponsor-token",
+  qa: "dev-qa-token",
 };
 
 const args = process.argv.slice(2);
@@ -277,6 +278,12 @@ const shots = [
     path: `/studies/${study2}`,
     persona: "dmlead",
     locator: "main > div > div",
+  },
+  {
+    name: "portfolio",
+    path: "/portfolio",
+    persona: "qa",
+    fullPage: true,
   },
   {
     name: "api-scalar",

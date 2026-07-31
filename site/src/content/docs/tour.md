@@ -123,7 +123,22 @@ control and the defect resolution notes. Same facts, curated fields.
 
 *Full guide: [Personas and access](/dmops-core/personas-and-access/)*
 
-## 10. Verify the audit trail
+## 10. Read the portfolio roll-up, as Ruth
+
+Switch to **Ruth Adler — QA (portfolio, read-only)** and open **Portfolio**
+in the header. The lock-readiness header pools the gate counts — 0 of 16
+across both studies — with the monthly burn-up beside it, and every metric
+card is an exact aggregate of the stored study snapshots
+([ADR-0015](/dmops-core/reference/decisions/0015-portfolio-rollup-derived-from-study-snapshots/)).
+Notice what refuses to happen: the median cards show per-study values
+instead of a pooled number (a median of medians is not a median), and the
+cards a source can't feed say "1 of 2 studies reporting" instead of
+pretending to cover the portfolio. Switch back to Maya and follow the same
+link: a study-scoped seat gets an explanation, not a smaller portfolio.
+
+*Full guide: [The portfolio](/dmops-core/guide/portfolio/)*
+
+## 11. Verify the audit trail
 
 Everything you just did was written to the hash-chained audit trail,
 attributed to the persona that did it:
