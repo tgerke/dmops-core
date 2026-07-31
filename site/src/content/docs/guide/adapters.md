@@ -78,6 +78,10 @@ approximates around source gaps publishes numbers nobody can defend.
   query surface exists in the public spec. A Medrio-only study therefore
   computes zero EDC metrics, and every one reports its named gap. That is
   the fail-closed contract demonstrated on a real vendor, not a defect.
+  The one gap that looked closable — visit dates, a study-specific CRF
+  variable in Medrio too — stays closed: the public spec's only data-entry
+  surfaces are write-only, so no per-study mapping can read the value back
+  ([ADR-0018](/dmops-core/reference/decisions/0018-visit-date-crf-mapping/)).
 - **rave**: the Medidata Rave adapter
   ([ADR-0017](/dmops-core/reference/decisions/0017-vendor-adapters-and-evidence-tiers/)).
   Medidata's public RWS documentation is no longer reachable, so every
@@ -87,7 +91,13 @@ approximates around source gaps publishes numbers nobody can defend.
   transitions on the ClinicalAuditRecords audit tape, following its cursor
   pagination. The query metrics light up as `derived`; a status value
   outside the publicly known vocabulary fails the extraction with the
-  observed value rather than being guessed.
+  observed value rather than being guessed. Visit dates are study-specific
+  CRF items rather than RWS fields, so the study's config names the item
+  and its date format (`visitDateItem`); the adapter reads the mapped
+  item's entered values off the same audit tape and entry lag lights up as
+  `derived`, while an unmapped study keeps reporting `visits.visit_date`
+  unsupported
+  ([ADR-0018](/dmops-core/reference/decisions/0018-visit-date-crf-mapping/)).
 
 ## Writing your own
 

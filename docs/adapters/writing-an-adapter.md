@@ -15,7 +15,7 @@ import type { SourceAdapter } from "@dmops/adapter-contract";
 
 export const myAdapter: SourceAdapter = {
   id: "my-edc",
-  capabilities: () => ({ ... }),
+  capabilities: (config) => ({ ... }),
   extract: async ({ sourceStudyKey, frames, config }) => ({ ... }),
 };
 ```
@@ -38,7 +38,11 @@ Three obligations:
    say how in `notes`), or `unsupported`. Metrics gate on these declarations:
    an unsupported required field means the metric is reported as unavailable
    with the named gap, which is the correct outcome. Never approximate a field
-   silently to make a metric light up.
+   silently to make a metric light up. A posture may depend on the study's
+   source config: `capabilities` receives the same `study_source.config` as an
+   optional argument, so a per-study mapping can turn a field `derived` — the
+   Rave visit-date item is the worked example (ADR-0018). Absent or invalid
+   config must yield the conservative posture, never a throw.
 
 3. **Config, not secrets.** `extract` receives the study's `study_source.config`
    jsonb. Credentials go through environment indirection: config names an env

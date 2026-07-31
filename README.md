@@ -88,7 +88,7 @@ report), `pnpm metrics:refresh` (cron-friendly snapshot computation).
 
 ## Status
 
-A working slice 10, not a product. What exists: the study registry, the full
+A working slice 11, not a product. What exists: the study registry, the full
 DM milestone taxonomy with a role-scoped board and audited writes, a
 deliverables surface with eTMF pointers and audited status updates, UAT
 cycle and defect tracking with a completion gate ("UAT complete" refuses to
@@ -130,10 +130,15 @@ EDC metrics and names every gap), and Medidata Rave, cited against
 Medidata's own open-source rwslib because the public RWS documentation is
 gone, reconstructing query lifecycles from the ClinicalAuditRecords audit
 tape with unknown vocabulary failing loudly instead of being guessed
-(ADR-0017). What comes next, in no committed order: an LMS adapter (the CSV
-fixture is still the only training source), per-study visit-date CRF
-mapping so vendor-sourced studies can compute entry lag, MAuth for Rave,
-and a native-over-mirrors cross-source training-gap metric.
+(ADR-0017), and the per-study visit-date CRF mapping: a Rave study names
+in its source config the CRF item and date format that carry its visit
+dates, the adapter reads that item's entered values off the audit tape it
+already replays, and entry lag lights up as derived — the same
+investigation closed Medrio's path as not publicly implementable, its
+public API having no surface that reads entered values back (ADR-0018).
+What comes next, in no committed order: an LMS adapter (the CSV fixture is
+still the only training source), MAuth for Rave, and a native-over-mirrors
+cross-source training-gap metric.
 
 This is not validated software. The IQ script, OQ report, and traceability
 matrix are generated raw material for a validation program; running that
