@@ -22,11 +22,23 @@ export interface MilestoneFact {
   actual_date: string | null;
 }
 
+/**
+ * Milestone definition facts, for metrics that derive from the governed
+ * taxonomy's dependency graph (ADR-0014).
+ */
+export interface MilestoneDefinitionFact {
+  code: string;
+  depends_on: string[];
+  module: string;
+  active: boolean;
+}
+
 export interface ComputeContext {
   /** Inclusive ISO date bounds of the reporting period. */
   periodStart: string;
   periodEnd: string;
   milestones?: MilestoneFact[];
+  definitions?: MilestoneDefinitionFact[];
 }
 
 /**

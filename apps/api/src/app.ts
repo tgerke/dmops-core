@@ -4,6 +4,7 @@ import {
   type BoardRow,
   DeliverableError,
   type DeliverableRow,
+  type LockGateRow,
   MilestoneError,
   type RebaselineRecord,
   type RosterRow,
@@ -25,6 +26,7 @@ import {
   listDeliverables,
   listUatCycles,
   listUatDefects,
+  lockReadiness,
   milestoneBoard,
   rebaselineHistory,
   rebaselineMilestone,
@@ -47,6 +49,7 @@ import {
   DeliverableSchema,
   ErrorSchema,
   HealthSchema,
+  LockReadinessSchema,
   MetricSitesSchema,
   MilestoneBoardSchema,
   MilestonePatchSchema,
@@ -783,6 +786,67 @@ export function buildApp(sql: Sql) {
     },
   );
 
+  // --- lock-readiness (ADR-0014) ---------------------------------------------
+
+  app.openapi(
+    createRoute({
+      method: "get",
+      path: "/studies/{studyId}/lock-readiness",
+      security,
+      request: { params: z.object({ studyId: z.string().uuid() }) },
+      responses: {
+        200: json(
+          LockReadinessSchema,
+          "Derived lock-readiness: the depends_on closure of CLOSE.LOCK in the " +
+            "governed taxonomy as a per-gate checklist with an unweighted score, " +
+            "plus live signals (open queries as of the latest snapshot, UAT state, " +
+            "training gaps) that never move the score (ADR-0014). Nothing here is " +
+            "writable — the score moves only when the milestones move. Sponsor " +
+            "serialization omits gate blocker notes (DM-P5).",
+        ),
+        403: json(ErrorSchema, "Not assigned to this study"),
+        404: json(ErrorSchema, "No such study"),
+      },
+    }),
+    async (c) => {
+      const { studyId } = c.req.valid("param");
+      const assignments = c.get("assignments");
+      const denied = requireRead(assignments, studyId);
+      if (denied) return c.json(denied, 403);
+      const result = await lockReadiness(sql, studyId);
+      if (!result) return c.json({ error: "no such study" }, 404);
+      const sponsorView = isSponsorOnly(assignments, studyId);
+      const gates = result.gates.map((row) => {
+        const { blocker_note, ...rest } = serializeLockGate(row);
+        return { ...rest, ...(sponsorView ? {} : { blocker_note }) };
+      });
+      const s = result.summary;
+      return c.json(
+        {
+          study_id: studyId,
+          gates_applicable: Number(s.gates_applicable),
+          gates_satisfied: Number(s.gates_satisfied),
+          gates_blocked: Number(s.gates_blocked),
+          readiness_pct: s.readiness_pct === null ? null : Number(s.readiness_pct),
+          next_gate_code: s.next_gate_code,
+          next_gate_label: s.next_gate_label,
+          lock_planned_date: s.lock_planned_date,
+          lock_forecast_date: s.lock_forecast_date,
+          lock_actual_date: s.lock_actual_date,
+          open_queries: s.open_queries === null ? null : Number(s.open_queries),
+          open_queries_as_of: s.open_queries_as_of,
+          uat_open_cycles: s.uat_open_cycles === null ? null : Number(s.uat_open_cycles),
+          uat_unresolved_defects:
+            s.uat_unresolved_defects === null ? null : Number(s.uat_unresolved_defects),
+          training_gaps: s.training_gaps === null ? null : Number(s.training_gaps),
+          gates,
+          evidence_conflicts: result.conflicts,
+        },
+        200,
+      );
+    },
+  );
+
   // --- metrics ---------------------------------------------------------------
 
   app.openapi(
@@ -1004,6 +1068,15 @@ function serializeRebaseline(r: RebaselineRecord) {
     reason: r.reason,
     reference_uri: r.reference_uri,
     created_at: new Date(r.created_at).toISOString(),
+  };
+}
+
+function serializeLockGate(row: LockGateRow) {
+  const { study_id: _studyId, ...rest } = row;
+  return {
+    ...rest,
+    sequence: Number(row.sequence),
+    occurrence: row.occurrence === null ? null : Number(row.occurrence),
   };
 }
 

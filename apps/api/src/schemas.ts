@@ -303,6 +303,54 @@ export const StudyTrainingSchema = z.object({
   records: z.array(TrainingStatusRowSchema),
 });
 
+// Lock-readiness (ADR-0014): a derived checklist — the depends_on closure of
+// CLOSE.LOCK — plus live signals that never move the score. blocker_note is
+// optional because the sponsor serialization omits it entirely (DM-P5).
+export const LockGateSchema = z.object({
+  code: z.string(),
+  label: z.string(),
+  phase_group: z.string(),
+  sequence: z.number(),
+  occurrence: z.number().nullable(),
+  status: z.string().nullable(),
+  baseline_date: z.string().nullable(),
+  planned_date: z.string().nullable(),
+  forecast_date: z.string().nullable(),
+  actual_date: z.string().nullable(),
+  blocker_note: z.string().nullable().optional(),
+  evidence_uri: z.string().nullable(),
+  satisfied: z.boolean(),
+  applicable: z.boolean(),
+});
+
+export const EvidenceConflictSchema = z.object({
+  gate: z.string(),
+  signal: z.string(),
+  detail: z.string(),
+});
+
+export const LockReadinessSchema = z.object({
+  study_id: z.string().uuid(),
+  gates_applicable: z.number(),
+  gates_satisfied: z.number(),
+  gates_blocked: z.number(),
+  readiness_pct: z.number().nullable(),
+  next_gate_code: z.string().nullable(),
+  next_gate_label: z.string().nullable(),
+  lock_planned_date: z.string().nullable(),
+  lock_forecast_date: z.string().nullable(),
+  lock_actual_date: z.string().nullable(),
+  // Signals: null means the source is not wired, never zero (ADR-0005
+  // fail-closed applied to display).
+  open_queries: z.number().nullable(),
+  open_queries_as_of: z.string().nullable(),
+  uat_open_cycles: z.number().nullable(),
+  uat_unresolved_defects: z.number().nullable(),
+  training_gaps: z.number().nullable(),
+  gates: z.array(LockGateSchema),
+  evidence_conflicts: z.array(EvidenceConflictSchema),
+});
+
 export const HealthSchema = z.object({
   status: z.string(),
   migrations: z.number(),

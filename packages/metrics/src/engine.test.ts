@@ -56,11 +56,10 @@ describe("capability gating (DM-P1: skip, never silently approximate)", () => {
     expect(result.available).toBe(true);
   });
 
-  it("milestone_slip is always available — its source is dmops-core itself", () => {
-    const result = metricAvailability(byId("milestone_slip"), {
-      adapter: "anything",
-      frames: {},
-    });
-    expect(result.available).toBe(true);
+  it("milestone_slip and lock_readiness_pct are always available — their source is dmops-core itself", () => {
+    for (const id of ["milestone_slip", "lock_readiness_pct"]) {
+      const result = metricAvailability(byId(id), { adapter: "anything", frames: {} });
+      expect(result.available).toBe(true);
+    }
   });
 });

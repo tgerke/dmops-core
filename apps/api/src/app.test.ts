@@ -55,7 +55,7 @@ describe("authentication", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.audit_chain_verified).toBe(true);
-    expect(body.migrations).toBe(7);
+    expect(body.migrations).toBe(8);
   });
 });
 
@@ -627,6 +627,7 @@ describe("stat module (ADR-0011)", () => {
       "entry_lag",
       "issue_closure_lag_median",
       "issue_open_aging",
+      "lock_readiness_pct",
       "milestone_slip",
       "pr_cycle_time_median",
       "pr_review_tat_median",
@@ -724,6 +725,81 @@ describe("training and access mirrors (ADR-0013)", () => {
   });
 });
 
+describe("lock-readiness (ADR-0014)", () => {
+  // UAT rows accumulate across local runs without a re-seed (no DELETE
+  // path), so the UAT signal assertions are lower bounds; the roster gap
+  // count derives against CURRENT_DATE, so it is a lower bound too.
+  const readiness = async (studyId: string, token = "dev-dmlead-token") =>
+    await (await get(`/studies/${studyId}/lock-readiness`, token)).json();
+
+  it("DM-P1: the checklist is the depends_on closure of CLOSE.LOCK, derived — never entered", async () => {
+    const body = await readiness(study1);
+    expect(body.gates.map((g: { code: string }) => g.code)).toEqual([
+      "CLOSE.LPO",
+      "CLOSE.ENTRY",
+      "CLOSE.QUERY",
+      "CLOSE.SAE",
+      "CLOSE.CODE",
+      "CLOSE.EXT",
+      "CLOSE.SDV",
+      "CLOSE.SOFTLOCK",
+    ]);
+    expect(body.gates_applicable).toBe(8);
+    expect(body.gates_satisfied).toBe(0);
+    expect(body.readiness_pct).toBe(0);
+    expect(body.gates_blocked).toBe(1);
+    expect(body.next_gate_code).toBe("CLOSE.LPO");
+    expect(body.lock_planned_date).toBe("2027-04-26");
+    const sae = body.gates.find((g: { code: string }) => g.code === "CLOSE.SAE");
+    expect(sae.status).toBe("blocked");
+    expect(sae.blocker_note).toMatch(/SAE discrepancies/);
+  });
+
+  it("signals ride beside the score and never move it: the score is 0 while the evidence shows live work", async () => {
+    const body = await readiness(study1);
+    // Latest query_open_aging snapshot: 4 open queries at June period end.
+    expect(body.open_queries).toBe(4);
+    expect(body.open_queries_as_of).toBe("2026-06-30");
+    expect(body.uat_open_cycles).toBeGreaterThanOrEqual(1);
+    expect(body.uat_unresolved_defects).toBeGreaterThanOrEqual(2);
+    expect(body.training_gaps).toBeGreaterThanOrEqual(4);
+    // No gate is asserted complete against contrary evidence.
+    expect(body.evidence_conflicts).toEqual([]);
+  });
+
+  it("DM-P5: the sponsor serialization omits gate blocker notes, and reads are row-scoped", async () => {
+    const sponsor = await readiness(study1, "dev-sponsor-token");
+    const sae = sponsor.gates.find((g: { code: string }) => g.code === "CLOSE.SAE");
+    expect(sae.status).toBe("blocked");
+    expect("blocker_note" in sae).toBe(false);
+    expect((await get(`/studies/${study2}/lock-readiness`, "dev-sponsor-token")).status).toBe(403);
+  });
+
+  it("a study with no wired sources serves named absence for signals, not fake zeros (ADR-0005)", async () => {
+    const body = await readiness(study2, "dev-qa-token");
+    expect(body.gates_applicable).toBe(8);
+    expect(body.readiness_pct).toBe(0);
+    // No metric source and no roster mirror: null, never zero.
+    expect(body.open_queries).toBeNull();
+    expect(body.open_queries_as_of).toBeNull();
+    expect(body.training_gaps).toBeNull();
+    // UAT is dmops-owned: zero cycles is a true zero.
+    expect(body.uat_open_cycles).toBe(0);
+    expect(body.uat_unresolved_defects).toBe(0);
+  });
+
+  it("DM-Q9: lock_readiness_pct flows through the snapshot pipeline as a dmops-native metric", async () => {
+    const body = await (await get(`/studies/${study1}/metrics`, "dev-dmlead-token")).json();
+    const pct = body.metrics.find(
+      (m: { metric_id: string }) => m.metric_id === "lock_readiness_pct",
+    );
+    expect(pct.availability).toBe("computed");
+    // As of the June period end no gate had an actual completion date.
+    expect(Number(pct.latest.value)).toBe(0);
+    expect(Number(pct.latest.denominator)).toBe(8);
+  });
+});
+
 describe("metrics surface (DM-P1, DM-P2, DM-P3)", () => {
   it("DM-P2: every dictionary metric appears with its version and availability", async () => {
     const res = await get(`/studies/${study1}/metrics`, "dev-dmlead-token");
@@ -734,6 +810,7 @@ describe("metrics surface (DM-P1, DM-P2, DM-P3)", () => {
       "entry_lag",
       "issue_closure_lag_median",
       "issue_open_aging",
+      "lock_readiness_pct",
       "milestone_slip",
       "pr_cycle_time_median",
       "pr_review_tat_median",
@@ -743,12 +820,14 @@ describe("metrics surface (DM-P1, DM-P2, DM-P3)", () => {
     ]);
     // The engine-current version per metric: the two elapsed-time DM metrics
     // moved to business-day clocks as v1.1 (ADR-0004); the DS starter set
-    // (ADR-0012) and the roster metrics (ADR-0013) ship at 1.0.
+    // (ADR-0012), the roster metrics (ADR-0013), and lock-readiness
+    // (ADR-0014) ship at 1.0.
     const versions: Record<string, string> = {
       query_tat_median: "1.1",
       query_open_aging: "1.0",
       entry_lag: "1.1",
       milestone_slip: "1.0",
+      lock_readiness_pct: "1.0",
       pr_review_tat_median: "1.0",
       pr_cycle_time_median: "1.0",
       issue_closure_lag_median: "1.0",

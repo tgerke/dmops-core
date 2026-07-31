@@ -9,6 +9,7 @@ import { getAdapter } from "@dmops/adapters";
 import type { Sql } from "@dmops/db";
 import {
   type LoadedSpec,
+  type MilestoneDefinitionFact,
   type MilestoneFact,
   assertRegistryMatchesSpecs,
   computeFn,
@@ -181,14 +182,33 @@ export async function refreshStudyMetrics(
     }
   }
 
-  // dmops-native metrics (milestone_slip): source is this system's own facts.
+  // dmops-native metrics (milestone_slip, lock_readiness_pct): source is
+  // this system's own facts — milestone rows plus the definition graph for
+  // metrics that derive from the taxonomy's dependencies (ADR-0014).
+  // Definitions are pre-filtered to the study's enabled modules, the same
+  // boundary the views apply (ADR-0011).
   if (nativeSpecs.length > 0) {
     const milestoneRows = await sql`
       SELECT code, occurrence, status, baseline_date, planned_date, forecast_date, actual_date
       FROM study_milestone WHERE study_id = ${studyId}`;
     const milestones = milestoneRows as unknown as MilestoneFact[];
+    const definitionRows = await sql`
+      SELECT code, depends_on, module, active FROM milestone_definition
+      WHERE module = ANY (${modules}::module[])`;
+    const definitions = definitionRows as unknown as MilestoneDefinitionFact[];
     for (const loaded of nativeSpecs) {
-      await computeAndInsert(sql, studyId, loaded, {}, period, result, new Map(), null, milestones);
+      await computeAndInsert(
+        sql,
+        studyId,
+        loaded,
+        {},
+        period,
+        result,
+        new Map(),
+        null,
+        milestones,
+        definitions,
+      );
     }
   }
 
@@ -247,10 +267,15 @@ async function computeAndInsert(
   siteIdByKey: Map<string, string>,
   extractId: string | null,
   milestones?: MilestoneFact[],
+  definitions?: MilestoneDefinitionFact[],
 ): Promise<void> {
   const { spec } = loaded;
   const fn = computeFn(spec.id, spec.version);
-  const values = fn(frames, { ...period, ...(milestones ? { milestones } : {}) });
+  const values = fn(frames, {
+    ...period,
+    ...(milestones ? { milestones } : {}),
+    ...(definitions ? { definitions } : {}),
+  });
   let inserted = 0;
   for (const v of values) {
     let siteId: string | null = null;

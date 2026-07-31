@@ -14,6 +14,7 @@ export {
   median,
   type ComputeContext,
   type ComputeFn,
+  type MilestoneDefinitionFact,
   type MilestoneFact,
   type SnapshotValue,
 } from "./types.js";

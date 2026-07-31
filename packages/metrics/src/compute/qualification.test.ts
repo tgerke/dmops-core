@@ -10,11 +10,18 @@ import { fileURLToPath } from "node:url";
 import type { NormalizedFrames } from "@dmops/adapter-contract";
 import { csvAdapter } from "@dmops/adapters/csv";
 import { beforeAll, describe, expect, it } from "vitest";
-import { type MilestoneFact, type SnapshotValue, businessDaysBetween } from "../types.js";
+import { parse } from "yaml";
+import {
+  type MilestoneDefinitionFact,
+  type MilestoneFact,
+  type SnapshotValue,
+  businessDaysBetween,
+} from "../types.js";
 import { accessTrainingGap } from "./access_training_gap.js";
 import { entryLag, entryLagV1_1 } from "./entry_lag.js";
 import { issueClosureLagMedian } from "./issue_closure_lag_median.js";
 import { issueOpenAging } from "./issue_open_aging.js";
+import { lockReadinessPct } from "./lock_readiness_pct.js";
 import { milestoneSlip } from "./milestone_slip.js";
 import { prCycleTimeMedian } from "./pr_cycle_time_median.js";
 import { prReviewTatMedian } from "./pr_review_tat_median.js";
@@ -104,6 +111,77 @@ describe("metric qualification against hand-computed fixtures", () => {
 
   it("DM-Q4: milestone_slip returns null with zero records when nothing completed in period", () => {
     const rows = milestoneSlip(frames, { ...ctx, milestones: [] });
+    expect(byGrain(rows, "study")).toMatchObject({ value: null, n_records: 0 });
+  });
+
+  // The shipped taxonomy, read verbatim: the same governed file the SQL view
+  // derives from, so this suite pins both closures to one gate list
+  // (ADR-0014).
+  const SHIPPED_GATES = [
+    "CLOSE.LPO",
+    "CLOSE.ENTRY",
+    "CLOSE.QUERY",
+    "CLOSE.SAE",
+    "CLOSE.CODE",
+    "CLOSE.EXT",
+    "CLOSE.SDV",
+    "CLOSE.SOFTLOCK",
+  ];
+  const taxonomyDefs = (): MilestoneDefinitionFact[] => {
+    const raw = readFileSync(
+      fileURLToPath(new URL("../../../../taxonomy/milestone_definitions.yaml", import.meta.url)),
+      "utf8",
+    );
+    const parsed = parse(raw) as {
+      milestones: { code: string; depends_on?: string[]; module?: string }[];
+    };
+    return parsed.milestones.map((m) => ({
+      code: m.code,
+      depends_on: m.depends_on ?? [],
+      module: m.module ?? "dm",
+      active: true,
+    }));
+  };
+
+  it("DM-Q9: lock_readiness_pct derives the gate set from the shipped taxonomy and matches hand-computed truth", () => {
+    const definitions = taxonomyDefs();
+    // Hand-constructed: LPO and ENTRY completed by period end; SAE completed
+    // after period end (not yet satisfied then); SDV marked na (excluded);
+    // a non-gate completion (COND.REVIEW.FIRST) changes nothing.
+    const milestones: MilestoneFact[] = [
+      fact("CLOSE.LPO", "complete", "2026-05-01", "2026-05-10"),
+      fact("CLOSE.ENTRY", "complete", "2026-06-01", "2026-06-15"),
+      fact("CLOSE.SAE", "complete", "2026-06-20", "2026-07-05"),
+      fact("CLOSE.SDV", "na", "2026-06-01", "2026-06-01"),
+      fact("COND.REVIEW.FIRST", "complete", "2026-06-01", "2026-06-10"),
+    ];
+    const rows = lockReadinessPct({}, { ...ctx, milestones, definitions });
+    // 8 gates, SDV na → 7 applicable; LPO + ENTRY satisfied → 2/7 = 28.6%.
+    expect(byGrain(rows, "study")).toMatchObject({
+      value: 28.6,
+      numerator: 2,
+      denominator: 7,
+      n_records: 7,
+    });
+    expect(rows).toHaveLength(1); // study grain only
+  });
+
+  it("DM-Q9: the shipped closure is exactly the eight closeout gates — completing them all scores 100", () => {
+    const definitions = taxonomyDefs();
+    // No milestone rows at all: every gate applicable, none satisfied —
+    // absence reads as "not done", and the denominator pins the gate count.
+    const empty = lockReadinessPct({}, { ...ctx, milestones: [], definitions });
+    expect(byGrain(empty, "study")).toMatchObject({ value: 0, denominator: 8 });
+
+    // Completing exactly the expected codes scores 100: if the closure held
+    // any other code, the denominator would exceed the completions.
+    const allDone = SHIPPED_GATES.map((code) => fact(code, "complete", "2026-06-01", "2026-06-10"));
+    const full = lockReadinessPct({}, { ...ctx, milestones: allDone, definitions });
+    expect(byGrain(full, "study")).toMatchObject({ value: 100, numerator: 8, denominator: 8 });
+  });
+
+  it("DM-Q9: without definitions there is no checklist — null, never a guessed score", () => {
+    const rows = lockReadinessPct({}, { ...ctx, milestones: [] });
     expect(byGrain(rows, "study")).toMatchObject({ value: null, n_records: 0 });
   });
 

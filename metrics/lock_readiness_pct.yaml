@@ -1,0 +1,29 @@
+# Governed metric definition (ADR-0004; lock-readiness, ADR-0014). Source is
+# dmops-core's own milestone facts and the taxonomy's dependency graph — the
+# gate set is the transitive depends_on closure of CLOSE.LOCK (ADR-0008).
+id: lock_readiness_pct
+label: Lock-readiness at period end (%)
+owner: DM Operations
+version: "1.0"
+grain: [study]
+definition: >
+  Of the lock gates applicable to the study — the transitive dependencies of
+  CLOSE.LOCK in the governed taxonomy, restricted to the study's enabled
+  modules and excluding gates marked not applicable — the percent whose
+  actual completion date falls on or before period end. A gate with no
+  instantiated milestone row counts as applicable and unsatisfied: the
+  checklist comes from the definition graph, so absence reads as not done,
+  never not asked. The score rolls up milestone assertions only; live
+  evidence signals are displayed beside it and never move it (ADR-0014).
+clock_start: study_milestone.actual_date
+clock_stop: period_end
+calendar: calendar_days
+include:
+  - active taxonomy codes in the depends_on closure of CLOSE.LOCK, in the study's modules
+exclude:
+  - gates marked not applicable on the study
+  - CLOSE.LOCK itself — readiness measures the path to lock, not lock
+source_frames: []
+required_fields: {}
+refresh: daily
+target: "100 before CLOSE.LOCK"

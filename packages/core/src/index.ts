@@ -21,6 +21,13 @@ export {
   type DeliverableRow,
   type DeliverableStatus,
 } from "./deliverables.js";
+export {
+  lockReadiness,
+  type EvidenceConflict,
+  type LockGateRow,
+  type LockReadiness,
+  type LockReadinessSummary,
+} from "./lock-readiness.js";
 export { registerMetrics } from "./metric-registration.js";
 export {
   accessRoster,

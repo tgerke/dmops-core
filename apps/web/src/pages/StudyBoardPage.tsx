@@ -4,6 +4,7 @@ import {
   type ApiError,
   type BoardRow,
   type Deliverable,
+  type LockReadiness,
   type MetricSiteRow,
   type RosterRow,
   type Snapshot,
@@ -48,6 +49,7 @@ export function StudyBoardPage() {
   const [deliverables, setDeliverables] = useState<Deliverable[] | null>(null);
   const [uatCycles, setUatCycles] = useState<UatCycle[] | null>(null);
   const [roster, setRoster] = useState<RosterRow[] | null>(null);
+  const [readiness, setReadiness] = useState<LockReadiness | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
@@ -72,6 +74,10 @@ export function StudyBoardPage() {
       .accessRoster(studyId)
       .then((r) => setRoster(r.people))
       .catch(() => setRoster(null));
+    api
+      .lockReadiness(studyId)
+      .then(setReadiness)
+      .catch(() => setReadiness(null));
   }, [studyId]);
   useEffect(() => {
     load();
@@ -83,6 +89,7 @@ export function StudyBoardPage() {
   return (
     <div className="space-y-6">
       {metrics && <MetricsStrip studyId={studyId} metrics={metrics} />}
+      {readiness && <LockReadinessSection readiness={readiness} />}
       {deliverables && deliverables.length > 0 && (
         <DeliverablesSection studyId={studyId} deliverables={deliverables} onSaved={load} />
       )}
@@ -235,6 +242,164 @@ function MetricDetail({ studyId, metricId }: { studyId: string; metricId: string
         )}
       </div>
     </div>
+  );
+}
+
+// Lock-readiness (ADR-0014): a derived checklist — the depends_on closure of
+// CLOSE.LOCK — with an unweighted score. Nothing here is editable; the score
+// moves only when the milestones move. Signals never change the number.
+function LockReadinessSection({ readiness }: { readiness: LockReadiness }) {
+  const [expanded, setExpanded] = useState(false);
+  const pct = readiness.readiness_pct;
+
+  return (
+    <section>
+      <h2 className="mb-2 flex items-baseline gap-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+        Lock readiness
+        {readiness.gates_blocked > 0 && (
+          <span className="rounded bg-rose-50 px-1.5 py-0.5 text-xs font-medium normal-case tracking-normal text-rose-700">
+            {readiness.gates_blocked} blocked
+          </span>
+        )}
+        <span
+          className="text-xs font-normal normal-case tracking-normal text-slate-400"
+          title="Derived from the milestone taxonomy's dependency graph — the transitive dependencies of CLOSE.LOCK (ADR-0014). Not editable anywhere."
+        >
+          derived, not entered
+        </span>
+      </h2>
+      <div className="rounded-lg border border-slate-200 bg-white">
+        <div className="flex flex-wrap items-center gap-4 px-4 py-3">
+          <button
+            type="button"
+            className="text-xs text-slate-400 hover:text-slate-600"
+            onClick={() => setExpanded(!expanded)}
+          >
+            {expanded ? "▾" : "▸"}
+          </button>
+          <span className="text-2xl font-semibold">{pct === null ? "—" : `${pct}%`}</span>
+          <div className="h-2 w-40 overflow-hidden rounded-full bg-slate-100">
+            <div className="h-full rounded-full bg-sky-500" style={{ width: `${pct ?? 0}%` }} />
+          </div>
+          <span className="text-xs text-slate-500">
+            {readiness.gates_satisfied} of {readiness.gates_applicable} gates satisfied
+          </span>
+          {readiness.next_gate_label && (
+            <span className="text-xs text-slate-500">
+              next: <span className="font-medium">{readiness.next_gate_label}</span>
+            </span>
+          )}
+          {readiness.lock_planned_date && (
+            <span className="ml-auto text-xs text-slate-400">
+              lock planned {readiness.lock_planned_date}
+            </span>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-x-6 gap-y-1 border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
+          <SignalItem
+            label="open queries"
+            value={readiness.open_queries}
+            asOf={readiness.open_queries_as_of}
+            warnWhenPositive
+          />
+          <SignalItem label="open UAT cycles" value={readiness.uat_open_cycles} warnWhenPositive />
+          <SignalItem
+            label="unresolved UAT defects"
+            value={readiness.uat_unresolved_defects}
+            warnWhenPositive
+          />
+          <SignalItem label="training gaps" value={readiness.training_gaps} warnWhenPositive />
+          <span
+            className="text-slate-300"
+            title="Live evidence beside the assertions; signals never move the score (ADR-0014)"
+          >
+            signals don't move the score
+          </span>
+        </div>
+        {readiness.evidence_conflicts.length > 0 && (
+          <div className="border-t border-slate-100 px-4 py-2">
+            {readiness.evidence_conflicts.map((c) => (
+              <p
+                key={`${c.gate}-${c.signal}`}
+                className="rounded bg-rose-50 px-2 py-1 text-xs text-rose-700"
+              >
+                {c.detail}
+              </p>
+            ))}
+          </div>
+        )}
+        {expanded && (
+          <div className="border-t border-slate-100 px-4 py-2">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-wide text-slate-400">
+                  <th className="py-1 pr-4">Gate</th>
+                  <th className="py-1 pr-4">Planned</th>
+                  <th className="py-1 pr-4">Actual</th>
+                  <th className="py-1">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {readiness.gates.map((g) => (
+                  <tr key={g.code} className="border-t border-slate-100">
+                    <td className="py-1.5 pr-4">
+                      <span className={g.satisfied ? "text-emerald-600" : "text-slate-300"}>
+                        {g.satisfied ? "✓" : "○"}
+                      </span>
+                      <span className="ml-2 font-medium">{g.label}</span>
+                      <span className="ml-2 font-mono text-xs text-slate-400">{g.code}</span>
+                      {g.blocker_note && (
+                        <p className="mt-0.5 max-w-md rounded bg-rose-50 px-2 py-1 text-xs text-rose-700">
+                          {g.blocker_note}
+                        </p>
+                      )}
+                    </td>
+                    <td className="py-1.5 pr-4 text-slate-500">{g.planned_date ?? "—"}</td>
+                    <td className="py-1.5 pr-4 text-slate-500">{g.actual_date ?? "—"}</td>
+                    <td className="py-1.5">
+                      {g.status ? (
+                        <StatusChip status={g.status} />
+                      ) : (
+                        <span className="text-xs text-slate-400">not instantiated</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function SignalItem({
+  label,
+  value,
+  asOf,
+  warnWhenPositive,
+}: {
+  label: string;
+  value: number | null;
+  asOf?: string | null;
+  warnWhenPositive?: boolean;
+}) {
+  // Null means the source is not wired — a named absence, never zero
+  // (ADR-0005 fail-closed applied to display).
+  if (value === null) {
+    return (
+      <span className="text-slate-300" title="No source wired for this signal">
+        {label}: no source
+      </span>
+    );
+  }
+  const warn = warnWhenPositive && value > 0;
+  return (
+    <span>
+      {label}: <span className={warn ? "font-medium text-amber-700" : ""}>{value}</span>
+      {asOf && <span className="text-slate-400"> as of {asOf}</span>}
+    </span>
   );
 }
 

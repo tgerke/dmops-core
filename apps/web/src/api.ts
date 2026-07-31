@@ -112,6 +112,51 @@ export interface TrainingRecord {
   status: "current" | "expired" | "overdue" | "pending";
 }
 
+// Lock-readiness (ADR-0014): a derived checklist — nothing here is writable.
+export interface LockGate {
+  code: string;
+  label: string;
+  phase_group: string;
+  sequence: number;
+  occurrence: number | null;
+  status: string | null;
+  baseline_date: string | null;
+  planned_date: string | null;
+  forecast_date: string | null;
+  actual_date: string | null;
+  // Absent in the sponsor serialization (DM-P5).
+  blocker_note?: string | null;
+  evidence_uri: string | null;
+  satisfied: boolean;
+  applicable: boolean;
+}
+
+export interface EvidenceConflict {
+  gate: string;
+  signal: string;
+  detail: string;
+}
+
+export interface LockReadiness {
+  study_id: string;
+  gates_applicable: number;
+  gates_satisfied: number;
+  gates_blocked: number;
+  readiness_pct: number | null;
+  next_gate_code: string | null;
+  next_gate_label: string | null;
+  lock_planned_date: string | null;
+  lock_forecast_date: string | null;
+  lock_actual_date: string | null;
+  open_queries: number | null;
+  open_queries_as_of: string | null;
+  uat_open_cycles: number | null;
+  uat_unresolved_defects: number | null;
+  training_gaps: number | null;
+  gates: LockGate[];
+  evidence_conflicts: EvidenceConflict[];
+}
+
 export interface Snapshot {
   metric_id: string;
   metric_version: string;
@@ -219,6 +264,7 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(patch),
     }),
+  lockReadiness: (studyId: string) => request<LockReadiness>(`/studies/${studyId}/lock-readiness`),
   accessRoster: (studyId: string) =>
     request<{ people: RosterRow[] }>(`/studies/${studyId}/access-roster`),
   training: (studyId: string) =>

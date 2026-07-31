@@ -2,6 +2,7 @@ import { accessTrainingGap } from "./compute/access_training_gap.js";
 import { entryLagV1_1 } from "./compute/entry_lag.js";
 import { issueClosureLagMedian } from "./compute/issue_closure_lag_median.js";
 import { issueOpenAging } from "./compute/issue_open_aging.js";
+import { lockReadinessPct } from "./compute/lock_readiness_pct.js";
 import { milestoneSlip } from "./compute/milestone_slip.js";
 import { prCycleTimeMedian } from "./compute/pr_cycle_time_median.js";
 import { prReviewTatMedian } from "./compute/pr_review_tat_median.js";
@@ -23,6 +24,8 @@ const registry = new Map<string, ComputeFn>([
   ["query_open_aging@1.0", queryOpenAging],
   ["entry_lag@1.1", entryLagV1_1],
   ["milestone_slip@1.0", milestoneSlip],
+  // Lock-readiness (ADR-0014).
+  ["lock_readiness_pct@1.0", lockReadinessPct],
   // Training and access mirrors (ADR-0013).
   ["training_current_pct@1.0", trainingCurrentPct],
   ["access_training_gap@1.0", accessTrainingGap],
