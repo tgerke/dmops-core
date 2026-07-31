@@ -88,7 +88,7 @@ report), `pnpm metrics:refresh` (cron-friendly snapshot computation).
 
 ## Status
 
-A working slice 9, not a product. What exists: the study registry, the full
+A working slice 10, not a product. What exists: the study registry, the full
 DM milestone taxonomy with a role-scoped board and audited writes, a
 deliverables surface with eTMF pointers and audited status updates, UAT
 cycle and defect tracking with a completion gate ("UAT complete" refuses to
@@ -123,10 +123,17 @@ version story exercised a second time — four definitions bumped), CSV
 exports that flatten the same rows the JSON serves under the same
 authorization, and the KPI pack, a period-scoped, print-friendly artifact
 carrying each metric's registered definition and its checksummed extract
-citations (ADR-0016). What comes next:
-
-1. Medrio and Rave adapters (the contract is designed for them; see
-   [Writing an adapter](https://tgerke.github.io/dmops-core/guide/writing-an-adapter/)).
+citations (ADR-0016), and the commercial EDC adapters: Medrio, written
+strictly from its public OpenAPI document and shipping the honest zero (no
+query surface exists in the public spec, so a Medrio-only study computes no
+EDC metrics and names every gap), and Medidata Rave, cited against
+Medidata's own open-source rwslib because the public RWS documentation is
+gone, reconstructing query lifecycles from the ClinicalAuditRecords audit
+tape with unknown vocabulary failing loudly instead of being guessed
+(ADR-0017). What comes next, in no committed order: an LMS adapter (the CSV
+fixture is still the only training source), per-study visit-date CRF
+mapping so vendor-sourced studies can compute entry lag, MAuth for Rave,
+and a native-over-mirrors cross-source training-gap metric.
 
 This is not validated software. The IQ script, OQ report, and traceability
 matrix are generated raw material for a validation program; running that

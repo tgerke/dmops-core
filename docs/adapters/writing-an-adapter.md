@@ -62,6 +62,20 @@ Three obligations:
   against — the same bar vendor EDC adapters carry — including the derived
   three-valued PR state (GitHub's own state is only open/closed) and the
   exclusion of pending reviews.
+- `packages/adapters/src/medrio/` — written strictly from the public Medrio
+  OpenAPI document, the only publicly citable Medrio API documentation
+  (version and fetch date in the header). Subjects, visits, and pages ship
+  with honest gaps; queries are declared unsupported because no query
+  surface exists in the public spec, so a Medrio-only study computes zero
+  EDC metrics and reports each gap by name. That outcome is the capability
+  contract doing its job (ADR-0017).
+- `packages/adapters/src/rave/` — written from Medidata's own open-source
+  rwslib client (docs and source) because the public RWS WebHelp is no
+  longer reachable; the header carries tiered citations (ADR-0017). Query
+  lifecycles are reconstructed by replaying `mdsol:Query` status transitions
+  on the ClinicalAuditRecords audit tape, so the query metrics light up as
+  derived; a status value outside the publicly known vocabulary fails the
+  extraction rather than being guessed.
 
 ## Where adapters live
 
@@ -70,17 +84,14 @@ An adapter can be contributed in-tree (a new directory under
 external npm package that implements the contract; `study_source.adapter`
 names it either way.
 
-## Vendor adapter roadmap
-
-The contract was designed so commercial EDC adapters can be added without
-touching the engine. Known targets, unimplemented:
-
-- **Medrio** — API capabilities to be confirmed against current Medrio vendor
-  documentation before any mapping is written.
-- **Medidata Rave** — likely via Rave Web Services / ODM export; capabilities,
-  query lifecycle timestamp granularity, and rate limits to be confirmed
-  against current Medidata documentation before any mapping is written.
+## Vendor adapters and evidence
 
 A vendor adapter PR must cite the vendor documentation it was written against
 (version and date). Capability claims about a vendor API that cannot be traced
 to its documentation will not be merged — see CLAUDE.md.
+
+When the vendor's own documentation is not publicly reachable, ADR-0017
+governs what ships: every claim carries an evidence tier ([P] primary vendor
+artifact, [V-OSS] vendor-authored open source, [NC] not confirmable), and an
+[NC] behavior is either left unimplemented or fails loudly at runtime, never
+guessed. The Medrio and Rave headers are the worked examples.

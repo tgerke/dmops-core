@@ -70,11 +70,31 @@ approximates around source gaps publishes numbers nobody can defend.
   so the three-valued state (open, merged, closed) is `derived` from
   `merged_at`; unsubmitted (pending) reviews carry no timestamp and are
   excluded.
+- **medrio**: the first commercial EDC adapter
+  ([ADR-0017](/dmops-core/reference/decisions/0017-vendor-adapters-and-evidence-tiers/)),
+  written strictly from the public Medrio OpenAPI document, which is the
+  only publicly citable Medrio API documentation. Subjects, visits, and
+  pages ship with their gaps declared; queries are unsupported because no
+  query surface exists in the public spec. A Medrio-only study therefore
+  computes zero EDC metrics, and every one reports its named gap. That is
+  the fail-closed contract demonstrated on a real vendor, not a defect.
+- **rave**: the Medidata Rave adapter
+  ([ADR-0017](/dmops-core/reference/decisions/0017-vendor-adapters-and-evidence-tiers/)).
+  Medidata's public RWS documentation is no longer reachable, so every
+  claim is cited against Medidata's own open-source rwslib client with an
+  evidence tier in the header. RWS has no queries dataset; the adapter
+  reconstructs query lifecycles by replaying `mdsol:Query` status
+  transitions on the ClinicalAuditRecords audit tape, following its cursor
+  pagination. The query metrics light up as `derived`; a status value
+  outside the publicly known vocabulary fails the extraction with the
+  observed value rather than being guessed.
 
 ## Writing your own
 
 [Writing an adapter](/dmops-core/guide/writing-an-adapter/) covers the
-contract, the three obligations, and the reference implementations. Medrio
-and Medidata Rave are named roadmap targets; a vendor adapter PR must cite
-the vendor documentation it was written against, and capability claims that
-cannot be traced to documentation are not merged.
+contract, the three obligations, and the reference implementations. A vendor
+adapter PR must cite the vendor documentation it was written against, and
+capability claims that cannot be traced to documentation are not merged.
+When vendor documentation is not publicly reachable, evidence tiers govern
+what ships
+([ADR-0017](/dmops-core/reference/decisions/0017-vendor-adapters-and-evidence-tiers/)).

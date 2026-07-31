@@ -71,6 +71,14 @@ Three obligations:
   vendor EDC adapters carry, including the derived three-valued PR state
   (GitHub's own state is only open or closed) and the exclusion of pending
   reviews.
+- `packages/adapters/src/medrio/` and `packages/adapters/src/rave/`: the
+  commercial EDC adapters
+  ([ADR-0017](/dmops-core/reference/decisions/0017-vendor-adapters-and-evidence-tiers/)).
+  Both headers are worked examples of citing under degraded documentation:
+  Medrio is written strictly from its public OpenAPI document, and Rave from
+  Medidata's own open-source rwslib client, with every claim carrying an
+  evidence tier and behaviors that cannot be publicly confirmed either left
+  unimplemented or failing loudly.
 
 ## Where adapters live
 
@@ -79,18 +87,16 @@ An adapter can be contributed in-tree (a new directory under
 external npm package that implements the contract; `study_source.adapter`
 names it either way.
 
-## Vendor adapter roadmap
-
-The contract was designed so commercial EDC adapters can be added without
-touching the engine. Known targets, unimplemented:
-
-- **Medrio**: API capabilities to be confirmed against current Medrio
-  vendor documentation before any mapping is written.
-- **Medidata Rave**: likely via Rave Web Services / ODM export;
-  capabilities, query lifecycle timestamp granularity, and rate limits to be
-  confirmed against current Medidata documentation before any mapping is
-  written.
+## Vendor adapters and evidence
 
 A vendor adapter PR must cite the vendor documentation it was written
 against (version and date). Capability claims about a vendor API that cannot
 be traced to its documentation will not be merged.
+
+When the vendor's own documentation is not publicly reachable, evidence
+tiers govern what ships
+([ADR-0017](/dmops-core/reference/decisions/0017-vendor-adapters-and-evidence-tiers/)):
+[P] for a primary vendor artifact, [V-OSS] for vendor-authored open source,
+and [NC] for claims that cannot be publicly confirmed. An [NC] behavior is
+either left unimplemented or fails loudly at runtime, never guessed. The
+Medrio and Rave headers are the worked examples.
