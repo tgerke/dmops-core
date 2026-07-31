@@ -21,6 +21,7 @@ you see, never the numbers themselves (DM-P5).
 | Write deliverable status | same rule as milestones; analysis types (`sap`, `adam_spec`, `tlf_shells`) follow the analysis-phase rule |
 | Write UAT cycles and defects | milestone writers plus `analyst` on the study |
 | Re-baseline a plan | `dm_manager` on the study; `admin` (deliberately stricter than milestone writes) |
+| Read the training-and-access roster | any active assignment; nobody can write it — the mirrors are pipeline-fed ([ADR-0013](/dmops-core/reference/decisions/0013-training-and-access-mirrors/)) |
 | Curated sponsor serialization | a person whose only role on the study is `sponsor_user` |
 
 Three asymmetries are deliberate. UAT writes are wider than milestone
@@ -42,7 +43,11 @@ the plan
 A sponsor-only requester gets the same endpoints and the same numbers with
 internal working notes excluded: blocker notes, re-baseline reasons, and
 defect resolution notes. This is a serialization rule enforced in the API,
-so the web board and any other client get it for free.
+so the web board and any other client get it for free. The
+training-and-access roster serializes identically for every role, sponsors
+included: it holds status and dates only, and a sponsor auditing its CRO's
+training compliance is the use case, not a leak
+([ADR-0013](/dmops-core/reference/decisions/0013-training-and-access-mirrors/)).
 
 Here is the same Closeout section of DMOPS-001's board, first as Maya
 Okafor (DM lead):

@@ -25,6 +25,8 @@ You own study boards day to day. Work as **Maya Okafor**.
    links, and what the approved date actually refers to.
 4. [Metrics](/dmops-core/guide/metrics/): reading the strip, the trend, and
    the by-site drill-down, and what "unavailable" is telling you.
+5. [Training & access](/dmops-core/guide/training-access/): the roster
+   mirrored from the LMS and the EDC, and what a gap badge means.
 
 ## DM managers {#dm-managers}
 
@@ -77,7 +79,10 @@ You read boards; you don't write them. Work as **Sylvia Tran** (sponsor) or
 1. [Personas and access](/dmops-core/personas-and-access/): what the
    curated sponsor view includes and what stays internal, with the
    side-by-side.
-2. [Compliance](/dmops-core/compliance/): the scope argument, the
+2. [Training & access](/dmops-core/guide/training-access/): the delegation
+   question — active access with current training — answered from mirrors
+   of the LMS and the EDC.
+3. [Compliance](/dmops-core/compliance/): the scope argument, the
    database-enforced controls, and the honest gaps list.
-3. [Architecture and principles](/dmops-core/architecture/): the six design
+4. [Architecture and principles](/dmops-core/architecture/): the six design
    principles the tests trace back to.

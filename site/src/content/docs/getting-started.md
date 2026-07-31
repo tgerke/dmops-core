@@ -31,7 +31,8 @@ tokens below to seeded people. Production uses `oidc`.
 Two studies for a fictional sponsor. DMOPS-001 is mid-conduct: startup
 milestones complete with honest slips, an amendment in flight, SAE
 reconciliation blocked with a visible blocker note, and a CSV fixture source
-feeding eight computed metrics, the DM suite plus the stat-module DS suite.
+feeding ten computed metrics (the DM suite plus the stat-module DS suite)
+and the mirrored training-and-access roster.
 DMOPS-002 is in early startup with no source system, so its adapter metrics
 report unavailable instead of showing zeros.
 

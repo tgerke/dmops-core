@@ -52,9 +52,12 @@ milestones, delivery status, and programming-work metrics read from the
 team's own repositories
 ([ADR-0011](/dmops-core/reference/decisions/0011-stat-programming-as-an-opt-in-module/),
 [ADR-0012](/dmops-core/reference/decisions/0012-programming-work-frames-and-github-adapter/)),
-and, in later phases, training and access mirrors, lock-readiness scoring,
-and portfolio roll-up. The DM-only deployment is the default and complete
-on its own; a study that never enables the stat module sees none of it.
+training and access status mirrored from the LMS and the source system's
+user administration
+([ADR-0013](/dmops-core/reference/decisions/0013-training-and-access-mirrors/)),
+and, in later phases, lock-readiness scoring and portfolio roll-up. The
+DM-only deployment is the default and complete on its own; a study that
+never enables the stat module sees none of it.
 
 Out of scope, permanently: clinical data capture (the EDC), query issuance
 and resolution (the EDC), document authoring or e-signature (QMS/eTMF), site

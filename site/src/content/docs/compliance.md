@@ -36,10 +36,10 @@ same mechanism for the stat-module metric dictionary
 
 | Requirement | Mechanism |
 | --- | --- |
-| DM-P1: every field auto-derived or authoritative, never both | Source adapters with per-field capability declarations; metrics skip rather than approximate when a source cannot supply a field; milestone and deliverable facts owned here and nowhere else |
+| DM-P1: every field auto-derived or authoritative, never both | Source adapters with per-field capability declarations; metrics skip rather than approximate when a source cannot supply a field; milestone and deliverable facts owned here and nowhere else; training and access status mirrored from the LMS and source user administration with no write path in this system ([ADR-0013](/dmops-core/reference/decisions/0013-training-and-access-mirrors/)) |
 | DM-P2: metrics are code, not dashboard configuration | One YAML definition plus one tested compute function per metric version; registration copies the YAML verbatim with a checksum; changing a file without a version bump is a hard error |
 | DM-P3: snapshots are immutable and dated | Forbid-mutation triggers on `metric_snapshot`, `source_extract`, `metric_definition`, and `milestone_rebaseline`; the DML-only app role additionally lacks UPDATE/DELETE on them; every snapshot references its extract checksum |
-| DM-P4: displays regulated records, does not hold them | `deliverable` stores status plus an eTMF URI only; `uat_cycle` mirrors script execution as counts plus an evidence URI, never the executed package; no signature columns or file storage anywhere in the schema |
+| DM-P4: displays regulated records, does not hold them | `deliverable` stores status plus an eTMF URI only; `uat_cycle` mirrors script execution as counts plus an evidence URI, never the executed package; the roster mirrors hold dated status replaced each refresh with extract provenance, read-only for the API role ([ADR-0013](/dmops-core/reference/decisions/0013-training-and-access-mirrors/)); no signature columns or file storage anywhere in the schema |
 | DM-P5: role-scoped views over one set of facts | Role × study assignment scoping on every read; the sponsor serialization excludes internal fields (blocker notes, re-baseline reasons, defect resolution notes); one underlying view per fact |
 | DM-P6: read-heavy, write-light | Board and summary reads are single-view queries; the operational writes are milestone, deliverable-status, and UAT operations plus the governed re-baseline action, all audited via `withActor` |
 

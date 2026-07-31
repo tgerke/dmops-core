@@ -56,6 +56,16 @@ curl -s http://localhost:8788/studies \
 - `GET | POST /studies/{studyId}/uat-cycles/{cycleId}/defects`
 - `PATCH /studies/{studyId}/uat-cycles/{cycleId}/defects/{defectId}`
 
+**Training and access** (read-only by construction: the mirrors have no
+write path,
+[ADR-0013](/dmops-core/reference/decisions/0013-training-and-access-mirrors/))
+
+- `GET /studies/{studyId}/access-roster`: one row per person with grants
+  aggregated and training status joined; `training_gap` flags active access
+  with training missing, overdue, or expired
+- `GET /studies/{studyId}/training`: the per-course mirror rows with status
+  derived from the dated facts
+
 **Metrics**
 
 - `GET /studies/{studyId}/metrics`: latest value per metric, including
