@@ -88,16 +88,19 @@ report), `pnpm metrics:refresh` (cron-friendly snapshot computation).
 
 ## Status
 
-A working slice 6, not a product. What exists: the study registry, the full
+A working slice 7, not a product. What exists: the study registry, the full
 DM milestone taxonomy with a role-scoped board and audited writes, a
 deliverables surface with eTMF pointers and audited status updates, UAT
 cycle and defect tracking with a completion gate ("UAT complete" refuses to
-land while defects are open, ADR-0010), ten qualified metrics flowing
+land while defects are open, ADR-0010), eleven qualified metrics flowing
 through the adapter pipeline into an immutable snapshot warehouse with trend
 and per-site drill-downs, governed re-baselining with an append-only history
 (ADR-0009), business-day metric calendars as v1.1 of the elapsed-time
 definitions (the version machinery of ADR-0004, exercised once for real),
-the CSV + edc-core + GitHub adapters, and the opt-in stat programming
+the CSV + edc-core + GitHub adapters, lock-readiness scoring derived from
+the taxonomy's own dependency graph — a per-gate checklist and an unweighted
+score with no write path, live signals that never move the score, and a
+monthly readiness snapshot (ADR-0014) — and the opt-in stat programming
 module: 12 governed STAT milestone codes in an Analysis & Reporting phase,
 per-study module opt-in that filters the board and the metrics strip, a
 phase-scoped write posture for programmer and biostat seats, the analysis
@@ -111,10 +114,9 @@ display-only, extract-provenanced mirror tables, a roster that flags active
 access with missing, overdue, or expired training, and two roster metrics
 that snapshot that answer monthly (ADR-0013). What comes next, in order:
 
-1. Lock-readiness scoring.
-2. Portfolio roll-up views, over every module's metrics.
-3. Exports and KPI packs, and holiday-aware metric calendars.
-4. Medrio and Rave adapters (the contract is designed for them; see
+1. Portfolio roll-up views, over every module's metrics.
+2. Exports and KPI packs, and holiday-aware metric calendars.
+3. Medrio and Rave adapters (the contract is designed for them; see
    [Writing an adapter](https://tgerke.github.io/dmops-core/guide/writing-an-adapter/)).
 
 This is not validated software. The IQ script, OQ report, and traceability

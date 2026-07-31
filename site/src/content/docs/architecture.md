@@ -55,7 +55,9 @@ team's own repositories
 training and access status mirrored from the LMS and the source system's
 user administration
 ([ADR-0013](/dmops-core/reference/decisions/0013-training-and-access-mirrors/)),
-and, in later phases, lock-readiness scoring and portfolio roll-up. The
+lock-readiness scoring derived from the taxonomy's dependency graph
+([ADR-0014](/dmops-core/reference/decisions/0014-lock-readiness-derived-from-the-taxonomy/)),
+and, in a later phase, portfolio roll-up. The
 DM-only deployment is the default and complete on its own; a study that
 never enables the stat module sees none of it.
 

@@ -66,6 +66,13 @@ write path,
 - `GET /studies/{studyId}/training`: the per-course mirror rows with status
   derived from the dated facts
 
+**Lock readiness** (read-only by construction: the checklist is derived
+from the taxonomy's dependency graph,
+[ADR-0014](/dmops-core/reference/decisions/0014-lock-readiness-derived-from-the-taxonomy/))
+
+- `GET /studies/{studyId}/lock-readiness`: the gate checklist with the
+  unweighted score, live signals, and any named evidence conflicts
+
 **Metrics**
 
 - `GET /studies/{studyId}/metrics`: latest value per metric, including

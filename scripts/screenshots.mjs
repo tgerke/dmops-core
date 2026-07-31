@@ -204,6 +204,22 @@ const shots = [
     },
   },
   {
+    name: "lock-readiness",
+    path: `/studies/${study1}`,
+    persona: "dmlead",
+    // has-text: the heading carries the blocked-count badge and the
+    // derived-not-entered note (ADR-0014).
+    locator: "section:has(h2:has-text('Lock readiness'))",
+    run: async (page) => {
+      // Expand the gate checklist.
+      await page
+        .locator("section:has(h2:has-text('Lock readiness')) button", { hasText: "▸" })
+        .first()
+        .click();
+      await page.waitForLoadState("networkidle");
+    },
+  },
+  {
     name: "deliverables",
     path: `/studies/${study1}`,
     persona: "dmlead",

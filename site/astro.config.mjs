@@ -36,7 +36,13 @@ export default defineConfig({
         },
         {
           label: "The study board",
-          items: ["guide/milestones", "guide/deliverables", "guide/uat", "guide/training-access"],
+          items: [
+            "guide/milestones",
+            "guide/deliverables",
+            "guide/uat",
+            "guide/training-access",
+            "guide/lock-readiness",
+          ],
         },
         {
           label: "Metrics",

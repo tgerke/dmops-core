@@ -26,7 +26,7 @@ authoring path.
 
 ## Reading the strip
 
-![The metrics strip on DMOPS-001: ten KPI cards spanning the DM suite (visit-to-entry lag, milestone slip, open query aging, query turnaround, training currency, access-training gap) and the DS suite (issue closure lag, open issue aging, PR cycle time, PR review turnaround), each with its reporting period and target](../../../assets/screenshots/metrics-strip.png)
+![The metrics strip on DMOPS-001: eleven KPI cards spanning the DM suite (visit-to-entry lag, milestone slip, lock readiness, open query aging, query turnaround, training currency, access-training gap) and the DS suite (issue closure lag, open issue aging, PR cycle time, PR review turnaround), each with its reporting period and target](../../../assets/screenshots/metrics-strip.png)
 
 Each card is one metric's latest computed value for the most recent
 reporting period, with its target from the dictionary. Clicking a card opens
@@ -51,7 +51,7 @@ empty table.
 When a study's source system cannot supply a required field, the card says
 so instead of approximating:
 
-![DMOPS-002's metrics strip: three cards report unavailable, no active study source, with the note Skipped, not approximated citing ADR-0005](../../../assets/screenshots/metrics-unavailable.png)
+![DMOPS-002's metrics strip: five cards report unavailable, no active study source, with the note Skipped, not approximated citing ADR-0005, while the two dmops-native metrics — milestone slip and lock readiness — still compute](../../../assets/screenshots/metrics-unavailable.png)
 
 That behavior comes from the adapter capability model; see
 [Adapters](/dmops-core/guide/adapters/).
@@ -85,6 +85,7 @@ The DM suite, on every study:
 | `query_open_aging` | 1.0 | Open queries older than 30 days at period end |
 | `entry_lag` | 1.1 | Median business days from visit date to first data entry |
 | `milestone_slip` | 1.0 | Median days, baseline to actual, completed in period |
+| `lock_readiness_pct` | 1.0 | Percent of lock gates with an actual completion by period end |
 | `training_current_pct` | 1.0 | Percent of required training completed and unexpired at period end |
 | `access_training_gap` | 1.0 | Persons with active access whose training is missing, overdue, or expired |
 
@@ -93,6 +94,10 @@ The two roster metrics compute from the training and access mirrors' frames
 see [Training & access](/dmops-core/guide/training-access/) for the mirror
 surface itself, including why `access_training_gap` reports unavailable in a
 split deployment where access and training come from different sources.
+`lock_readiness_pct` is dmops-native like `milestone_slip` — its source is
+the milestone board and the taxonomy's dependency graph, so it computes on
+every study with no adapter at all; see
+[Lock readiness](/dmops-core/guide/lock-readiness/).
 
 The DS suite, on stat-module studies, computed from the repository frames at
 study grain (site and country are EDC concepts with no meaning for

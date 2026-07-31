@@ -20,10 +20,10 @@ derived roll-ups; nobody maintains them.
 
 ## 2. Read a board top to bottom
 
-Click **DMOPS-001**. The board stacks the metrics strip, deliverables, UAT
-cycles, the training-and-access roster, and six milestone tables grouped by
-phase, ending with Analysis & Reporting because this study runs the stat
-module
+Click **DMOPS-001**. The board stacks the metrics strip, the lock-readiness
+panel, deliverables, UAT cycles, the training-and-access roster, and six
+milestone tables grouped by phase, ending with Analysis & Reporting because
+this study runs the stat module
 ([ADR-0011](/dmops-core/reference/decisions/0011-stat-programming-as-an-opt-in-module/));
 DMOPS-002 never enabled it, so its board stops at Closeout. In the roster,
 the red **gap** badges are people holding active access with training
@@ -31,7 +31,7 @@ missing, overdue, or expired — mirrored from the source systems, never
 entered here
 ([ADR-0013](/dmops-core/reference/decisions/0013-training-and-access-mirrors/)).
 
-![DMOPS-001's full board as the DM lead: the ten-card metrics strip, the deliverables table, two UAT cycles expanded to their defect tables, the training-and-access roster with gap badges, and the phase-grouped milestone tables below](../../assets/screenshots/study-board.png)
+![DMOPS-001's full board as the DM lead: the eleven-card metrics strip, the lock-readiness panel, the deliverables table, two UAT cycles expanded to their defect tables, the training-and-access roster with gap badges, and the phase-grouped milestone tables below](../../assets/screenshots/study-board.png)
 
 Scan the Conduct section: completed milestones carry slip badges against
 their planned dates, and the in-flight amendment is forecast 11 days late.
@@ -48,7 +48,19 @@ checksummed extract.
 
 *Full guide: [Metrics](/dmops-core/guide/metrics/)*
 
-## 4. Move a forecast, as Maya
+## 4. Read the lock-readiness checklist
+
+Expand the **Lock readiness** panel with the ▸ toggle. The eight gates are
+the taxonomy's own dependencies of database lock — derived, not entered;
+there is no way to edit anything here
+([ADR-0014](/dmops-core/reference/decisions/0014-lock-readiness-derived-from-the-taxonomy/)).
+DMOPS-001 is honestly at 0% with SAE reconciliation blocked, and the
+signals row shows the live work still open — queries, UAT defects, training
+gaps — without moving the score.
+
+*Full guide: [Lock readiness](/dmops-core/guide/lock-readiness/)*
+
+## 5. Move a forecast, as Maya
 
 In the Conduct section, hit **edit** on the protocol amendment row and move
 its forecast date. That is a `dm_lead` write: forecasts are yours to keep
@@ -57,7 +69,7 @@ door is deliberately missing.
 
 *Full guide: [Milestones](/dmops-core/guide/milestones/)*
 
-## 5. Re-baseline, as Daniel
+## 6. Re-baseline, as Daniel
 
 Switch to **Daniel Reyes — DM manager**. Moving a plan is governance, so it
 has its own path: re-baseline the interim lock (`COND.INTERIM`) through the
@@ -81,7 +93,7 @@ get a 403: leads move forecasts, managers move plans.
 
 *Full guide: [Milestones](/dmops-core/guide/milestones/), [The API](/dmops-core/guide/api/)*
 
-## 6. Log a defect, as Priya
+## 7. Log a defect, as Priya
 
 Switch to **Priya Natarajan — Analyst (UAT)**. Expand the in-progress
 regression cycle, log a defect, and note the cycle's **complete** button is
@@ -90,7 +102,7 @@ completion gate is enforced by the API, not by the button.
 
 *Full guide: [UAT](/dmops-core/guide/uat/)*
 
-## 7. Move an analysis forecast, as Omar
+## 8. Move an analysis forecast, as Omar
 
 Switch to **Omar Haddad — Biostatistician (analysis)**. Scroll to the
 Analysis & Reporting section: DMOPS-001 runs the stat module, so the STAT
@@ -102,7 +114,7 @@ analysis team, and DM-phase milestones stay a leadership assertion
 
 *Full guide: [Personas and access](/dmops-core/personas-and-access/)*
 
-## 8. See what the sponsor sees, as Sylvia
+## 9. See what the sponsor sees, as Sylvia
 
 Switch to **Sylvia Tran — Sponsor (curated view)**. The SAE reconciliation
 milestone is still visibly Blocked and three weeks behind, but the rose
@@ -111,7 +123,7 @@ control and the defect resolution notes. Same facts, curated fields.
 
 *Full guide: [Personas and access](/dmops-core/personas-and-access/)*
 
-## 9. Verify the audit trail
+## 10. Verify the audit trail
 
 Everything you just did was written to the hash-chained audit trail,
 attributed to the persona that did it:

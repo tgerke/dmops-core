@@ -49,8 +49,8 @@ links, quality metrics from source adapters, UAT cycle and defect tracking
 milestones, delivery status, and programming-work metrics read from the
 team's own repositories (ADR-0011, ADR-0012), training and access status
 mirrored from the LMS and the source system's user administration
-(ADR-0013), and — in later phases — lock-readiness scoring and portfolio
-roll-up.
+(ADR-0013), lock-readiness scoring derived from the milestone taxonomy's
+dependency graph (ADR-0014), and — in a later phase — portfolio roll-up.
 
 Out of scope, permanently: clinical data capture (the EDC), query issuance and
 resolution (the EDC), document authoring or e-signature (QMS/eTMF), site
