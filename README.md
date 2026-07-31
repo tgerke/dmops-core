@@ -88,7 +88,7 @@ report), `pnpm metrics:refresh` (cron-friendly snapshot computation).
 
 ## Status
 
-A working slice 7, not a product. What exists: the study registry, the full
+A working slice 9, not a product. What exists: the study registry, the full
 DM milestone taxonomy with a role-scoped board and audited writes, a
 deliverables surface with eTMF pointers and audited status updates, UAT
 cycle and defect tracking with a completion gate ("UAT complete" refuses to
@@ -117,10 +117,15 @@ every module's metrics pooled across studies as derived views over the
 stored snapshots — ratios and counts pooled exactly from numerators and
 denominators, medians served as per-study spreads because a median of
 medians is not a median, and the lock-readiness burn-up drawn from the
-monthly snapshots (ADR-0015). What comes next, in order:
+monthly snapshots (ADR-0015), and the export surface: holiday-aware
+business-day calendars as governed files with per-study assignment (the
+version story exercised a second time — four definitions bumped), CSV
+exports that flatten the same rows the JSON serves under the same
+authorization, and the KPI pack, a period-scoped, print-friendly artifact
+carrying each metric's registered definition and its checksummed extract
+citations (ADR-0016). What comes next:
 
-1. Exports and KPI packs, and holiday-aware metric calendars.
-2. Medrio and Rave adapters (the contract is designed for them; see
+1. Medrio and Rave adapters (the contract is designed for them; see
    [Writing an adapter](https://tgerke.github.io/dmops-core/guide/writing-an-adapter/)).
 
 This is not validated software. The IQ script, OQ report, and traceability

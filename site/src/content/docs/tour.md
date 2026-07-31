@@ -48,7 +48,22 @@ checksummed extract.
 
 *Full guide: [Metrics](/dmops-core/guide/metrics/)*
 
-## 4. Read the lock-readiness checklist
+## 4. Take the numbers to the meeting
+
+Hit **KPI pack** at the top of the board. This is the monthly artifact: the
+period's values with each metric's registered definition at the version
+that computed it, and the checksummed extract citations at the bottom —
+provenance that travels with the file
+([ADR-0016](/dmops-core/reference/decisions/0016-exports-reserve-stored-facts-and-governed-calendars/)).
+Note the header names the study's holiday calendar, and query turnaround
+reads 3.0 business days — the June break in that governed calendar is why
+it isn't 4.0. Flip the period selector to 2026-05 to reproduce last
+month's pack from the immutable snapshots, and **Print** when the meeting
+wants a PDF. **Snapshots CSV** downloads the same history flat.
+
+*Full guide: [Exports and KPI packs](/dmops-core/guide/exports/)*
+
+## 5. Read the lock-readiness checklist
 
 Expand the **Lock readiness** panel with the ▸ toggle. The eight gates are
 the taxonomy's own dependencies of database lock — derived, not entered;
@@ -60,7 +75,7 @@ gaps — without moving the score.
 
 *Full guide: [Lock readiness](/dmops-core/guide/lock-readiness/)*
 
-## 5. Move a forecast, as Maya
+## 6. Move a forecast, as Maya
 
 In the Conduct section, hit **edit** on the protocol amendment row and move
 its forecast date. That is a `dm_lead` write: forecasts are yours to keep
@@ -69,7 +84,7 @@ door is deliberately missing.
 
 *Full guide: [Milestones](/dmops-core/guide/milestones/)*
 
-## 6. Re-baseline, as Daniel
+## 7. Re-baseline, as Daniel
 
 Switch to **Daniel Reyes — DM manager**. Moving a plan is governance, so it
 has its own path: re-baseline the interim lock (`COND.INTERIM`) through the
@@ -93,7 +108,7 @@ get a 403: leads move forecasts, managers move plans.
 
 *Full guide: [Milestones](/dmops-core/guide/milestones/), [The API](/dmops-core/guide/api/)*
 
-## 7. Log a defect, as Priya
+## 8. Log a defect, as Priya
 
 Switch to **Priya Natarajan — Analyst (UAT)**. Expand the in-progress
 regression cycle, log a defect, and note the cycle's **complete** button is
@@ -102,7 +117,7 @@ completion gate is enforced by the API, not by the button.
 
 *Full guide: [UAT](/dmops-core/guide/uat/)*
 
-## 8. Move an analysis forecast, as Omar
+## 9. Move an analysis forecast, as Omar
 
 Switch to **Omar Haddad — Biostatistician (analysis)**. Scroll to the
 Analysis & Reporting section: DMOPS-001 runs the stat module, so the STAT
@@ -114,7 +129,7 @@ analysis team, and DM-phase milestones stay a leadership assertion
 
 *Full guide: [Personas and access](/dmops-core/personas-and-access/)*
 
-## 9. See what the sponsor sees, as Sylvia
+## 10. See what the sponsor sees, as Sylvia
 
 Switch to **Sylvia Tran — Sponsor (curated view)**. The SAE reconciliation
 milestone is still visibly Blocked and three weeks behind, but the rose
@@ -123,7 +138,7 @@ control and the defect resolution notes. Same facts, curated fields.
 
 *Full guide: [Personas and access](/dmops-core/personas-and-access/)*
 
-## 10. Read the portfolio roll-up, as Ruth
+## 11. Read the portfolio roll-up, as Ruth
 
 Switch to **Ruth Adler — QA (portfolio, read-only)** and open **Portfolio**
 in the header. The lock-readiness header pools the gate counts — 0 of 16
@@ -138,7 +153,7 @@ link: a study-scoped seat gets an explanation, not a smaller portfolio.
 
 *Full guide: [The portfolio](/dmops-core/guide/portfolio/)*
 
-## 11. Verify the audit trail
+## 12. Verify the audit trail
 
 Everything you just did was written to the hash-chained audit trail,
 attributed to the persona that did it:

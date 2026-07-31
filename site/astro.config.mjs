@@ -46,7 +46,7 @@ export default defineConfig({
         },
         {
           label: "Metrics",
-          items: ["guide/metrics", "guide/portfolio", "guide/writing-a-metric"],
+          items: ["guide/metrics", "guide/portfolio", "guide/exports", "guide/writing-a-metric"],
         },
         {
           label: "Integrations",

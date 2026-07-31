@@ -79,10 +79,13 @@ Hand-written validation evidence is worse than none.
 4. **Sponsor field-level filtering is a serialization rule, not yet a
    configurable ACL.** The sponsor role is row-scoped and blocker notes are
    excluded; per-sponsor curated view configuration is future work.
-5. **Business-day calendars are weekday-only.** The elapsed-time metrics
-   moved to a Monday–Friday clock as v1.1, the versioned-change path
-   ADR-0004 prescribes. Per-country holiday calendars remain future
-   versioned work, not silently approximated.
+5. **Holiday calendars are one-per-study, and the shipped one is
+   fictional.** The business-day metrics subtract the study's governed
+   calendar (`calendars/*.yaml`, ADR-0016), but a study gets exactly one
+   calendar — per-country or per-site calendars for multi-region studies
+   are future versioned work. The example calendar's dates are deliberately
+   fictional; a deployment must author its own before the holiday-aware
+   numbers mean anything.
 6. **eTMF links are URIs, not verified references.** If the eTMF is not
    addressable by stable URI, links rot; surfacing link health is future
    work.

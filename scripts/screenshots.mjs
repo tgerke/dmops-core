@@ -187,14 +187,15 @@ const shots = [
     name: "metrics-strip",
     path: `/studies/${study1}`,
     persona: "dmlead",
-    // MetricsStrip is the only non-<section> child of the board column.
-    locator: "main > div > div",
+    // Second non-<section> child of the board column: the export toolbar
+    // (ADR-0016) is first, MetricsStrip is next.
+    locator: "main > div > div:nth-child(2)",
   },
   {
     name: "metric-drilldown",
     path: `/studies/${study1}`,
     persona: "dmlead",
-    locator: "main > div > div",
+    locator: "main > div > div:nth-child(2)",
     run: async (page) => {
       // Query TAT has site grain, so the by-site table has rows to show.
       await page
@@ -277,7 +278,13 @@ const shots = [
     name: "metrics-unavailable",
     path: `/studies/${study2}`,
     persona: "dmlead",
-    locator: "main > div > div",
+    locator: "main > div > div:nth-child(2)",
+  },
+  {
+    name: "kpi-pack",
+    path: `/studies/${study1}/kpi-pack`,
+    persona: "dmlead",
+    fullPage: true,
   },
   {
     name: "portfolio",

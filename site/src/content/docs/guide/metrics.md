@@ -84,9 +84,9 @@ The DM suite, on every study:
 
 | Metric | Current | Definition in short |
 | --- | --- | --- |
-| `query_tat_median` | 1.1 | Median business days, issuance to closure, closed in period |
+| `query_tat_median` | 1.2 | Median business days, issuance to closure, closed in period |
 | `query_open_aging` | 1.0 | Open queries older than 30 days at period end |
-| `entry_lag` | 1.1 | Median business days from visit date to first data entry |
+| `entry_lag` | 1.2 | Median business days from visit date to first data entry |
 | `milestone_slip` | 1.0 | Median days, baseline to actual, completed in period |
 | `lock_readiness_pct` | 1.0 | Percent of lock gates with an actual completion by period end |
 | `training_current_pct` | 1.0 | Percent of required training completed and unexpired at period end |
@@ -109,16 +109,20 @@ repository work,
 
 | Metric | Current | Definition in short |
 | --- | --- | --- |
-| `pr_review_tat_median` | 1.0 | Median business days, PR opened to earliest submitted review |
-| `pr_cycle_time_median` | 1.0 | Median business days, PR opened to merged, merged in period |
+| `pr_review_tat_median` | 1.1 | Median business days, PR opened to earliest submitted review |
+| `pr_cycle_time_median` | 1.1 | Median business days, PR opened to merged, merged in period |
 | `issue_closure_lag_median` | 1.0 | Median calendar days, issue opened to closed, closed in period |
 | `issue_open_aging` | 1.0 | Open issues older than 30 days at period end |
 
 `release_cadence` is named and deferred until a `releases` frame exists.
 
-The version story has now been exercised once: the two elapsed-time DM
-metrics moved from calendar days (v1.0) to a Monday–Friday business-day
-clock (v1.1). The v1.0 compute functions stay in the codebase and stay
+The version story has now been exercised twice on the same metrics: the
+elapsed-time DM metrics moved from calendar days (v1.0) to a Monday–Friday
+business-day clock (v1.1), and then every business-day clock learned to
+subtract the study's governed holiday calendar (`calendars/*.yaml`,
+[ADR-0016](/dmops-core/reference/decisions/0016-exports-reserve-stored-facts-and-governed-calendars/)).
+Every superseded compute function stays in the codebase and stays
 qualification-tested, so historical snapshots remain reproducible under the
-definition that computed them. Per-country holiday calendars are the next
-planned versioned change.
+definition that computed them. For the calendars themselves — and for
+getting these numbers out of the system as CSVs and the monthly KPI pack —
+see [Exports and KPI packs](/dmops-core/guide/exports/).
