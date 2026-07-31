@@ -1,19 +1,25 @@
-# Governed metric definition (ADR-0004; training and access mirrors, ADR-0013).
-# Needs one source covering both frames (ADR-0013): in split deployments —
-# access from the EDC, training from an LMS — this reports unavailable with
-# the named gap, and the roster view answers the question live instead.
+# Governed metric definition (ADR-0004; training and access mirrors, ADR-0013;
+# mirror-fed compute, ADR-0019). v2.0 reads the mirror tables the pipeline
+# maintains, so each frame may come from a different source: in split
+# deployments — access from the EDC, training from an LMS — the metric now
+# computes, answering the same question the roster view answers live, from
+# the same rows. Snapshot provenance is the mirrors' cited extracts.
 id: access_training_gap
 label: Active access with a training gap
 owner: DM Operations
-version: "1.0"
+version: "2.0"
 grain: [study]
+input: mirrors
 definition: >
   Count of persons holding at least one active access grant at period end
   whose training shows a gap as of period end - a required assignment (due
   by period end, or undated) not completed, a completion expired, or no
   training on file at all. The denominator is all persons with an active
   grant at period end; locked and deactivated accounts are excluded, and
-  assignments due after period end create no gap.
+  assignments due after period end create no gap. Computed over the training
+  and access mirrors, so the grants and the transcript may come from
+  different sources; each mirror is fed by the first active source that
+  supports its frame.
 clock_start: access_grants.granted_at
 clock_stop: period_end
 calendar: calendar_days

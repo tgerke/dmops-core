@@ -1,7 +1,7 @@
 import type { AdapterCapabilities } from "@dmops/adapter-contract";
-import { medrioAdapter, raveAdapter } from "@dmops/adapters";
+import { csvAdapter, edcCoreAdapter, medrioAdapter, raveAdapter } from "@dmops/adapters";
 import { describe, expect, it } from "vitest";
-import { metricAvailability } from "./engine.js";
+import { metricAvailability, mirrorFedAvailability } from "./engine.js";
 import { assertRegistryMatchesSpecs } from "./registry.js";
 import { loadSpecs } from "./spec.js";
 
@@ -93,6 +93,15 @@ describe("capability gating (DM-P1: skip, never silently approximate)", () => {
     if (!entryLag.available) expect(entryLag.missing).toEqual(["visits.visit_date"]);
   });
 
+  it("input 'mirrors' is declared only by the mirror frames' metric (ADR-0019)", () => {
+    for (const { spec } of specs) {
+      if (spec.input === "mirrors") {
+        expect(spec.id).toBe("access_training_gap");
+        expect(spec.source_frames.sort()).toEqual(["access_grants", "training_records"]);
+      }
+    }
+  });
+
   it("a visit-date CRF mapping in the source config lights entry_lag as derived (ADR-0018, DM-P1)", () => {
     const mapped = raveAdapter.capabilities({
       baseUrl: "https://rave.example/",
@@ -104,5 +113,66 @@ describe("capability gating (DM-P1: skip, never silently approximate)", () => {
     const entryLag = metricAvailability(byId("entry_lag"), mapped);
     expect(entryLag.available).toBe(true);
     if (entryLag.available) expect(entryLag.derived).toContain("visits.visit_date");
+  });
+});
+
+describe("mirror-fed availability (ADR-0019, DM-P1)", () => {
+  // A synthetic LMS posture: no LMS adapter has shipped (the deferral
+  // stands), so this is the honest maximum — the contract shape a real one
+  // would declare, never a claimed vendor capability (ADR-0005).
+  const lmsLike: AdapterCapabilities = {
+    adapter: "lms-like",
+    frames: {
+      training_records: {
+        supported: true,
+        fields: {
+          person_key: "native",
+          course_key: "native",
+          due_date: "native",
+          completed_date: "native",
+          expires_date: "native",
+        },
+      },
+    },
+  };
+  const gapSpec = () => {
+    const found = specs.find((s) => s.spec.id === "access_training_gap");
+    if (!found) throw new Error("access_training_gap spec not found");
+    return found.spec;
+  };
+
+  it("a split deployment — access from edc-core, training from an LMS — feeds the metric across sources", () => {
+    const result = mirrorFedAvailability(gapSpec(), [edcCoreAdapter.capabilities(), lmsLike]);
+    expect(result.available).toBe(true);
+  });
+
+  it("an EDC alone leaves the training frame with no feeder, and the gap is named", () => {
+    const result = mirrorFedAvailability(gapSpec(), [edcCoreAdapter.capabilities()]);
+    expect(result.available).toBe(false);
+    if (!result.available) {
+      expect(result.missing).toEqual(["training_records (no active source supports this frame)"]);
+    }
+  });
+
+  it("a single source covering both frames still feeds the metric — the demo posture", () => {
+    const result = mirrorFedAvailability(gapSpec(), [csvAdapter.capabilities()]);
+    expect(result.available).toBe(true);
+  });
+
+  it("a feeder that supports the frame but not a required field is a named gap, not an approximation", () => {
+    const noExpiry: AdapterCapabilities = {
+      adapter: "lms-no-expiry",
+      frames: {
+        training_records: {
+          supported: true,
+          fields: { person_key: "native", due_date: "native", completed_date: "native" },
+        },
+      },
+    };
+    const result = mirrorFedAvailability(gapSpec(), [edcCoreAdapter.capabilities(), noExpiry]);
+    expect(result.available).toBe(false);
+    if (!result.available) {
+      expect(result.missing).toEqual(["training_records.expires_date (source 'lms-no-expiry')"]);
+    }
   });
 });

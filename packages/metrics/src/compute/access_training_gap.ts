@@ -3,11 +3,13 @@ import type { ComputeFn, SnapshotValue } from "../types.js";
 import { currentAtPeriodEnd, requiredByPeriodEnd } from "./training_current_pct.js";
 
 /**
- * access_training_gap v1.0 (ADR-0013): count of persons with an active
- * access grant at period end whose training shows a gap — a required
- * assignment not current, or no training on file at all. The same predicate
- * v_study_access_roster flags live; this is its immutable monthly snapshot.
- * Grain: study only.
+ * access_training_gap v1.0/v2.0 (ADR-0013, ADR-0019): count of persons with
+ * an active access grant at period end whose training shows a gap — a
+ * required assignment not current, or no training on file at all. The same
+ * predicate v_study_access_roster flags live; this is its immutable monthly
+ * snapshot. Grain: study only. v2.0 changed only where the frames come from
+ * (the mirror tables, assembled by the pipeline); the math is identical, so
+ * one function carries both versions' DM-Q8 pins.
  */
 export const accessTrainingGap: ComputeFn = (frames, ctx) => {
   // Inclusive of grants made any time on the period-end day.

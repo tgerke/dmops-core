@@ -820,7 +820,8 @@ describe("metrics surface (DM-P1, DM-P2, DM-P3)", () => {
     ]);
     // The engine-current version per metric: the four business-day clocks
     // subtract the study's holiday calendar (ADR-0016) — the elapsed-time
-    // DM metrics at v1.2, the two PR metrics at v1.1; the rest of the DS
+    // DM metrics at v1.2, the two PR metrics at v1.1; the gap metric at
+    // v2.0 computes over the mirrors (ADR-0019); the rest of the DS
     // starter set (ADR-0012), the roster metrics (ADR-0013), and
     // lock-readiness (ADR-0014) ship at 1.0.
     const versions: Record<string, string> = {
@@ -834,7 +835,7 @@ describe("metrics surface (DM-P1, DM-P2, DM-P3)", () => {
       issue_closure_lag_median: "1.0",
       issue_open_aging: "1.0",
       training_current_pct: "1.0",
-      access_training_gap: "1.0",
+      access_training_gap: "2.0",
     };
     for (const m of body.metrics) {
       expect(m.availability).toBe("computed");
@@ -850,6 +851,36 @@ describe("metrics surface (DM-P1, DM-P2, DM-P3)", () => {
     expect(tat.latest).toBeNull();
     const slip = body.metrics.find((m: { metric_id: string }) => m.metric_id === "milestone_slip");
     expect(slip.availability).toBe("computed");
+  });
+
+  it("DM-P1: an EDC-only study names the training frame's missing feeder for the mirror-fed metric (ADR-0019)", async () => {
+    // Wire study2 to edc-core alone: access_grants has a feeder, the
+    // training frame does not — the split-deployment posture from the EDC
+    // side. Written as the owning role; removed after, so the
+    // no-source assertions above stay true on the next run.
+    await owner`
+      INSERT INTO study_source (study_id, adapter, source_study_key)
+      VALUES (${study2}, 'edc-core', 'DMOPS-002')`;
+    try {
+      const body = await (await get(`/studies/${study2}/metrics`, "dev-dmlead-token")).json();
+      const gap = body.metrics.find(
+        (m: { metric_id: string }) => m.metric_id === "access_training_gap",
+      );
+      expect(gap.availability).toBe(
+        "unavailable: training_records (no active source supports this frame)",
+      );
+      // The same source feeds what it can: the query metrics are available
+      // (not yet computed — no refresh has run against it).
+      const tat = body.metrics.find(
+        (m: { metric_id: string }) => m.metric_id === "query_tat_median",
+      );
+      expect(tat.availability).toBe("not yet computed");
+      // entry_lag stays gated with edc-core's named gap (ADR-0018 posture).
+      const lag = body.metrics.find((m: { metric_id: string }) => m.metric_id === "entry_lag");
+      expect(lag.availability).toMatch(/^unavailable: source 'edc-core' missing visits.visit_date/);
+    } finally {
+      await owner`DELETE FROM study_source WHERE study_id = ${study2} AND adapter = 'edc-core'`;
+    }
   });
 
   it("DM-P3: snapshot history is served from immutable rows with extract lineage", async () => {

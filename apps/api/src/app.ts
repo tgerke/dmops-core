@@ -43,7 +43,12 @@ import {
   updateUatDefect,
 } from "@dmops/core";
 import type { Sql } from "@dmops/db";
-import { assertRegistryMatchesSpecs, loadSpecs, metricAvailability } from "@dmops/metrics";
+import {
+  assertRegistryMatchesSpecs,
+  loadSpecs,
+  metricAvailability,
+  mirrorFedAvailability,
+} from "@dmops/metrics";
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 import { type Env, authMiddleware, authMode, configureTokens } from "./auth.js";
@@ -918,14 +923,15 @@ export function buildApp(sql: Sql) {
       const specs = assertRegistryMatchesSpecs(loadSpecs()).filter(({ spec }) =>
         modules.includes(spec.module),
       );
-      const [source] = await sql`
-        SELECT adapter, config FROM study_source WHERE study_id = ${studyId} AND active`;
-      // Posture can depend on the study's source config (ADR-0018).
-      const capabilities = source
-        ? getAdapter(source.adapter as string).capabilities(
-            source.config as Record<string, unknown>,
-          )
-        : null;
+      // All active sources, in the pipeline's deterministic adapter order
+      // (ADR-0012); posture can depend on each source's config (ADR-0018).
+      const sources = await sql`
+        SELECT adapter, config FROM study_source
+        WHERE study_id = ${studyId} AND active
+        ORDER BY adapter`;
+      const capabilities = sources.map((s) =>
+        getAdapter(s.adapter as string).capabilities(s.config as Record<string, unknown>),
+      );
       const latest = await sql`
         SELECT * FROM v_metric_latest
         WHERE study_id = ${studyId} AND grain = 'study'`;
@@ -935,15 +941,35 @@ export function buildApp(sql: Sql) {
         let availability: string;
         if (spec.source_frames.length === 0) {
           availability = snapshot ? "computed" : "not yet computed";
-        } else if (!capabilities) {
+        } else if (capabilities.length === 0) {
           availability = "unavailable: no active study_source";
-        } else {
-          const a = metricAvailability(spec, capabilities);
+        } else if (spec.input === "mirrors") {
+          // Mirror-fed (ADR-0019): gated per frame against the source that
+          // feeds that mirror, so a split deployment reads as available.
+          const a = mirrorFedAvailability(spec, capabilities);
           availability = a.available
             ? snapshot
               ? "computed"
               : "not yet computed"
-            : `unavailable: source '${capabilities.adapter}' missing ${a.missing.join(", ")}`;
+            : `unavailable: ${a.missing.join(", ")}`;
+        } else {
+          // Extraction-fed: the first source that can feed it wins, the
+          // same rule the pipeline applies (ADR-0012).
+          const gaps: string[] = [];
+          let available = false;
+          for (const caps of capabilities) {
+            const a = metricAvailability(spec, caps);
+            if (a.available) {
+              available = true;
+              break;
+            }
+            gaps.push(`source '${caps.adapter}' missing ${a.missing.join(", ")}`);
+          }
+          availability = available
+            ? snapshot
+              ? "computed"
+              : "not yet computed"
+            : `unavailable: ${gaps.join("; ")}`;
         }
         return {
           metric_id: spec.id,

@@ -9,12 +9,14 @@ import { getAdapter } from "@dmops/adapters";
 import type { Sql } from "@dmops/db";
 import {
   type LoadedSpec,
+  MIRROR_FRAMES,
   type MilestoneDefinitionFact,
   type MilestoneFact,
   assertRegistryMatchesSpecs,
   computeFn,
   loadSpecs,
   metricAvailability,
+  mirrorFedAvailability,
   resolveCalendar,
 } from "@dmops/metrics";
 
@@ -30,9 +32,10 @@ export interface RefreshResult {
   warnings: string[];
 }
 
-// Frames that persist as roster mirrors (ADR-0013), refreshed alongside the
-// metrics from the first active source that supports them.
-const MIRROR_FRAMES = ["training_records", "access_grants"] as const satisfies readonly FrameName[];
+// MIRROR_FRAMES — the frames that persist as roster mirrors (ADR-0013),
+// refreshed alongside the metrics from the first active source that
+// supports them — now lives in @dmops/metrics, where the dictionary schema
+// validates `input: mirrors` against it (ADR-0019).
 
 /**
  * The snapshot pipeline (ADR-0005, ADR-0007): extract → validate → record a
@@ -72,12 +75,16 @@ export async function refreshStudyMetrics(
     WHERE study_id = ${studyId} AND active
     ORDER BY adapter`;
 
-  // Split metrics into adapter-fed and dmops-native (empty source_frames).
-  const adapterSpecs = specs.filter((s) => s.spec.source_frames.length > 0);
+  // Split metrics three ways (ADR-0019): fed by one source's extraction,
+  // fed by the mirror tables, or dmops-native (empty source_frames).
+  const adapterSpecs = specs.filter(
+    (s) => s.spec.source_frames.length > 0 && s.spec.input === "extraction",
+  );
+  const mirrorSpecs = specs.filter((s) => s.spec.input === "mirrors");
   const nativeSpecs = specs.filter((s) => s.spec.source_frames.length === 0);
 
   if (sources.length === 0) {
-    for (const loaded of adapterSpecs) {
+    for (const loaded of [...adapterSpecs, ...mirrorSpecs]) {
       result.skipped.push({ metricId: loaded.spec.id, reason: "no active study_source" });
     }
   } else {
@@ -129,6 +136,10 @@ export async function refreshStudyMetrics(
     const sourceIndices = [...new Set([...runnableBySource.keys(), ...mirrorBySource.keys()])].sort(
       (a, b) => a - b,
     );
+    // Mirror frames whose feeding source failed to extract this run: the
+    // mirror keeps its previous rows for the roster, but a mirror-fed
+    // metric must not quietly snapshot them (ADR-0019).
+    const staleMirrorFrames = new Set<FrameName>();
     for (const i of sourceIndices) {
       const runnable = runnableBySource.get(i) ?? [];
       const mirrorFrames = mirrorBySource.get(i) ?? [];
@@ -163,6 +174,7 @@ export async function refreshStudyMetrics(
           result.skipped.push({ metricId: loaded.spec.id, reason: `extract failed: ${detail}` });
         }
         for (const frame of mirrorFrames) {
+          staleMirrorFrames.add(frame);
           result.warnings.push(`${frame}: extract failed — mirror keeps its previous rows`);
         }
         // Other sources and dmops-native metrics still compute.
@@ -187,6 +199,44 @@ export async function refreshStudyMetrics(
           holidays,
         );
       }
+    }
+
+    // Mirror-fed metrics (ADR-0019): computed over the mirror tables after
+    // every source has extracted, so the grants and the transcript may come
+    // from different sources. Gated per frame against the source that feeds
+    // that mirror; the snapshot cites no single extract — each mirror row
+    // cites its own (the native-metric posture).
+    for (const loaded of mirrorSpecs) {
+      const availability = mirrorFedAvailability(loaded.spec, capabilities);
+      if (!availability.available) {
+        result.skipped.push({
+          metricId: loaded.spec.id,
+          reason: `unavailable: ${availability.missing.join(", ")}`,
+        });
+        continue;
+      }
+      const stale = (Object.keys(loaded.spec.required_fields) as FrameName[]).filter((f) =>
+        staleMirrorFrames.has(f),
+      );
+      if (stale.length > 0) {
+        result.skipped.push({
+          metricId: loaded.spec.id,
+          reason: `extract failed for ${stale.join(", ")} — not computed over a stale mirror`,
+        });
+        continue;
+      }
+      const frames = await readMirrorFrames(sql, studyId);
+      await computeAndInsert(
+        sql,
+        studyId,
+        loaded,
+        frames,
+        period,
+        result,
+        new Map(),
+        null,
+        holidays,
+      );
     }
   }
 
@@ -264,6 +314,43 @@ async function replaceMirror(
     }
   });
   return rows.length;
+}
+
+/**
+ * Read the two mirror tables back into contract frames (ADR-0019). The rows
+ * are the same validated rows the refresh wrote — the mirror is the record
+ * of "training and access as this refresh saw them", which is exactly what
+ * the mirror-fed compute should see, and what the roster view displays.
+ */
+async function readMirrorFrames(sql: Sql, studyId: string): Promise<NormalizedFrames> {
+  const trainingRows = await sql`
+    SELECT person_key, person_name, course_key, course_title,
+           due_date, completed_date, expires_date
+    FROM training_mirror WHERE study_id = ${studyId}`;
+  const accessRows = await sql`
+    SELECT person_key, person_name, role_key, site_key, status, granted_at
+    FROM access_mirror WHERE study_id = ${studyId}`;
+  const iso = (v: unknown): string | null =>
+    v == null ? null : new Date(v as string).toISOString();
+  return {
+    training_records: trainingRows.map((r) => ({
+      person_key: r.person_key,
+      person_name: r.person_name,
+      course_key: r.course_key,
+      course_title: r.course_title,
+      due_date: r.due_date,
+      completed_date: r.completed_date,
+      expires_date: r.expires_date,
+    })) as TrainingRecordRow[],
+    access_grants: accessRows.map((r) => ({
+      person_key: r.person_key,
+      person_name: r.person_name,
+      role_key: r.role_key,
+      site_key: r.site_key,
+      status: r.status,
+      granted_at: iso(r.granted_at),
+    })) as AccessGrantRow[],
+  };
 }
 
 async function computeAndInsert(

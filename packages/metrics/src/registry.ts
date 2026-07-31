@@ -27,9 +27,11 @@ const registry = new Map<string, ComputeFn>([
   ["milestone_slip@1.0", milestoneSlip],
   // Lock-readiness (ADR-0014).
   ["lock_readiness_pct@1.0", lockReadinessPct],
-  // Training and access mirrors (ADR-0013).
+  // Training and access mirrors (ADR-0013). v2.0 changed sourcing, not
+  // math: the pipeline feeds it from the mirror tables (ADR-0019), and one
+  // function serves both versions' DM-Q8 pins.
   ["training_current_pct@1.0", trainingCurrentPct],
-  ["access_training_gap@1.0", accessTrainingGap],
+  ["access_training_gap@2.0", accessTrainingGap],
   // DS starter set (ADR-0012), module: stat.
   ["pr_review_tat_median@1.1", prReviewTatMedianV1_1],
   ["pr_cycle_time_median@1.1", prCycleTimeMedianV1_1],

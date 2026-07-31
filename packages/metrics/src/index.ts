@@ -5,10 +5,11 @@ export {
   resolveCalendar,
   type HolidayCalendar,
 } from "./calendars.js";
-export { metricAvailability, type MetricAvailability } from "./engine.js";
+export { metricAvailability, mirrorFedAvailability, type MetricAvailability } from "./engine.js";
 export { POOLING, poolingKind, type PoolingKind } from "./pooling.js";
 export { assertRegistryMatchesSpecs, computeFn } from "./registry.js";
 export {
+  MIRROR_FRAMES,
   defaultMetricsDir,
   loadSpecs,
   metricSpec,

@@ -227,7 +227,7 @@ describe("metric qualification against hand-computed fixtures", () => {
     expect(byGrain(none, "study")).toMatchObject({ value: null, n_records: 0 });
   });
 
-  it("DM-Q8: access_training_gap v1.0 matches hand-computed truth for DMOPS-001", () => {
+  it("DM-Q8: access_training_gap v1.0/v2.0 matches hand-computed truth for DMOPS-001 (v2.0 changed sourcing, not math — ADR-0019)", () => {
     const rows = accessTrainingGap(frames, ctx);
     expect(byGrain(rows, "study")).toMatchObject(expected.access_training_gap.study);
   });
