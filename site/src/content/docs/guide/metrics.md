@@ -90,13 +90,17 @@ The DM suite, on every study:
 | `milestone_slip` | 1.0 | Median days, baseline to actual, completed in period |
 | `lock_readiness_pct` | 1.0 | Percent of lock gates with an actual completion by period end |
 | `training_current_pct` | 1.0 | Percent of required training completed and unexpired at period end |
-| `access_training_gap` | 1.0 | Persons with active access whose training is missing, overdue, or expired |
+| `access_training_gap` | 2.0 | Persons with active access whose training is missing, overdue, or expired |
 
-The two roster metrics compute from the training and access mirrors' frames
-([ADR-0013](/dmops-core/reference/decisions/0013-training-and-access-mirrors/));
-see [Training & access](/dmops-core/guide/training-access/) for the mirror
-surface itself, including why `access_training_gap` reports unavailable in a
-split deployment where access and training come from different sources.
+The two roster metrics come from the training and access mirrors
+([ADR-0013](/dmops-core/reference/decisions/0013-training-and-access-mirrors/)).
+Since v2.0, `access_training_gap` computes over the mirror tables themselves
+([ADR-0019](/dmops-core/reference/decisions/0019-training-gap-computes-over-the-mirrors/)),
+so the grants and the transcript may come from different sources — a split
+deployment with access from the EDC and training from an LMS now gets the
+monthly snapshot, not just the live roster. See
+[Training & access](/dmops-core/guide/training-access/) for the mirror
+surface itself.
 `lock_readiness_pct` is dmops-native like `milestone_slip` — its source is
 the milestone board and the taxonomy's dependency graph, so it computes on
 every study with no adapter at all; see
@@ -116,11 +120,15 @@ repository work,
 
 `release_cadence` is named and deferred until a `releases` frame exists.
 
-The version story has now been exercised twice on the same metrics: the
-elapsed-time DM metrics moved from calendar days (v1.0) to a Monday–Friday
-business-day clock (v1.1), and then every business-day clock learned to
-subtract the study's governed holiday calendar (`calendars/*.yaml`,
-[ADR-0016](/dmops-core/reference/decisions/0016-exports-reserve-stored-facts-and-governed-calendars/)).
+The version story has now been exercised three times: the elapsed-time DM
+metrics moved from calendar days (v1.0) to a Monday–Friday business-day
+clock (v1.1), then every business-day clock learned to subtract the study's
+governed holiday calendar (`calendars/*.yaml`,
+[ADR-0016](/dmops-core/reference/decisions/0016-exports-reserve-stored-facts-and-governed-calendars/)),
+and then `access_training_gap` v2.0 changed its sourcing without changing
+its math — the first major bump, because where the numbers come from is
+part of the definition
+([ADR-0019](/dmops-core/reference/decisions/0019-training-gap-computes-over-the-mirrors/)).
 Every superseded compute function stays in the codebase and stays
 qualification-tested, so historical snapshots remain reproducible under the
 definition that computed them. For the calendars themselves — and for

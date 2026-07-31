@@ -88,7 +88,7 @@ report), `pnpm metrics:refresh` (cron-friendly snapshot computation).
 
 ## Status
 
-A working slice 11, not a product. What exists: the study registry, the full
+A working slice 12, not a product. What exists: the study registry, the full
 DM milestone taxonomy with a role-scoped board and audited writes, a
 deliverables surface with eTMF pointers and audited status updates, UAT
 cycle and defect tracking with a completion gate ("UAT complete" refuses to
@@ -135,10 +135,15 @@ in its source config the CRF item and date format that carry its visit
 dates, the adapter reads that item's entered values off the audit tape it
 already replays, and entry lag lights up as derived — the same
 investigation closed Medrio's path as not publicly implementable, its
-public API having no surface that reads entered values back (ADR-0018).
+public API having no surface that reads entered values back (ADR-0018),
+and the mirror-fed training-gap metric: `access_training_gap` v2.0
+computes over the mirror tables the pipeline already maintains, each frame
+fed by the first source that supports it, so a split deployment — access
+from the EDC, training from an LMS — gets the monthly snapshot the moment
+an LMS adapter exists, the version machinery's first major bump because
+sourcing changed and math did not (ADR-0019).
 What comes next, in no committed order: an LMS adapter (the CSV fixture is
-still the only training source), MAuth for Rave, and a native-over-mirrors
-cross-source training-gap metric.
+still the only training source) and MAuth for Rave.
 
 This is not validated software. The IQ script, OQ report, and traceability
 matrix are generated raw material for a validation program; running that

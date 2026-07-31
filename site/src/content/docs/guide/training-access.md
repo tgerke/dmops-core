@@ -49,13 +49,17 @@ internal notes here to curate away.
 
 `training_current_pct` and `access_training_gap` snapshot the same facts
 into the immutable warehouse monthly (DM-Q7, DM-Q8), so compliance has a
-trend, not just a today. `access_training_gap` needs one source covering
-both frames; in a split deployment — access from the EDC, training from an
-LMS — it reports unavailable with the named gap while the roster keeps
-answering live, because the roster joins the mirrors regardless of which
-source fed each. Person identity across sources is the email address by
-convention; the mirrors deliberately never link to this system's own person
-registry.
+trend, not just a today. Since v2.0, `access_training_gap` computes over
+the mirror tables themselves
+([ADR-0019](/dmops-core/reference/decisions/0019-training-gap-computes-over-the-mirrors/)):
+each mirror is fed by the first active source that supports its frame, so
+in a split deployment — access from the EDC, training from an LMS — the
+metric computes from the same rows the roster displays, and metric and
+roster answer the same question by construction. A frame no source can
+feed is still a named gap, never a silent zero: an EDC-only study reports
+`training_records` as having no feeder. Person identity across sources is
+the email address by convention; the mirrors deliberately never link to
+this system's own person registry.
 
 Which sources can feed the mirrors today: the csv fixture adapter carries
 both frames, and the edc-core adapter supplies `access_grants` from its
