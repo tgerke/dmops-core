@@ -3,18 +3,20 @@
 id: query_tat_median
 label: Query turnaround time (median)
 owner: DM Operations
-version: "1.1"
+version: "1.2"
 grain: [study, site]
 definition: >
   Median elapsed business days from query issuance to query closure, across
   queries closed within the reporting period. Issue-to-close, not
   issue-to-first-response. Business days are Monday through Friday by UTC
-  date: the count of weekday dates strictly after the issuance date, up to
-  and including the closure date. No holiday calendar in v1.1; per-country
-  holidays are a future versioned change. v1.0 measured calendar days.
+  date — the count of weekday dates strictly after the issuance date, up to
+  and including the closure date — excluding dates in the study's assigned
+  holiday calendar (calendars/*.yaml, ADR-0016); a study with no calendar
+  counts weekdays only. v1.0 measured calendar days; v1.1 counted weekdays
+  with no holiday calendar.
 clock_start: queries.opened_at
 clock_stop: queries.closed_at
-calendar: business_days # v1.1 is weekday-only; holiday calendars are a future versioned change
+calendar: business_days # v1.2 subtracts the study's governed holiday calendar (ADR-0016)
 include:
   - manual queries
   - system-generated queries requiring site response

@@ -11,6 +11,7 @@ import type { NormalizedFrames } from "@dmops/adapter-contract";
 import { csvAdapter } from "@dmops/adapters/csv";
 import { beforeAll, describe, expect, it } from "vitest";
 import { parse } from "yaml";
+import { loadCalendars, resolveCalendar } from "../calendars.js";
 import {
   type MilestoneDefinitionFact,
   type MilestoneFact,
@@ -18,15 +19,15 @@ import {
   businessDaysBetween,
 } from "../types.js";
 import { accessTrainingGap } from "./access_training_gap.js";
-import { entryLag, entryLagV1_1 } from "./entry_lag.js";
+import { entryLag, entryLagV1_1, entryLagV1_2 } from "./entry_lag.js";
 import { issueClosureLagMedian } from "./issue_closure_lag_median.js";
 import { issueOpenAging } from "./issue_open_aging.js";
 import { lockReadinessPct } from "./lock_readiness_pct.js";
 import { milestoneSlip } from "./milestone_slip.js";
-import { prCycleTimeMedian } from "./pr_cycle_time_median.js";
-import { prReviewTatMedian } from "./pr_review_tat_median.js";
+import { prCycleTimeMedian, prCycleTimeMedianV1_1 } from "./pr_cycle_time_median.js";
+import { prReviewTatMedian, prReviewTatMedianV1_1 } from "./pr_review_tat_median.js";
 import { queryOpenAging } from "./query_open_aging.js";
-import { queryTatMedian, queryTatMedianV1_1 } from "./query_tat_median.js";
+import { queryTatMedian, queryTatMedianV1_1, queryTatMedianV1_2 } from "./query_tat_median.js";
 import { trainingCurrentPct } from "./training_current_pct.js";
 
 const expected = JSON.parse(
@@ -92,6 +93,30 @@ describe("metric qualification against hand-computed fixtures", () => {
   it("DM-Q6: entry_lag v1.1 (business days) matches hand-computed truth for DMOPS-001", () => {
     const rows = entryLagV1_1(frames, ctx);
     expect(byGrain(rows, "study")).toMatchObject(expected.entry_lag_v1_1.study);
+  });
+
+  // The shipped calendar, read verbatim: the same governed file the pipeline
+  // resolves (ADR-0016), so these tests pin the fixture dates and the
+  // compute to one truth — a calendar edit that moves a June date fails
+  // here, not silently in production numbers.
+  const holidays = resolveCalendar("pmo", loadCalendars());
+
+  it("DM-Q5: query_tat_median v1.2 (holiday-aware) matches hand-computed truth under the shipped calendar", () => {
+    const rows = queryTatMedianV1_2(frames, { ...ctx, holidays });
+    expect(byGrain(rows, "study")).toMatchObject(expected.query_tat_median_v1_2.study);
+    expect(byGrain(rows, "site", "001")).toMatchObject(expected.query_tat_median_v1_2.site["001"]);
+    expect(byGrain(rows, "site", "002")).toMatchObject(expected.query_tat_median_v1_2.site["002"]);
+  });
+
+  it("DM-Q5: query_tat_median v1.2 with no calendar reproduces the v1.1 weekday-only truth", () => {
+    // "No calendar counts weekdays only" is part of the v1.2 definition.
+    const rows = queryTatMedianV1_2(frames, ctx);
+    expect(byGrain(rows, "study")).toMatchObject(expected.query_tat_median_v1_1.study);
+  });
+
+  it("DM-Q6: entry_lag v1.2 (holiday-aware) matches hand-computed truth under the shipped calendar", () => {
+    const rows = entryLagV1_2(frames, { ...ctx, holidays });
+    expect(byGrain(rows, "study")).toMatchObject(expected.entry_lag_v1_2.study);
   });
 
   it("DM-Q4: milestone_slip matches hand-computed truth on constructed milestone facts", () => {
@@ -236,6 +261,19 @@ describe("DS metric qualification against hand-computed fixtures (stat module, A
     expect(byGrain(rows, "study")).toMatchObject(expected.pr_cycle_time_median.study);
   });
 
+  const holidays = resolveCalendar("pmo", loadCalendars());
+
+  it("DS-Q1: pr_review_tat_median v1.1 (holiday-aware) matches hand-computed truth under the shipped calendar", () => {
+    const rows = prReviewTatMedianV1_1(frames, { ...ctx, holidays });
+    expect(byGrain(rows, "study")).toMatchObject(expected.pr_review_tat_median_v1_1.study);
+    expect(rows).toHaveLength(1);
+  });
+
+  it("DS-Q2: pr_cycle_time_median v1.1 (holiday-aware) matches hand-computed truth under the shipped calendar", () => {
+    const rows = prCycleTimeMedianV1_1(frames, { ...ctx, holidays });
+    expect(byGrain(rows, "study")).toMatchObject(expected.pr_cycle_time_median_v1_1.study);
+  });
+
   it("DS-Q3: issue_closure_lag_median v1.0 (calendar days) matches hand-computed truth for DMOPS-001", () => {
     const rows = issueClosureLagMedian(frames, ctx);
     expect(byGrain(rows, "study")).toMatchObject(expected.issue_closure_lag_median.study);
@@ -267,6 +305,17 @@ describe("businessDaysBetween (the v1.1 day-counting rule, ADR-0004)", () => {
   it("same-day is zero and reversed inputs negate", () => {
     expect(businessDaysBetween("2026-06-03", "2026-06-03")).toBe(0);
     expect(businessDaysBetween("2026-06-08", "2026-06-05")).toBe(-1);
+  });
+
+  it("subtracts holiday dates, and a weekend holiday changes nothing (ADR-0016)", () => {
+    // Mon 6/15 as a holiday: Fri 6/12 → Wed 6/17 counts {16,17} = 2.
+    expect(businessDaysBetween("2026-06-12", "2026-06-17", ["2026-06-15"])).toBe(2);
+    // Sat 6/13 listed as a holiday is already a non-working date.
+    expect(businessDaysBetween("2026-06-12", "2026-06-17", ["2026-06-13"])).toBe(3);
+    // Reversed inputs still negate under a calendar.
+    expect(businessDaysBetween("2026-06-17", "2026-06-12", ["2026-06-15"])).toBe(-2);
+    // An empty calendar is the weekday-only rule.
+    expect(businessDaysBetween("2026-06-12", "2026-06-17", [])).toBe(3);
   });
 });
 

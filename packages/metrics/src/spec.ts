@@ -46,6 +46,13 @@ export interface LoadedSpec {
   file: string;
 }
 
+/** Parse one registered definition (metric_definition.spec_yaml) back into a
+ * typed spec — the KPI pack serves the registered copy, not the working tree
+ * (ADR-0016). */
+export function parseSpec(raw: string): MetricSpec {
+  return metricSpec.parse(parse(raw));
+}
+
 export function defaultMetricsDir(): string {
   return fileURLToPath(new URL("../../../metrics", import.meta.url));
 }

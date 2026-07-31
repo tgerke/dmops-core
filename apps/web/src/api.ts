@@ -262,6 +262,64 @@ export interface Portfolio {
   };
 }
 
+// KPI pack (ADR-0016): one period's snapshots for one study, each metric
+// with its registered definition at the computed version, plus the cited
+// source extracts. Assembled from stored facts; nothing computed or stored.
+export interface PackSnapshot {
+  metric_version: string;
+  grain: string;
+  site_number: string | null;
+  period_start: string;
+  period_end: string;
+  value: string | null;
+  numerator: string | null;
+  denominator: string | null;
+  n_records: number | null;
+  computed_at: string;
+  source_extract_id: string | null;
+}
+
+export interface PackMetric {
+  metric_id: string;
+  version: string;
+  label: string;
+  module: string;
+  target: string | null;
+  definition: string;
+  absence: string | null;
+  snapshot: PackSnapshot | null;
+  sites: PackSnapshot[];
+}
+
+export interface KpiPack {
+  study: {
+    study_id: string;
+    protocol_number: string;
+    short_title: string | null;
+    phase: string | null;
+    indication: string | null;
+    status: string;
+    sponsor_name: string | null;
+    dm_lead_name: string | null;
+    modules: string[];
+    calendar: { id: string; label: string | null } | null;
+  };
+  period: { start: string; end: string };
+  available_periods: string[];
+  generated_at: string;
+  generated_by: string;
+  metrics: PackMetric[];
+  provenance: {
+    extracts: {
+      id: string;
+      adapter: string;
+      extracted_at: string;
+      checksum: string;
+      row_counts: Record<string, number> | null;
+    }[];
+  };
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -287,9 +345,33 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/**
+ * Fetch a CSV export with the persona's bearer token and hand it to the
+ * browser as a download — a plain <a href> cannot carry the header.
+ */
+export async function downloadCsv(path: string): Promise<void> {
+  const res = await fetch(`/api${path}`, {
+    headers: { authorization: `Bearer ${currentPersona().token}` },
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new ApiError(res.status, body.error ?? `${res.status} ${res.statusText}`);
+  }
+  const disposition = res.headers.get("content-disposition") ?? "";
+  const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? "export.csv";
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export const api = {
   studies: () => request<StudySummary[]>("/studies"),
   portfolio: () => request<Portfolio>("/portfolio"),
+  kpiPack: (studyId: string, period?: string) =>
+    request<KpiPack>(`/studies/${studyId}/kpi-pack${period ? `?period=${period}` : ""}`),
   milestones: (studyId: string) =>
     request<{ milestones: BoardRow[] }>(`/studies/${studyId}/milestones`),
   metrics: (studyId: string) => request<{ metrics: StudyMetric[] }>(`/studies/${studyId}/metrics`),

@@ -431,6 +431,65 @@ export const PortfolioSchema = z.object({
   }),
 });
 
+// --- exports and KPI packs (ADR-0016) ---------------------------------------
+
+export const PackSnapshotSchema = z.object({
+  metric_version: z.string(),
+  grain: z.string(),
+  site_number: z.string().nullable(),
+  period_start: z.string(),
+  period_end: z.string(),
+  value: z.string().nullable(),
+  numerator: z.string().nullable(),
+  denominator: z.string().nullable(),
+  n_records: z.number().nullable(),
+  computed_at: z.string(),
+  source_extract_id: z.string().nullable(),
+});
+
+export const PackMetricSchema = z.object({
+  metric_id: z.string(),
+  version: z.string(),
+  label: z.string(),
+  module: z.string(),
+  target: z.string().nullable(),
+  definition: z.string(),
+  absence: z.string().nullable(),
+  snapshot: PackSnapshotSchema.nullable(),
+  sites: z.array(PackSnapshotSchema),
+});
+
+export const KpiPackSchema = z.object({
+  study: z.object({
+    study_id: z.string().uuid(),
+    protocol_number: z.string(),
+    short_title: z.string().nullable(),
+    phase: z.string().nullable(),
+    indication: z.string().nullable(),
+    status: z.string(),
+    sponsor_name: z.string().nullable(),
+    dm_lead_name: z.string().nullable(),
+    modules: z.array(z.string()),
+    calendar: z.object({ id: z.string(), label: z.string().nullable() }).nullable(),
+  }),
+  period: z.object({ start: z.string(), end: z.string() }),
+  available_periods: z.array(z.string()),
+  generated_at: z.string(),
+  generated_by: z.string(),
+  metrics: z.array(PackMetricSchema),
+  provenance: z.object({
+    extracts: z.array(
+      z.object({
+        id: z.string().uuid(),
+        adapter: z.string(),
+        extracted_at: z.string(),
+        checksum: z.string(),
+        row_counts: z.record(z.string(), z.number()).nullable(),
+      }),
+    ),
+  }),
+});
+
 export const HealthSchema = z.object({
   status: z.string(),
   migrations: z.number(),

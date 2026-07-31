@@ -64,6 +64,13 @@
       "when": 1785400008000,
       "tag": "0008_portfolio_rollup",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785400009000,
+      "tag": "0009_holiday_calendar",
+      "breakpoints": true
     }
   ]
 }

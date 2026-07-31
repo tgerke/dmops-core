@@ -3,15 +3,17 @@ id: pr_cycle_time_median
 label: PR cycle time (median)
 owner: Statistical Programming
 module: stat
-version: "1.0"
+version: "1.1"
 grain: [study]
 definition: >
   Median elapsed business days from pull request opened to merged, across
   pull requests merged within the reporting period. Open pull requests and
   pull requests closed without merging never enter; the clock starts at pull
   request creation even when that predates the period. Business days are
-  Monday through Friday by UTC date, the same rule as query_tat_median v1.1;
-  no holiday calendar.
+  Monday through Friday by UTC date, excluding dates in the study's assigned
+  holiday calendar (calendars/*.yaml, ADR-0016) — the same rule as
+  query_tat_median v1.2; a study with no calendar counts weekdays only.
+  v1.0 counted weekdays with no holiday calendar.
 clock_start: pull_requests.opened_at
 clock_stop: pull_requests.merged_at
 calendar: business_days

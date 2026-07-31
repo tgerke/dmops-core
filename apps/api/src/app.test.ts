@@ -55,7 +55,7 @@ describe("authentication", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.audit_chain_verified).toBe(true);
-    expect(body.migrations).toBe(9);
+    expect(body.migrations).toBe(10);
   });
 });
 
@@ -818,18 +818,19 @@ describe("metrics surface (DM-P1, DM-P2, DM-P3)", () => {
       "query_tat_median",
       "training_current_pct",
     ]);
-    // The engine-current version per metric: the two elapsed-time DM metrics
-    // moved to business-day clocks as v1.1 (ADR-0004); the DS starter set
-    // (ADR-0012), the roster metrics (ADR-0013), and lock-readiness
-    // (ADR-0014) ship at 1.0.
+    // The engine-current version per metric: the four business-day clocks
+    // subtract the study's holiday calendar (ADR-0016) — the elapsed-time
+    // DM metrics at v1.2, the two PR metrics at v1.1; the rest of the DS
+    // starter set (ADR-0012), the roster metrics (ADR-0013), and
+    // lock-readiness (ADR-0014) ship at 1.0.
     const versions: Record<string, string> = {
-      query_tat_median: "1.1",
+      query_tat_median: "1.2",
       query_open_aging: "1.0",
-      entry_lag: "1.1",
+      entry_lag: "1.2",
       milestone_slip: "1.0",
       lock_readiness_pct: "1.0",
-      pr_review_tat_median: "1.0",
-      pr_cycle_time_median: "1.0",
+      pr_review_tat_median: "1.1",
+      pr_cycle_time_median: "1.1",
       issue_closure_lag_median: "1.0",
       issue_open_aging: "1.0",
       training_current_pct: "1.0",
@@ -861,7 +862,7 @@ describe("metrics surface (DM-P1, DM-P2, DM-P3)", () => {
     const june = rows.filter((r: { period_start: string }) => r.period_start === "2026-06-01");
     expect(june.length).toBe(2);
     for (const row of rows) {
-      expect(row.metric_version).toBe("1.1");
+      expect(row.metric_version).toBe("1.2");
       expect(row.grain).toBe("site");
     }
   });
@@ -883,12 +884,13 @@ describe("metrics surface (DM-P1, DM-P2, DM-P3)", () => {
     const body = await res.json();
     expect(body.sites.map((s: { site_number: string }) => s.site_number)).toEqual(["001", "002"]);
     for (const site of body.sites) {
-      expect(site.metric_version).toBe("1.1");
+      expect(site.metric_version).toBe("1.2");
       expect(site.period_start).toBe("2026-06-01"); // latest, not history
     }
-    // Hand-computed fixture truth (DM-Q5): business-day medians per site.
-    expect(Number(body.sites[0].value)).toBe(4.0);
-    expect(Number(body.sites[1].value)).toBe(4.5);
+    // Hand-computed fixture truth (DM-Q5): holiday-aware business-day
+    // medians per site — DMOPS-001 observes the PMO calendar (ADR-0016).
+    expect(Number(body.sites[0].value)).toBe(2.0);
+    expect(Number(body.sites[1].value)).toBe(3.0);
   });
 
   it("DM-P5: the site drill-down is row-scoped like every other read", async () => {
@@ -959,9 +961,10 @@ describe("portfolio roll-up (ADR-0015)", () => {
     expect(tat.poolable).toBe(false);
     expect(tat.pooled).toBeNull();
     expect(tat.not_pooled_reason).toMatch(/median/);
-    // The spread is the display: one reporting study, its June v1.1 value.
+    // The spread is the display: one reporting study, its June v1.2
+    // holiday-aware value (DM-Q5, ADR-0016).
     expect(tat.per_study.length).toBe(1);
-    expect(Number(tat.per_study[0].value)).toBe(4.0);
+    expect(Number(tat.per_study[0].value)).toBe(3.0);
     // A dmops-native metric with nothing to measure still reports honestly:
     // DMOPS-002 has no completed milestones, so its value is null, not 0.
     const slip = await metric("milestone_slip");
@@ -998,5 +1001,114 @@ describe("portfolio roll-up (ADR-0015)", () => {
       expect(point.readiness_pct).toBe(0);
     }
     expect(june.period_end).toBe("2026-06-30");
+  });
+});
+
+describe("exports and KPI packs (ADR-0016)", () => {
+  it("DM-P3: the snapshot CSV is the immutable history flattened, provenance columns included", async () => {
+    const res = await get(`/studies/${study1}/snapshots.csv`, "dev-dmlead-token");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toMatch(/text\/csv/);
+    expect(res.headers.get("content-disposition")).toMatch(/DMOPS-001-snapshots\.csv/);
+    const lines = (await res.text()).trim().split("\r\n");
+    expect(lines[0]).toBe(
+      "metric_id,metric_version,grain,site_number,period_start,period_end," +
+        "value,numerator,denominator,n_records,computed_at,source_extract_id," +
+        "source_adapter,extract_checksum",
+    );
+    // Both seeded periods, every grain — the full history, not the strip.
+    const cells = lines.slice(1).map((l) => l.split(","));
+    expect(new Set(cells.map((c) => c[4]))).toEqual(new Set(["2026-05-01", "2026-06-01"]));
+    const juneTatSite = cells.find(
+      (c) => c[0] === "query_tat_median" && c[3] === "001" && c[4] === "2026-06-01",
+    );
+    // Holiday-aware fixture truth (DM-Q5) with the cited extract's checksum.
+    expect(juneTatSite?.[1]).toBe("1.2");
+    expect(Number(juneTatSite?.[6])).toBe(2.0);
+    expect(juneTatSite?.[13]).toMatch(/^[0-9a-f]{64}$/);
+    // A dmops-native metric cites no extract and the cells stay empty.
+    const slip = cells.find((c) => c[0] === "milestone_slip");
+    expect(slip?.[11]).toBe("");
+  });
+
+  it("DM-P5: the snapshot CSV is row-scoped exactly like the JSON it flattens", async () => {
+    expect((await get(`/studies/${study1}/snapshots.csv`, "dev-sponsor-token")).status).toBe(200);
+    expect((await get(`/studies/${study2}/snapshots.csv`, "dev-sponsor-token")).status).toBe(403);
+  });
+
+  it("DM-P5: the portfolio CSV requires portfolio read and keeps the named absences", async () => {
+    expect((await get("/portfolio.csv", "dev-dmlead-token")).status).toBe(403);
+    const res = await get("/portfolio.csv", "dev-qa-token");
+    expect(res.status).toBe(200);
+    const lines = (await res.text()).trim().split("\r\n");
+    const cells = lines.slice(1).map((l) => l.split(","));
+    // One rollup row per metric, spread rows where pooling declined.
+    const tatRollup = cells.find((c) => c[0] === "rollup" && c[2] === "query_tat_median");
+    expect(tatRollup?.[9]).toMatch(/median/); // not_pooled_reason survives flattening
+    expect(tatRollup?.[10]).toBe(""); // pooled_numerator stays empty, not zero
+    const tatSpread = cells.filter((c) => c[0] === "study" && c[2] === "query_tat_median");
+    expect(tatSpread.length).toBe(1);
+    expect(Number(tatSpread[0]?.[18])).toBe(3.0);
+    const aging = cells.find((c) => c[0] === "rollup" && c[2] === "query_open_aging");
+    expect(aging?.[10]).toBe("2"); // exact pooling still pools
+    expect(aging?.[11]).toBe("4");
+  });
+
+  it("DM-P2: the pack serves each metric's registered definition at the computed version, with extract citations", async () => {
+    const res = await get(`/studies/${study1}/kpi-pack`, "dev-dmlead-token");
+    expect(res.status).toBe(200);
+    const pack = await res.json();
+    // Defaults to the latest reporting period with snapshots.
+    expect(pack.period).toEqual({ start: "2026-06-01", end: "2026-06-30" });
+    expect(pack.available_periods).toEqual(["2026-06", "2026-05"]);
+    expect(pack.study.protocol_number).toBe("DMOPS-001");
+    expect(pack.study.calendar).toEqual({ id: "pmo", label: "PMO observed holidays (fictional)" });
+    expect(pack.generated_by).toMatch(/Maya/);
+    expect(pack.metrics.length).toBe(11);
+    const tat = pack.metrics.find((m: { metric_id: string }) => m.metric_id === "query_tat_median");
+    expect(tat.version).toBe("1.2");
+    expect(tat.definition).toMatch(/holiday calendar/);
+    expect(tat.absence).toBeNull();
+    expect(Number(tat.snapshot.value)).toBe(3.0);
+    expect(tat.sites.length).toBe(2);
+    // Every cited extract travels with the pack, checksummed.
+    expect(pack.provenance.extracts.length).toBeGreaterThanOrEqual(1);
+    for (const e of pack.provenance.extracts) {
+      expect(e.checksum).toMatch(/^[0-9a-f]{64}$/);
+    }
+    expect(tat.snapshot.source_extract_id).toBeTruthy();
+    const cited = pack.provenance.extracts.find(
+      (e: { id: string }) => e.id === tat.snapshot.source_extract_id,
+    );
+    expect(cited).toBeTruthy();
+  });
+
+  it("DM-P2: the pack is period-scoped — May on request, 404 for a period never computed", async () => {
+    const may = await (
+      await get(`/studies/${study1}/kpi-pack?period=2026-05`, "dev-qa-token")
+    ).json();
+    expect(may.period.start).toBe("2026-05-01");
+    // May predates the calendar's June dates, so the May TAT is the
+    // weekday-only number — recomputed under v1.2, same value.
+    const tat = may.metrics.find((m: { metric_id: string }) => m.metric_id === "query_tat_median");
+    expect(tat.snapshot.period_start).toBe("2026-05-01");
+    expect((await get(`/studies/${study1}/kpi-pack?period=2030-01`, "dev-qa-token")).status).toBe(
+      404,
+    );
+  });
+
+  it("DM-P1/DM-P5: a sourceless study's pack names its absences; the pack is row-scoped", async () => {
+    const res = await get(`/studies/${study2}/kpi-pack`, "dev-dmlead-token");
+    expect(res.status).toBe(200);
+    const pack = await res.json();
+    expect(pack.study.calendar).toBeNull();
+    // dm module only: the stat metrics are out of scope entirely (ADR-0011).
+    expect(pack.metrics.length).toBe(7);
+    const tat = pack.metrics.find((m: { metric_id: string }) => m.metric_id === "query_tat_median");
+    expect(tat.snapshot).toBeNull();
+    expect(tat.absence).toMatch(/no snapshot/);
+    const slip = pack.metrics.find((m: { metric_id: string }) => m.metric_id === "milestone_slip");
+    expect(slip.snapshot).toBeTruthy();
+    expect((await get(`/studies/${study2}/kpi-pack`, "dev-sponsor-token")).status).toBe(403);
   });
 });

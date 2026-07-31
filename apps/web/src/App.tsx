@@ -1,5 +1,6 @@
 import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
 import { currentPersona, personas, setPersona } from "./auth";
+import { KpiPackPage } from "./pages/KpiPackPage";
 import { PortfolioPage } from "./pages/PortfolioPage";
 import { StudiesPage } from "./pages/StudiesPage";
 import { StudyBoardPage } from "./pages/StudyBoardPage";
@@ -8,7 +9,7 @@ export function App() {
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-slate-50 text-slate-900">
-        <header className="border-b border-slate-200 bg-white">
+        <header className="border-b border-slate-200 bg-white print:hidden">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
             <Link to="/" className="text-lg font-semibold tracking-tight">
               dmops<span className="text-sky-600">-core</span>
@@ -50,6 +51,7 @@ export function App() {
             <Route path="/" element={<StudiesPage />} />
             <Route path="/portfolio" element={<PortfolioPage />} />
             <Route path="/studies/:studyId" element={<StudyBoardPage />} />
+            <Route path="/studies/:studyId/kpi-pack" element={<KpiPackPage />} />
           </Routes>
         </main>
       </div>

@@ -2,19 +2,21 @@
 id: entry_lag
 label: Visit-to-entry lag (median)
 owner: DM Operations
-version: "1.1"
+version: "1.2"
 grain: [study]
 definition: >
   Median elapsed business days from visit date to first data entry (first
   save) of the visit's CRF pages, across pages first entered within the
   reporting period. Visit-to-first-save, not visit-to-page-complete.
-  Business days are Monday through Friday by UTC date: the count of weekday
+  Business days are Monday through Friday by UTC date — the count of weekday
   dates strictly after the visit date, up to and including the first-entry
-  date. No holiday calendar in v1.1; per-country holidays are a future
-  versioned change. v1.0 measured calendar days.
+  date — excluding dates in the study's assigned holiday calendar
+  (calendars/*.yaml, ADR-0016); a study with no calendar counts weekdays
+  only. v1.0 measured calendar days; v1.1 counted weekdays with no holiday
+  calendar.
 clock_start: visits.visit_date
 clock_stop: pages.first_entered_at
-calendar: business_days # v1.1 is weekday-only; holiday calendars are a future versioned change
+calendar: business_days # v1.2 subtracts the study's governed holiday calendar (ADR-0016)
 include:
   - pages first entered within the reporting period whose visit occurred
 exclude:

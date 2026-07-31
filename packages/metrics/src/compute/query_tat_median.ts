@@ -1,5 +1,6 @@
 import type { QueryRow } from "@dmops/adapter-contract";
 import {
+  type ComputeContext,
   type ComputeFn,
   type SnapshotValue,
   businessDaysBetween,
@@ -12,11 +13,13 @@ import {
  * query_tat_median: median elapsed days from issuance to closure, across
  * queries closed within the reporting period. Cancelled queries are
  * excluded. Grains: study, site. The day-counting rule is the versioned
- * difference: v1.0 calendar days, v1.1 business days (ADR-0004).
+ * difference: v1.0 calendar days, v1.1 weekday-only business days, v1.2
+ * business days minus the study's holiday calendar (ADR-0004, ADR-0016).
  */
 const makeQueryTatMedian =
-  (elapsed: (start: string, end: string) => number): ComputeFn =>
+  (elapsedFor: (ctx: ComputeContext) => (start: string, end: string) => number): ComputeFn =>
   (frames, ctx) => {
+    const elapsed = elapsedFor(ctx);
     const closed = (frames.queries ?? []).filter(
       (q): q is QueryRow & { closed_at: string } =>
         q.status === "closed" &&
@@ -53,7 +56,12 @@ const makeQueryTatMedian =
   };
 
 /** v1.0 (calendar days): deregistered from the engine but kept to pin historical snapshots (DM-Q1). */
-export const queryTatMedian: ComputeFn = makeQueryTatMedian(daysBetween);
+export const queryTatMedian: ComputeFn = makeQueryTatMedian(() => daysBetween);
 
-/** v1.1 (business days, Mon–Fri UTC): the engine-current version (DM-Q5). */
-export const queryTatMedianV1_1: ComputeFn = makeQueryTatMedian(businessDaysBetween);
+/** v1.1 (business days, Mon–Fri UTC, no holidays): deregistered but pinned (DM-Q5). */
+export const queryTatMedianV1_1: ComputeFn = makeQueryTatMedian(() => businessDaysBetween);
+
+/** v1.2 (business days minus the study's holiday calendar, ADR-0016): the engine-current version (DM-Q5). */
+export const queryTatMedianV1_2: ComputeFn = makeQueryTatMedian(
+  (ctx) => (start, end) => businessDaysBetween(start, end, ctx.holidays),
+);

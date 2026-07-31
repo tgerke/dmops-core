@@ -126,6 +126,9 @@ export const study = pgTable("study", {
   // Enabled discipline modules (ADR-0011); 'dm' is always present (CHECK in
   // migrations/0005). Board and metrics reads filter on this.
   modules: moduleName("modules").array().notNull().default(["dm"]),
+  // Holiday calendar id from calendars/*.yaml (ADR-0016); NULL counts
+  // weekdays only. Resolved at compute time, fail-closed on a missing file.
+  calendar: text("calendar"),
   dmLeadId: uuid("dm_lead_id").references(() => person.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

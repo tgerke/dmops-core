@@ -1,0 +1,25 @@
+# Governed holiday calendar (ADR-0016). A study opts in by setting its
+# `calendar` column to a calendar id; a study with no calendar counts
+# weekdays only. Changes are PRs, reviewed like code — the file is read at
+# compute time, and the qualification fixtures (DM-Q5/DM-Q6, DS-Q1/DS-Q2)
+# pin the shipped dates verbatim.
+#
+# These dates are fictional, belonging to the fixture world's PMO. A real
+# deployment replaces this file with its own observed-holiday schedule;
+# shipping a real jurisdiction's calendar from memory would put unverified
+# dates inside qualification evidence.
+id: pmo
+label: PMO observed holidays (fictional)
+holidays:
+  - date: 2026-01-01
+    label: New Year's Day
+  - date: 2026-06-15
+    label: Founders Day
+  - date: 2026-06-16
+    label: Midsummer Break
+  - date: 2026-09-07
+    label: Harvest Holiday
+  - date: 2026-11-26
+    label: Gratitude Day
+  - date: 2026-12-25
+    label: Year-End Holiday

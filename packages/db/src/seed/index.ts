@@ -93,15 +93,17 @@ const [meridian] = await withSeedActor(
   (tx) => tx`INSERT INTO sponsor (name) VALUES ('Meridian Oncology') RETURNING id`,
 );
 
-// DMOPS-001 runs analysis in house, so the stat module is on (ADR-0011).
+// DMOPS-001 runs analysis in house, so the stat module is on (ADR-0011),
+// and observes the governed PMO holiday calendar (ADR-0016). DMOPS-002 has
+// no calendar, so the weekday-only posture stays visible.
 const [study1] = await withSeedActor(
   (tx) => tx`
     INSERT INTO study
-      (protocol_number, short_title, sponsor_id, phase, indication, therapeutic_area, status, dm_lead_id, modules)
+      (protocol_number, short_title, sponsor_id, phase, indication, therapeutic_area, status, dm_lead_id, modules, calendar)
     VALUES
       ('DMOPS-001', 'Abiraterone combination in metastatic prostate cancer',
        ${meridian!.id}, '2', 'Metastatic prostate cancer', 'Oncology', 'enrolling', ${maya.id},
-       '{dm,stat}'::module[])
+       '{dm,stat}'::module[], 'pmo')
     RETURNING id`,
 );
 const [study2] = await withSeedActor(

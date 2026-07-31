@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import {
   type ApiError,
   type BoardRow,
@@ -13,6 +13,7 @@ import {
   type UatCycle,
   type UatDefect,
   api,
+  downloadCsv,
 } from "../api";
 import { currentPersona } from "../auth";
 import {
@@ -88,6 +89,23 @@ export function StudyBoardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Exports (ADR-0016): the pack and the CSV re-serve what this page
+          shows, under the same role scoping. */}
+      <div className="flex justify-end gap-3 text-sm">
+        <Link
+          to={`/studies/${studyId}/kpi-pack`}
+          className="rounded border border-slate-300 px-3 py-1 text-slate-600 hover:border-sky-300 hover:text-slate-900"
+        >
+          KPI pack
+        </Link>
+        <button
+          type="button"
+          onClick={() => downloadCsv(`/studies/${studyId}/snapshots.csv`).catch(() => {})}
+          className="rounded border border-slate-300 px-3 py-1 text-slate-600 hover:border-sky-300 hover:text-slate-900"
+        >
+          Snapshots CSV
+        </button>
+      </div>
       {metrics && <MetricsStrip studyId={studyId} metrics={metrics} />}
       {readiness && <LockReadinessSection readiness={readiness} />}
       {deliverables && deliverables.length > 0 && (

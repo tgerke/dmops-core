@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { type ApiError, type Portfolio, type PortfolioMetric, api } from "../api";
+import { type ApiError, type Portfolio, type PortfolioMetric, api, downloadCsv } from "../api";
 import { ErrorNote, Sparkline, Spinner } from "../components";
 
 /**
@@ -45,7 +45,16 @@ export function PortfolioPage() {
   return (
     <div>
       <div className="mb-4 flex items-baseline justify-between">
-        <h1 className="text-xl font-semibold">Portfolio</h1>
+        <h1 className="text-xl font-semibold">
+          Portfolio
+          <button
+            type="button"
+            onClick={() => downloadCsv("/portfolio.csv").catch(() => {})}
+            className="ml-3 rounded border border-slate-300 px-3 py-1 text-sm font-normal text-slate-600 hover:border-sky-300 hover:text-slate-900"
+          >
+            CSV
+          </button>
+        </h1>
         <p className="text-sm text-slate-500">
           {portfolio.studies.total} studies
           {Object.entries(portfolio.studies.by_status).map(([status, n]) => (

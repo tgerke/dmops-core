@@ -25,14 +25,17 @@ import {
   createUatDefect,
   hasPortfolioRead,
   isSponsorOnly,
+  kpiPack,
   listDeliverables,
   listUatCycles,
   listUatDefects,
   lockReadiness,
   milestoneBoard,
+  portfolioCsv,
   portfolioRollup,
   rebaselineHistory,
   rebaselineMilestone,
+  studySnapshotsCsv,
   trainingStatus,
   updateDeliverable,
   updateMilestone,
@@ -52,6 +55,7 @@ import {
   DeliverableSchema,
   ErrorSchema,
   HealthSchema,
+  KpiPackSchema,
   LockReadinessSchema,
   MetricSitesSchema,
   MilestoneBoardSchema,
@@ -119,6 +123,7 @@ export function buildApp(sql: Sql) {
   app.use("/studies", auth);
   app.use("/studies/*", auth);
   app.use("/portfolio", auth);
+  app.use("/portfolio.csv", auth);
 
   // --- health (public: deploy probes) ---------------------------------------
 
@@ -1020,6 +1025,110 @@ export function buildApp(sql: Sql) {
             WHERE study_id = ${studyId} AND metric_id = ${metricId}
             ORDER BY computed_at DESC, period_start DESC`;
       return c.json(rows.map(serializeSnapshot), 200);
+    },
+  );
+
+  // --- exports and KPI packs (ADR-0016) --------------------------------------
+
+  const csv = (description: string) => ({
+    content: { "text/csv": { schema: z.string() } },
+    description,
+  });
+
+  app.openapi(
+    createRoute({
+      method: "get",
+      path: "/studies/{studyId}/snapshots.csv",
+      security,
+      request: { params: z.object({ studyId: z.string().uuid() }) },
+      responses: {
+        200: csv(
+          "The study's full snapshot history as one flat file (DM-P3 re-served " +
+            "as text/csv, ADR-0016), with the cited extract's adapter and " +
+            "checksum joined on. The same rows, the same authorization.",
+        ),
+        403: json(ErrorSchema, "Not assigned to this study"),
+      },
+    }),
+    async (c) => {
+      const { studyId } = c.req.valid("param");
+      const denied = requireRead(c.get("assignments"), studyId);
+      if (denied) return c.json(denied, 403);
+      const [study] = await sql`SELECT protocol_number FROM study WHERE id = ${studyId}`;
+      const body = await studySnapshotsCsv(sql, studyId);
+      return c.text(body, 200, {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="${study?.protocol_number ?? studyId}-snapshots.csv"`,
+      });
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: "get",
+      path: "/portfolio.csv",
+      security,
+      responses: {
+        200: csv(
+          "The portfolio roll-up flattened (ADR-0015 re-served as text/csv, " +
+            "ADR-0016): one rollup row per metric, then per-study spread rows " +
+            "where pooling declined. Empty pooled cells stay empty.",
+        ),
+        403: json(ErrorSchema, "Portfolio read requires a qa or admin assignment"),
+      },
+    }),
+    async (c) => {
+      if (!hasPortfolioRead(c.get("assignments"))) {
+        return c.json({ error: "portfolio read requires a qa or admin assignment" }, 403);
+      }
+      const body = await portfolioCsv(sql);
+      return c.text(body, 200, {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": 'attachment; filename="portfolio.csv"',
+      });
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: "get",
+      path: "/studies/{studyId}/kpi-pack",
+      security,
+      request: {
+        params: z.object({ studyId: z.string().uuid() }),
+        query: z.object({
+          period: z
+            .string()
+            .regex(/^\d{4}-\d{2}$/)
+            .optional(),
+        }),
+      },
+      responses: {
+        200: json(
+          KpiPackSchema,
+          "One reporting period's snapshots for one study (ADR-0016): each " +
+            "metric with its registered definition at the computed version " +
+            "(ADR-0004), absences named (ADR-0005), and the cited source " +
+            "extracts attached — provenance that travels with the artifact. " +
+            "Assembled from stored facts; nothing is computed or stored.",
+        ),
+        403: json(ErrorSchema, "Not assigned to this study"),
+        404: json(ErrorSchema, "No snapshots for this study or period"),
+      },
+    }),
+    async (c) => {
+      const { studyId } = c.req.valid("param");
+      const { period } = c.req.valid("query");
+      const denied = requireRead(c.get("assignments"), studyId);
+      if (denied) return c.json(denied, 403);
+      const pack = await kpiPack(sql, studyId, {
+        period,
+        generatedBy: c.get("actor").label,
+      });
+      if (!pack) {
+        return c.json({ error: "no snapshots for this study or period" }, 404);
+      }
+      return c.json(pack, 200);
     },
   );
 

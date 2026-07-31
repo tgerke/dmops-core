@@ -15,6 +15,7 @@ import {
   computeFn,
   loadSpecs,
   metricAvailability,
+  resolveCalendar,
 } from "@dmops/metrics";
 
 export interface RefreshResult {
@@ -46,8 +47,11 @@ export async function refreshStudyMetrics(
 ): Promise<RefreshResult> {
   // Metrics for a module the study has not enabled are out of scope, not
   // skipped-with-reason: the module boundary hides them entirely (ADR-0011).
-  const [studyRow] = await sql`SELECT modules FROM study WHERE id = ${studyId}`;
+  const [studyRow] = await sql`SELECT modules, calendar FROM study WHERE id = ${studyId}`;
   const modules = (studyRow?.modules ?? ["dm"]) as string[];
+  // The study's holiday calendar (ADR-0016): resolved before any compute so
+  // a missing calendar file fails the whole refresh, never one metric.
+  const holidays = studyRow?.calendar ? resolveCalendar(studyRow.calendar as string) : undefined;
   const specs = assertRegistryMatchesSpecs(loadSpecs()).filter(({ spec }) =>
     modules.includes(spec.module),
   );
@@ -177,6 +181,7 @@ export async function refreshStudyMetrics(
           result,
           siteIdByKey,
           extractId,
+          holidays,
         );
       }
     }
@@ -206,6 +211,7 @@ export async function refreshStudyMetrics(
         result,
         new Map(),
         null,
+        holidays,
         milestones,
         definitions,
       );
@@ -266,6 +272,7 @@ async function computeAndInsert(
   result: RefreshResult,
   siteIdByKey: Map<string, string>,
   extractId: string | null,
+  holidays?: string[],
   milestones?: MilestoneFact[],
   definitions?: MilestoneDefinitionFact[],
 ): Promise<void> {
@@ -273,6 +280,7 @@ async function computeAndInsert(
   const fn = computeFn(spec.id, spec.version);
   const values = fn(frames, {
     ...period,
+    ...(holidays ? { holidays } : {}),
     ...(milestones ? { milestones } : {}),
     ...(definitions ? { definitions } : {}),
   });
