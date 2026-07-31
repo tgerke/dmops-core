@@ -82,7 +82,10 @@ export async function refreshStudyMetrics(
     }
   } else {
     const adapters = sources.map((s) => getAdapter(s.adapter as string));
-    const capabilities = adapters.map((a) => a.capabilities());
+    // Posture can depend on the study's source config (ADR-0018).
+    const capabilities = adapters.map((a, i) =>
+      a.capabilities(sources[i]!.config as Record<string, unknown>),
+    );
 
     const runnableBySource = new Map<number, LoadedSpec[]>();
     for (const loaded of adapterSpecs) {

@@ -92,4 +92,17 @@ describe("capability gating (DM-P1: skip, never silently approximate)", () => {
     expect(entryLag.available).toBe(false);
     if (!entryLag.available) expect(entryLag.missing).toEqual(["visits.visit_date"]);
   });
+
+  it("a visit-date CRF mapping in the source config lights entry_lag as derived (ADR-0018, DM-P1)", () => {
+    const mapped = raveAdapter.capabilities({
+      baseUrl: "https://rave.example/",
+      usernameEnv: "RAVE_USER",
+      passwordEnv: "RAVE_PASSWORD",
+      statusMap: { Enrolled: "enrolled" },
+      visitDateItem: { formOid: "FORM_DM", itemOid: "DM.VISDAT", dateFormat: "dd MMM yyyy" },
+    });
+    const entryLag = metricAvailability(byId("entry_lag"), mapped);
+    expect(entryLag.available).toBe(true);
+    if (entryLag.available) expect(entryLag.derived).toContain("visits.visit_date");
+  });
 });

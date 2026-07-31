@@ -919,8 +919,13 @@ export function buildApp(sql: Sql) {
         modules.includes(spec.module),
       );
       const [source] = await sql`
-        SELECT adapter FROM study_source WHERE study_id = ${studyId} AND active`;
-      const capabilities = source ? getAdapter(source.adapter as string).capabilities() : null;
+        SELECT adapter, config FROM study_source WHERE study_id = ${studyId} AND active`;
+      // Posture can depend on the study's source config (ADR-0018).
+      const capabilities = source
+        ? getAdapter(source.adapter as string).capabilities(
+            source.config as Record<string, unknown>,
+          )
+        : null;
       const latest = await sql`
         SELECT * FROM v_metric_latest
         WHERE study_id = ${studyId} AND grain = 'study'`;

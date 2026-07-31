@@ -41,7 +41,11 @@ import { z } from "zod";
  *   visit_key DERIVED (visitName + visitSequenceNumber); occurred DERIVED
  *   (any form of the instance has dataEntered). visit_date UNSUPPORTED —
  *   no response schema carries a visit date; in Medrio the visit date is a
- *   study-specific CRF variable (a per-study mapping is a named deferral).
+ *   study-specific CRF variable, and a per-study CRF mapping (ADR-0018)
+ *   cannot be implemented either: the spec's only dataentry surfaces are
+ *   write-only (POST /api/study/{studyId}/dataentry and the per-form
+ *   variant) and no endpoint returns entered values [P] (re-verified
+ *   2026-07-31), so the deferral is closed as not publicly implementable.
  * - pages: same response, one row per collection point. status DERIVED
  *   conservatively: locked → locked, dataEntered → in_progress (the API's
  *   booleans cannot distinguish complete from partial entry, so this
@@ -211,7 +215,8 @@ export function createMedrioAdapter(fetchImpl: typeof fetch = fetch): SourceAdap
             notes:
               "visit_key derived as visitName#visitSequenceNumber; occurred derived from " +
               "dataEntered on any form of the instance; the API exposes no visit date — " +
-              "in Medrio it is a study-specific CRF variable (named deferral)",
+              "in Medrio it is a study-specific CRF variable, and the spec has no surface " +
+              "that reads entered values, so no CRF mapping can derive it (ADR-0018)",
           },
           pages: {
             supported: true,

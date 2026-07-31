@@ -872,6 +872,66 @@ const raveSubjectsNoStatus = `${raveOdmOpen}
   </ClinicalData>
 </ODM>`;
 
+// A study whose build carries a visit-date CRF item (ADR-0018): subject 1001
+// enters DM.VISDAT and later corrects it (the tape is chronological, so the
+// correction must win); subject 1002 never enters it.
+const raveAuditDated = `${raveOdmOpen}
+  <ClinicalData StudyOID="Mediflex(Dated)" MetaDataVersionOID="1" mdsol:AuditSubCategoryName="Entered">
+    <SubjectData SubjectKey="1001" TransactionType="Upsert">
+      <StudyEventData StudyEventOID="VISIT_SCREEN">
+        <FormData FormOID="FORM_DM" mdsol:DataPageName="Demographics">
+          <ItemGroupData ItemGroupOID="IG_DM" ItemGroupRepeatKey="1">
+            <ItemData ItemOID="DM.VISDAT" Value="01 Jun 2026">
+              <AuditRecord>
+                <UserRef UserOID="site.coordinator"/>
+                <LocationRef LocationOID="101"/>
+                <DateTimeStamp>2026-06-01T09:00:00Z</DateTimeStamp>
+                <SourceID>9201</SourceID>
+              </AuditRecord>
+            </ItemData>
+          </ItemGroupData>
+        </FormData>
+      </StudyEventData>
+    </SubjectData>
+  </ClinicalData>
+  <ClinicalData StudyOID="Mediflex(Dated)" MetaDataVersionOID="1" mdsol:AuditSubCategoryName="Entered">
+    <SubjectData SubjectKey="1001" TransactionType="Upsert">
+      <StudyEventData StudyEventOID="VISIT_SCREEN">
+        <FormData FormOID="FORM_DM" mdsol:DataPageName="Demographics">
+          <ItemGroupData ItemGroupOID="IG_DM" ItemGroupRepeatKey="1">
+            <ItemData ItemOID="DM.VISDAT" Value="02 Jun 2026">
+              <AuditRecord>
+                <UserRef UserOID="site.coordinator"/>
+                <LocationRef LocationOID="101"/>
+                <DateTimeStamp>2026-06-05T10:00:00Z</DateTimeStamp>
+                <SourceID>9202</SourceID>
+              </AuditRecord>
+            </ItemData>
+          </ItemGroupData>
+        </FormData>
+      </StudyEventData>
+    </SubjectData>
+  </ClinicalData>
+  <ClinicalData StudyOID="Mediflex(Dated)" MetaDataVersionOID="1" mdsol:AuditSubCategoryName="Entered">
+    <SubjectData SubjectKey="1002" TransactionType="Upsert">
+      <StudyEventData StudyEventOID="VISIT_SCREEN">
+        <FormData FormOID="FORM_VS" mdsol:DataPageName="Vitals">
+          <ItemGroupData ItemGroupOID="IG_VS" ItemGroupRepeatKey="1">
+            <ItemData ItemOID="VS.SYSBP" Value="118">
+              <AuditRecord>
+                <UserRef UserOID="site.coordinator"/>
+                <LocationRef LocationOID="102"/>
+                <DateTimeStamp>2026-06-09T09:00:00Z</DateTimeStamp>
+                <SourceID>9203</SourceID>
+              </AuditRecord>
+            </ItemData>
+          </ItemGroupData>
+        </FormData>
+      </StudyEventData>
+    </SubjectData>
+  </ClinicalData>
+</ODM>`;
+
 function fakeRaveFetch(): typeof fetch {
   return (async (url: URL | RequestInfo) => {
     const u = new URL(url.toString());
@@ -880,6 +940,7 @@ function fakeRaveFetch(): typeof fetch {
     if (u.pathname === "/RaveWebServices/datasets/ClinicalAuditRecords.odm") {
       const studyOid = u.searchParams.get("studyoid");
       if (studyOid === "Mediflex(Weird)") return respond(raveAuditUnknownStatus);
+      if (studyOid === "Mediflex(Dated)") return respond(raveAuditDated);
       if (studyOid !== "Mediflex(Prod)") return new Response("not found", { status: 404 });
       // The tape pages: startid 1 links to startid 4 via the Link header.
       if (u.searchParams.get("startid") === "1") {
@@ -1030,5 +1091,64 @@ describe("rave adapter (recorded fixtures, ADR-0017)", () => {
     await expect(
       adapter.extract({ sourceStudyKey: "Mediflex(Prod)", frames: ["queries"], config }),
     ).rejects.toThrow(/DMOPS_TEST_RAVE_PASSWORD/);
+  });
+
+  // Per-study visit-date CRF mapping (ADR-0018).
+  const datedConfig = {
+    ...config,
+    visitDateItem: { formOid: "FORM_DM", itemOid: "DM.VISDAT", dateFormat: "dd MMM yyyy" },
+  };
+
+  it("visit_date is derived only when config maps the study's CRF item (ADR-0018)", () => {
+    expect(adapter.capabilities().frames.visits?.fields.visit_date).toBe("unsupported");
+    expect(adapter.capabilities(config).frames.visits?.fields.visit_date).toBe("unsupported");
+    expect(adapter.capabilities(datedConfig).frames.visits?.fields.visit_date).toBe("derived");
+    // Never throws: invalid config yields the conservative posture.
+    expect(adapter.capabilities({ nonsense: true }).frames.visits?.fields.visit_date).toBe(
+      "unsupported",
+    );
+  });
+
+  it("reads the mapped item's value off the audit tape, last observation winning (ADR-0018)", async () => {
+    setEnv();
+    const result = await adapter.extract({
+      sourceStudyKey: "Mediflex(Dated)",
+      frames: ["visits"],
+      config: datedConfig,
+    });
+    expect(() => validateExtraction(result)).not.toThrow();
+    expect(result.frames.visits).toEqual([
+      // The 05 Jun correction to 02 Jun 2026 wins over the 01 Jun entry.
+      { subject_key: "1001", visit_key: "VISIT_SCREEN", visit_date: "2026-06-02", occurred: true },
+      // 1002 never entered the mapped item: no date, never a guess (DM-P1).
+      { subject_key: "1002", visit_key: "VISIT_SCREEN", visit_date: null, occurred: true },
+    ]);
+  });
+
+  it("leaves visit_date null on the same tape when no mapping is configured (ADR-0018)", async () => {
+    setEnv();
+    const result = await adapter.extract({
+      sourceStudyKey: "Mediflex(Dated)",
+      frames: ["visits"],
+      config,
+    });
+    expect(result.frames.visits).toEqual([
+      { subject_key: "1001", visit_key: "VISIT_SCREEN", visit_date: null, occurred: true },
+      { subject_key: "1002", visit_key: "VISIT_SCREEN", visit_date: null, occurred: true },
+    ]);
+  });
+
+  it("fails loudly when a value does not parse under the declared dateFormat (ADR-0017/ADR-0018)", async () => {
+    setEnv();
+    await expect(
+      adapter.extract({
+        sourceStudyKey: "Mediflex(Dated)",
+        frames: ["visits"],
+        config: {
+          ...datedConfig,
+          visitDateItem: { ...datedConfig.visitDateItem, dateFormat: "yyyy-MM-dd" },
+        },
+      }),
+    ).rejects.toThrow(/01 Jun 2026/);
   });
 });

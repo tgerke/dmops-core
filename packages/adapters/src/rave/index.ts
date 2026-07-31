@@ -65,8 +65,16 @@ import { z } from "zod";
  *   (StudyEventOID + StudyEventRepeatKey) is emitted with occurred=true
  *   when entered data references it ("Entered" subcategory, per the
  *   techblog [V-OSS]); scheduled-but-unvisited instances are not observable
- *   here, and visit_date is UNSUPPORTED — no publicly documented RWS field
- *   carries it; in Rave it is a study-specific CRF item (named deferral).
+ *   here. visit_date: no publicly documented RWS field carries it — in Rave
+ *   it is a study-specific CRF item — so it is DERIVED only when
+ *   config.visitDateItem names that item (ADR-0018), and UNSUPPORTED
+ *   otherwise. The mapped item's entered value rides this same tape:
+ *   rwslib's audit parser reads a Value attribute on ItemData
+ *   (extras/audit_event/parser.py) [V-OSS]. The chronologically last
+ *   observed value per (subject, event instance) wins regardless of audit
+ *   subcategory (so corrections land without new vocabulary claims); an
+ *   empty Value clears the date; a value that does not parse under the
+ *   declared dateFormat fails the extraction with the observed value.
  * - pages: DERIVED from the audit tape per (subject, event instance,
  *   FormOID): first_entered_at is the earliest "Entered" DateTimeStamp.
  *   status is DERIVED conservatively as in_progress once entered — a
@@ -103,8 +111,63 @@ const configSchema = z
      * the Rave side, so it must be mapped explicitly per study (ADR-0017). */
     statusMap: z.record(z.enum(subjectStatuses)),
     auditPerPage: z.number().int().positive().default(100),
+    /** The study-specific CRF item carrying the visit date (ADR-0018).
+     * Absent → visits.visit_date stays unsupported. dateFormat is a closed
+     * set: the operator declares the study's date rendering; a Value that
+     * does not parse under it fails the extraction (never sniffed). */
+    visitDateItem: z
+      .object({
+        formOid: z.string().min(1),
+        itemOid: z.string().min(1),
+        dateFormat: z.enum(["yyyy-MM-dd", "dd MMM yyyy"]),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
+
+type VisitDateItem = NonNullable<z.infer<typeof configSchema>["visitDateItem"]>;
+
+// English three-letter months are part of the "dd MMM yyyy" format's
+// definition (ADR-0018), not a claim about Rave's locale configuration.
+const MONTHS: Record<string, string> = {
+  jan: "01",
+  feb: "02",
+  mar: "03",
+  apr: "04",
+  may: "05",
+  jun: "06",
+  jul: "07",
+  aug: "08",
+  sep: "09",
+  oct: "10",
+  nov: "11",
+  dec: "12",
+};
+
+/** Parse an observed Value under the declared format to an ISO date, or
+ * throw with the observed value in the message (ADR-0017/ADR-0018). */
+function parseVisitDate(observed: string, mapping: VisitDateItem): string {
+  const fail = (): never => {
+    throw new Error(
+      `rave adapter: visit-date value '${observed}' on ${mapping.formOid}.${mapping.itemOid} does not parse as ${mapping.dateFormat} — the declared dateFormat must match the study's date rendering (ADR-0018)`,
+    );
+  };
+  let iso: string;
+  if (mapping.dateFormat === "yyyy-MM-dd") {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(observed)) fail();
+    iso = observed;
+  } else {
+    const m = observed.match(/^(\d{1,2}) ([A-Za-z]{3}) (\d{4})$/);
+    const month = m ? MONTHS[m[2]!.toLowerCase()] : undefined;
+    if (!m || !month) return fail();
+    iso = `${m[3]}-${month}-${m[1]!.padStart(2, "0")}`;
+  }
+  // Reject well-formed non-dates (e.g. a 31st of a 30-day month).
+  const parsed = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== iso) fail();
+  return iso;
+}
 
 const RAVE_FRAMES: FrameName[] = ["queries", "subjects", "visits", "pages"];
 
@@ -158,6 +221,7 @@ interface AuditEvent {
   itemGroupOid: string | undefined;
   itemGroupRepeatKey: string | undefined;
   itemOid: string | undefined;
+  itemValue: string | undefined;
   locationOid: string | undefined;
   dateTimeStamp: string | undefined;
   query: { repeatKey: string | undefined; status: string | undefined } | undefined;
@@ -241,6 +305,7 @@ export function createRaveAdapter(fetchImpl: typeof fetch = fetch): SourceAdapte
             itemGroupOid: itemGroup ? attr(itemGroup, "ItemGroupOID") : undefined,
             itemGroupRepeatKey: itemGroup ? attr(itemGroup, "ItemGroupRepeatKey") : undefined,
             itemOid: item ? attr(item, "ItemOID") : undefined,
+            itemValue: item ? attr(item, "Value") : undefined,
             locationOid: auditRecord
               ? attr(children(auditRecord, "LocationRef")[0] ?? {}, "LocationOID")
               : undefined,
@@ -272,7 +337,10 @@ export function createRaveAdapter(fetchImpl: typeof fetch = fetch): SourceAdapte
   return {
     id: "rave",
 
-    capabilities(): AdapterCapabilities {
+    capabilities(config?: Record<string, unknown>): AdapterCapabilities {
+      // Never throws (ADR-0018): invalid config → the conservative posture.
+      const parsed = config ? configSchema.safeParse(config) : undefined;
+      const visitDateMapped = parsed?.success === true && parsed.data.visitDateItem !== undefined;
       return {
         adapter: "rave",
         frames: {
@@ -315,12 +383,17 @@ export function createRaveAdapter(fetchImpl: typeof fetch = fetch): SourceAdapte
               subject_key: "native",
               visit_key: "derived",
               occurred: "derived",
-              visit_date: "unsupported",
+              visit_date: visitDateMapped ? "derived" : "unsupported",
             },
-            notes:
-              "event instances observed with entered data on the audit tape; " +
-              "scheduled-but-unvisited instances are not observable here; visit dates are " +
-              "study-specific CRF items, not RWS fields (named deferral)",
+            notes: visitDateMapped
+              ? "event instances observed with entered data on the audit tape; " +
+                "scheduled-but-unvisited instances are not observable here; visit_date is " +
+                "the last observed value of the config.visitDateItem CRF item on the same " +
+                "tape, parsed under the declared dateFormat (ADR-0018)"
+              : "event instances observed with entered data on the audit tape; " +
+                "scheduled-but-unvisited instances are not observable here; visit dates are " +
+                "study-specific CRF items, not RWS fields — map one with " +
+                "config.visitDateItem to derive them (ADR-0018)",
           },
           pages: {
             supported: true,
@@ -466,6 +539,27 @@ export function createRaveAdapter(fetchImpl: typeof fetch = fetch): SourceAdapte
               e.dateTimeStamp !== undefined,
           );
           if (wantsVisits) {
+            // Mapped visit-date item (ADR-0018): tape order is chronological,
+            // so the last observed value wins; empty Value clears the date.
+            const mapping = parsed.visitDateItem;
+            const visitDates = new Map<string, string | null>();
+            if (mapping) {
+              for (const e of tape) {
+                if (
+                  e.formOid !== mapping.formOid ||
+                  e.itemOid !== mapping.itemOid ||
+                  e.subjectKey === undefined ||
+                  e.eventOid === undefined ||
+                  e.itemValue === undefined
+                ) {
+                  continue;
+                }
+                visitDates.set(
+                  `${e.subjectKey}|${eventKey(e)}`,
+                  e.itemValue === "" ? null : parseVisitDate(e.itemValue, mapping),
+                );
+              }
+            }
             const seen = new Map<string, VisitRow>();
             for (const e of entered) {
               const key = `${e.subjectKey}|${eventKey(e)}`;
@@ -473,7 +567,8 @@ export function createRaveAdapter(fetchImpl: typeof fetch = fetch): SourceAdapte
                 seen.set(key, {
                   subject_key: e.subjectKey as string,
                   visit_key: eventKey(e),
-                  visit_date: null, // unsupported: not an RWS field (see header)
+                  // Unmapped studies: not an RWS field (see header, ADR-0018).
+                  visit_date: visitDates.get(key) ?? null,
                   occurred: true, // entered data proves occurrence
                 });
               }

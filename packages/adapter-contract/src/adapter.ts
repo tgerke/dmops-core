@@ -23,7 +23,13 @@ export interface ExtractionResult {
  */
 export interface SourceAdapter {
   readonly id: string;
-  capabilities(): AdapterCapabilities;
+  /**
+   * Capability posture. May depend on the study's `study_source.config`
+   * (ADR-0018) — e.g. a per-study CRF mapping that makes a field derivable.
+   * Must never throw: absent or invalid config yields the conservative
+   * posture. Adapters with a config-independent posture ignore the argument.
+   */
+  capabilities(config?: Record<string, unknown>): AdapterCapabilities;
   extract(input: {
     sourceStudyKey: string;
     frames: FrameName[];
