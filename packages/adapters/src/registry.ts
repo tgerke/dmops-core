@@ -4,6 +4,7 @@ import { edcCoreAdapter } from "./edc-core/index.js";
 import { githubAdapter } from "./github/index.js";
 import { medrioAdapter } from "./medrio/index.js";
 import { raveAdapter } from "./rave/index.js";
+import { vaultTrainingAdapter } from "./vault-training/index.js";
 
 /**
  * In-tree adapters, keyed by study_source.adapter. External adapters
@@ -17,6 +18,7 @@ const adapters = new Map<string, SourceAdapter>([
   [githubAdapter.id, githubAdapter],
   [medrioAdapter.id, medrioAdapter],
   [raveAdapter.id, raveAdapter],
+  [vaultTrainingAdapter.id, vaultTrainingAdapter],
 ]);
 
 export function getAdapter(id: string): SourceAdapter {

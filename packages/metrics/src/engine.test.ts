@@ -1,5 +1,11 @@
 import type { AdapterCapabilities } from "@dmops/adapter-contract";
-import { csvAdapter, edcCoreAdapter, medrioAdapter, raveAdapter } from "@dmops/adapters";
+import {
+  csvAdapter,
+  edcCoreAdapter,
+  medrioAdapter,
+  raveAdapter,
+  vaultTrainingAdapter,
+} from "@dmops/adapters";
 import { describe, expect, it } from "vitest";
 import { metricAvailability, mirrorFedAvailability } from "./engine.js";
 import { assertRegistryMatchesSpecs } from "./registry.js";
@@ -117,33 +123,24 @@ describe("capability gating (DM-P1: skip, never silently approximate)", () => {
 });
 
 describe("mirror-fed availability (ADR-0019, DM-P1)", () => {
-  // A synthetic LMS posture: no LMS adapter has shipped (the deferral
-  // stands), so this is the honest maximum — the contract shape a real one
-  // would declare, never a claimed vendor capability (ADR-0005).
-  const lmsLike: AdapterCapabilities = {
-    adapter: "lms-like",
-    frames: {
-      training_records: {
-        supported: true,
-        fields: {
-          person_key: "native",
-          course_key: "native",
-          due_date: "native",
-          completed_date: "native",
-          expires_date: "native",
-        },
-      },
-    },
-  };
   const gapSpec = () => {
     const found = specs.find((s) => s.spec.id === "access_training_gap");
     if (!found) throw new Error("access_training_gap spec not found");
     return found.spec;
   };
 
-  it("a split deployment — access from edc-core, training from an LMS — feeds the metric across sources", () => {
-    const result = mirrorFedAvailability(gapSpec(), [edcCoreAdapter.capabilities(), lmsLike]);
+  it("a split deployment — access from edc-core, training from Vault Training — feeds the metric across sources (ADR-0020)", () => {
+    // The posture ADR-0019 pinned synthetically now comes from the shipped
+    // adapter: expires_date arrives derived (constantly null under Vault's
+    // recurrence model), and availability says so instead of claiming native.
+    const result = mirrorFedAvailability(gapSpec(), [
+      edcCoreAdapter.capabilities(),
+      vaultTrainingAdapter.capabilities(),
+    ]);
     expect(result.available).toBe(true);
+    if (result.available) {
+      expect(result.derived).toContain("training_records.expires_date (source 'vault-training')");
+    }
   });
 
   it("an EDC alone leaves the training frame with no feeder, and the gap is named", () => {

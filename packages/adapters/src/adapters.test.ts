@@ -5,6 +5,7 @@ import { createEdcCoreAdapter } from "./edc-core/index.js";
 import { createGithubAdapter } from "./github/index.js";
 import { createMedrioAdapter } from "./medrio/index.js";
 import { createRaveAdapter } from "./rave/index.js";
+import { createVaultTrainingAdapter } from "./vault-training/index.js";
 
 describe("csv adapter (the reference implementation)", () => {
   it("extracts all four frames from the fixture study and passes contract validation", async () => {
@@ -1150,5 +1151,253 @@ describe("rave adapter (recorded fixtures, ADR-0017)", () => {
         },
       }),
     ).rejects.toThrow(/01 Jun 2026/);
+  });
+});
+
+// Recorded response fixtures: auth/query/pagination shapes per the public
+// Vault API reference (developer.veevavault.com/api/25.1, VQL guide at
+// developer.veevavault.com/vql — accessed 2026-08-03), training_assignment__v
+// fields per Veeva's Vault Training help — see the adapter header
+// (ADR-0020). No live Vault in CI — the mapping is what's under test.
+const vaultPage1 = {
+  responseStatus: "SUCCESS",
+  responseDetails: {
+    pagesize: 3,
+    pageoffset: 0,
+    size: 3,
+    total: 4,
+    next_page: "/api/v25.1/query/8dd0c8/page/2",
+  },
+  data: [
+    {
+      id: "VTA-000001",
+      state__v: "assigned_state__v",
+      due_date__v: "2026-08-15",
+      completion_date__v: null,
+      training_requirement__v: "TR-0000012",
+      course_title: "GCP Refresher 2026",
+      person_email: "coordinator@site101.example",
+      person_name: "Pat Coordinator",
+    },
+    {
+      id: "VTA-000002",
+      state__v: "completed_state__v",
+      due_date__v: "2026-06-30",
+      completion_date__v: "2026-06-12T09:15:00.000Z",
+      training_requirement__v: "TR-0000012",
+      course_title: "GCP Refresher 2026",
+      person_email: "cra@cro.example",
+      person_name: "Sam Monitor",
+    },
+    {
+      id: "VTA-000003",
+      state__v: "cancelled_state__v",
+      due_date__v: "2026-05-01",
+      completion_date__v: null,
+      training_requirement__v: "TR-0000009",
+      course_title: "Retired IRT Module",
+      person_email: "coordinator@site101.example",
+      person_name: "Pat Coordinator",
+    },
+  ],
+};
+
+const vaultPage2 = {
+  responseStatus: "SUCCESS",
+  responseDetails: { pagesize: 3, pageoffset: 3, size: 1, total: 4 },
+  data: [
+    {
+      id: "VTA-000004",
+      state__v: "assigned_state__v",
+      due_date__v: null,
+      completion_date__v: null,
+      training_requirement__v: "TR-0000031",
+      course_title: "Protocol Amendment 2 Training",
+      person_email: "dm@cro.example",
+      person_name: null,
+    },
+  ],
+};
+
+function fakeVaultFetch(): typeof fetch {
+  return (async (url: URL | RequestInfo, init?: RequestInit) => {
+    const u = new URL(url.toString());
+    const respond = (body: unknown) =>
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    if (u.pathname === "/api/v25.1/auth" && init?.method === "POST") {
+      return respond({ responseStatus: "SUCCESS", sessionId: "vault-session-id", userId: 100 });
+    }
+    const headers = init?.headers as Record<string, string> | undefined;
+    if (headers?.authorization !== "vault-session-id") {
+      return new Response("unauthorized", { status: 401 });
+    }
+    if (u.pathname === "/api/v25.1/query/8dd0c8/page/2") return respond(vaultPage2);
+    if (u.pathname === "/api/v25.1/query" && init?.method === "POST") {
+      const q = (init.body as URLSearchParams).get("q") ?? "";
+      if (q.includes("'study-denied'")) {
+        return respond({
+          responseStatus: "FAILURE",
+          errors: [
+            {
+              type: "INSUFFICIENT_ACCESS",
+              message: "User does not have query permission on [training_assignment__v]",
+            },
+          ],
+        });
+      }
+      if (q.includes("'study-noemail'")) {
+        return respond({
+          responseStatus: "SUCCESS",
+          responseDetails: {},
+          data: [
+            {
+              id: "VTA-000099",
+              state__v: "assigned_state__v",
+              due_date__v: null,
+              completion_date__v: null,
+              training_requirement__v: "TR-0000031",
+              course_title: "Protocol Amendment 2 Training",
+              person_email: null,
+              person_name: null,
+            },
+          ],
+        });
+      }
+      if (q.includes("WHERE study__v = 'study-1'")) return respond(vaultPage1);
+      // No WHERE clause: the whole-vault posture (no studyField configured).
+      if (!q.includes(" WHERE ")) return respond(vaultPage2);
+    }
+    return new Response("not found", { status: 404 });
+  }) as typeof fetch;
+}
+
+describe("vault-training adapter (recorded fixtures, ADR-0020)", () => {
+  const adapter = createVaultTrainingAdapter(fakeVaultFetch());
+  const config = {
+    baseUrl: "https://mytenant.veevavault.example/",
+    usernameEnv: "DMOPS_TEST_VAULT_USERNAME",
+    passwordEnv: "DMOPS_TEST_VAULT_PASSWORD",
+    learnerEmailPath: "learner__vr.email__sys",
+    learnerNamePath: "learner__vr.name__v",
+    studyField: "study__v",
+    stateMap: {
+      assigned_state__v: "required",
+      completed_state__v: "required",
+      cancelled_state__v: "excluded",
+    },
+  };
+  const setEnv = () => {
+    process.env.DMOPS_TEST_VAULT_USERNAME = "integration-user";
+    process.env.DMOPS_TEST_VAULT_PASSWORD = "integration-password";
+  };
+
+  it("maps the transcript through the tenant stateMap, following next_page (ADR-0020)", async () => {
+    setEnv();
+    const result = await adapter.extract({
+      sourceStudyKey: "study-1",
+      frames: ["training_records"],
+      config,
+    });
+    expect(() => validateExtraction(result)).not.toThrow();
+    // 4 assignments on the tape; the cancelled one is excluded by stateMap —
+    // a withdrawn requirement is not a training gap.
+    expect(result.row_counts).toEqual({ training_records: 3 });
+    expect(result.frames.training_records).toEqual([
+      {
+        person_key: "coordinator@site101.example",
+        person_name: "Pat Coordinator",
+        course_key: "TR-0000012",
+        course_title: "GCP Refresher 2026",
+        due_date: "2026-08-15",
+        completed_date: null,
+        expires_date: null, // derived: recurrence reissues, completions never expire
+      },
+      {
+        person_key: "cra@cro.example",
+        person_name: "Sam Monitor",
+        course_key: "TR-0000012",
+        course_title: "GCP Refresher 2026",
+        due_date: "2026-06-30",
+        completed_date: "2026-06-12", // date part; time semantics undeclared
+        expires_date: null,
+      },
+      {
+        person_key: "dm@cro.example",
+        person_name: null,
+        course_key: "TR-0000031",
+        course_title: "Protocol Amendment 2 Training",
+        due_date: null, // undated: required now (ADR-0013)
+        completed_date: null,
+        expires_date: null,
+      },
+    ]);
+    expect(result.checksum).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("omitting studyField mirrors the whole vault — the org-wide training posture (ADR-0020)", async () => {
+    setEnv();
+    const { studyField, ...orgWide } = config;
+    const result = await adapter.extract({
+      sourceStudyKey: "study-1",
+      frames: ["training_records"],
+      config: orgWide,
+    });
+    expect(result.row_counts).toEqual({ training_records: 1 });
+  });
+
+  it("fails loudly on a lifecycle state with no stateMap entry (ADR-0020)", async () => {
+    setEnv();
+    await expect(
+      adapter.extract({
+        sourceStudyKey: "study-1",
+        frames: ["training_records"],
+        config: {
+          ...config,
+          stateMap: { assigned_state__v: "required", completed_state__v: "required" },
+        },
+      }),
+    ).rejects.toThrow(/cancelled_state__v/);
+  });
+
+  it("fails loudly when the email path resolves nothing — never an anonymous transcript row (ADR-0020)", async () => {
+    setEnv();
+    await expect(
+      adapter.extract({ sourceStudyKey: "study-noemail", frames: ["training_records"], config }),
+    ).rejects.toThrow(/learner__vr\.email__sys/);
+  });
+
+  it("surfaces Vault's own error detail when a query is not successful", async () => {
+    setEnv();
+    await expect(
+      adapter.extract({ sourceStudyKey: "study-denied", frames: ["training_records"], config }),
+    ).rejects.toThrow(/INSUFFICIENT_ACCESS/);
+  });
+
+  it("declares only the transcript — access_grants audits the wrong door (ADR-0020, DM-P1)", async () => {
+    setEnv();
+    const caps = adapter.capabilities();
+    expect(Object.keys(caps.frames)).toEqual(["training_records"]);
+    expect(caps.frames.training_records?.fields.expires_date).toBe("derived");
+    await expect(
+      adapter.extract({ sourceStudyKey: "study-1", frames: ["access_grants"], config }),
+    ).rejects.toThrow(/unsupported/);
+  });
+
+  it("refuses a source_study_key it would have to escape into VQL", async () => {
+    setEnv();
+    await expect(
+      adapter.extract({ sourceStudyKey: "study-o'brien", frames: ["training_records"], config }),
+    ).rejects.toThrow(/refuses to escape/);
+  });
+
+  it("fails with an actionable message when a credential env var is missing", async () => {
+    setEnv();
+    process.env.DMOPS_TEST_VAULT_PASSWORD = "";
+    await expect(
+      adapter.extract({ sourceStudyKey: "study-1", frames: ["training_records"], config }),
+    ).rejects.toThrow(/DMOPS_TEST_VAULT_PASSWORD/);
   });
 });
