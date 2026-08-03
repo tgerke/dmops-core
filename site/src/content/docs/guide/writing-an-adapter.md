@@ -85,6 +85,16 @@ Three obligations:
   Medidata's own open-source rwslib client, with every claim carrying an
   evidence tier and behaviors that cannot be publicly confirmed either left
   unimplemented or failing loudly.
+- `packages/adapters/src/vault-training/`: the LMS adapter
+  ([ADR-0020](/dmops-core/reference/decisions/0020-vault-training-lms-adapter/)).
+  Reads the Veeva Vault Training transcript over VQL and emits only the
+  `training_records` frame. The tiered pattern applied to a training
+  source: platform and object claims cited [P], and the two vocabularies
+  the public documentation does not enumerate (tenant lifecycle states and
+  the learner's email path) handled as explicit config that fails loudly
+  on unknowns. `expires_date` is derived and constantly null, because
+  Vault Training reissues recurring training as a new assignment rather
+  than expiring the completion.
 
 ## Where adapters live
 

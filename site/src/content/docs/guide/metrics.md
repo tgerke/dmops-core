@@ -97,8 +97,10 @@ The two roster metrics come from the training and access mirrors
 Since v2.0, `access_training_gap` computes over the mirror tables themselves
 ([ADR-0019](/dmops-core/reference/decisions/0019-training-gap-computes-over-the-mirrors/)),
 so the grants and the transcript may come from different sources — a split
-deployment with access from the EDC and training from an LMS now gets the
-monthly snapshot, not just the live roster. See
+deployment with access from the EDC and training from an LMS (shipped as
+the vault-training adapter,
+[ADR-0020](/dmops-core/reference/decisions/0020-vault-training-lms-adapter/))
+gets the monthly snapshot, not just the live roster. See
 [Training & access](/dmops-core/guide/training-access/) for the mirror
 surface itself.
 `lock_readiness_pct` is dmops-native like `milestone_slip` — its source is

@@ -80,6 +80,15 @@ Three obligations:
   on the ClinicalAuditRecords audit tape, so the query metrics light up as
   derived; a status value outside the publicly known vocabulary fails the
   extraction rather than being guessed.
+- `packages/adapters/src/vault-training/` — the LMS adapter (ADR-0020):
+  reads the Veeva Vault Training transcript over VQL and emits only the
+  `training_records` frame. The tiered pattern applied to a training
+  source: platform and object claims cited [P], and the two vocabularies
+  the public documentation does not enumerate — tenant lifecycle states
+  and the learner's email path — handled as explicit config that fails
+  loudly on unknowns. `expires_date` is derived and constantly null,
+  because Vault Training reissues recurring training as a new assignment
+  rather than expiring the completion.
 
 ## Where adapters live
 

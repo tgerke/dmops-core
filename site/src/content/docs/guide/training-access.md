@@ -62,7 +62,12 @@ the email address by convention; the mirrors deliberately never link to
 this system's own person registry.
 
 Which sources can feed the mirrors today: the csv fixture adapter carries
-both frames, and the edc-core adapter supplies `access_grants` from its
+both frames, the edc-core adapter supplies `access_grants` from its
 members listing (an EDC is not an LMS, so it declares `training_records`
-unsupported). An LMS adapter is future work on the same contract; see
-[Writing an adapter](/dmops-core/guide/writing-an-adapter/).
+unsupported), and the vault-training adapter supplies `training_records`
+from Veeva Vault Training
+([ADR-0020](/dmops-core/reference/decisions/0020-vault-training-lms-adapter/)).
+That makes the split deployment real rather than hypothetical: access from
+the EDC, transcript from the LMS, one roster and one monthly snapshot. See
+[Writing an adapter](/dmops-core/guide/writing-an-adapter/) for the
+contract they all share.

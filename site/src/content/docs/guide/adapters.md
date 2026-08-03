@@ -98,6 +98,21 @@ approximates around source gaps publishes numbers nobody can defend.
   `derived`, while an unmapped study keeps reporting `visits.visit_date`
   unsupported
   ([ADR-0018](/dmops-core/reference/decisions/0018-visit-date-crf-mapping/)).
+- **vault-training**: the first LMS adapter
+  ([ADR-0020](/dmops-core/reference/decisions/0020-vault-training-lms-adapter/)).
+  Reads the Veeva Vault Training transcript through the public platform
+  API — session auth, VQL with relationship paths, `next_page`
+  pagination — and emits only `training_records`: the transcript half of
+  the delegation question, from the training system built for exactly the
+  site-staff and study-team population the roster audits. The two
+  vocabularies Veeva does not publicly enumerate (tenant lifecycle states
+  and the Person object's email field) are per-tenant config that fails
+  loudly on unknowns, and `expires_date` is `derived`, constantly null:
+  Vault reissues recurring training as a new assignment instead of
+  expiring the completion, so the next obligation arrives as a new row
+  with its own due date. `access_grants` stays undeclared on purpose —
+  Vault administers access to Vault, not to the system under access
+  review.
 
 ## Writing your own
 

@@ -88,7 +88,7 @@ report), `pnpm metrics:refresh` (cron-friendly snapshot computation).
 
 ## Status
 
-A working slice 12, not a product. What exists: the study registry, the full
+A working slice 13, not a product. What exists: the study registry, the full
 DM milestone taxonomy with a role-scoped board and audited writes, a
 deliverables surface with eTMF pointers and audited status updates, UAT
 cycle and defect tracking with a completion gate ("UAT complete" refuses to
@@ -141,9 +141,16 @@ computes over the mirror tables the pipeline already maintains, each frame
 fed by the first source that supports it, so a split deployment — access
 from the EDC, training from an LMS — gets the monthly snapshot the moment
 an LMS adapter exists, the version machinery's first major bump because
-sourcing changed and math did not (ADR-0019).
-What comes next, in no committed order: an LMS adapter (the CSV fixture is
-still the only training source) and MAuth for Rave.
+sourcing changed and math did not (ADR-0019), and that LMS adapter: Veeva
+Vault Training read over VQL from public platform and help documentation,
+transcript-only by design (Vault administers access to Vault, not to the
+system under access review), the two vocabularies Veeva does not publicly
+enumerate — tenant lifecycle states and the learner email path — as
+explicit fail-loud config, and expiry honestly null because Vault reissues
+recurring training as a new assignment, which makes the split deployment
+real: access from the EDC, transcript from the LMS, one roster and one
+snapshot trend (ADR-0020).
+What comes next: MAuth for Rave.
 
 This is not validated software. The IQ script, OQ report, and traceability
 matrix are generated raw material for a validation program; running that
