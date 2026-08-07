@@ -98,6 +98,13 @@ approximates around source gaps publishes numbers nobody can defend.
   `derived`, while an unmapped study keeps reporting `visits.visit_date`
   unsupported
   ([ADR-0018](/dmops-core/reference/decisions/0018-visit-date-crf-mapping/)).
+  Requests authenticate with HTTP Basic or with MAuth request signing,
+  Medidata's preferred mode for long-term integrations because the signing
+  user's password never expires: the App UUID sits in config, the RSA
+  private key rides the usual env indirection, and the in-repo signer is
+  pinned to Medidata's own conformance vectors, vendored into the repo the
+  way their test suite's README prescribes
+  ([ADR-0021](/dmops-core/reference/decisions/0021-mauth-request-signing-for-rave/)).
 - **vault-training**: the first LMS adapter
   ([ADR-0020](/dmops-core/reference/decisions/0020-vault-training-lms-adapter/)).
   Reads the Veeva Vault Training transcript through the public platform

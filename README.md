@@ -149,8 +149,15 @@ enumerate — tenant lifecycle states and the learner email path — as
 explicit fail-loud config, and expiry honestly null because Vault reissues
 recurring training as a new assignment, which makes the split deployment
 real: access from the EDC, transcript from the LMS, one roster and one
-snapshot trend (ADR-0020).
-What comes next: MAuth for Rave.
+snapshot trend (ADR-0020). And the Rave adapter now signs its requests:
+MAuth, Medidata's App-UUID-plus-private-key scheme and their stated
+preference for long-term Rave integrations, joins Basic auth as a
+per-study choice of exactly one mode. Medidata publishes no specification
+and no Node client, so the signer is transcribed from their own client
+source and pinned, all 93 checks, to their published conformance vectors,
+vendored under `fixtures/` (ADR-0021).
+
+What comes next: release and CI frames with a release-cadence metric.
 
 This is not validated software. The IQ script, OQ report, and traceability
 matrix are generated raw material for a validation program; running that
