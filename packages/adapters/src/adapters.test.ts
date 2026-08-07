@@ -1,3 +1,6 @@
+import { constants, createHash, verify as cryptoVerify, publicDecrypt } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { validateExtraction } from "@dmops/adapter-contract";
 import { describe, expect, it } from "vitest";
 import { csvAdapter } from "./csv/index.js";
@@ -5,6 +8,7 @@ import { createEdcCoreAdapter } from "./edc-core/index.js";
 import { createGithubAdapter } from "./github/index.js";
 import { createMedrioAdapter } from "./medrio/index.js";
 import { createRaveAdapter } from "./rave/index.js";
+import { stringToSignV1, stringToSignV2 } from "./rave/mauth.js";
 import { createVaultTrainingAdapter } from "./vault-training/index.js";
 
 describe("csv adapter (the reference implementation)", () => {
@@ -1151,6 +1155,114 @@ describe("rave adapter (recorded fixtures, ADR-0017)", () => {
         },
       }),
     ).rejects.toThrow(/01 Jun 2026/);
+  });
+
+  // MAuth request signing (ADR-0021). Key material is the vendored vendor
+  // conformance suite's fixed pair — protocol conformance itself is pinned
+  // case-by-case in rave/mauth.test.ts; these tests cover the adapter wiring.
+  const mauthSuite = "fixtures/mauth-protocol-test-suite";
+  const mauthConfig = {
+    baseUrl: "https://rave.example/",
+    mauth: {
+      appUuid: "836a454e-7f14-4192-8f5a-2a9d3d66f70c",
+      privateKeyEnv: "DMOPS_TEST_RAVE_MAUTH_KEY",
+    },
+    statusMap: { Enrolled: "enrolled", "Screen Failure": "screen_failed" },
+  };
+  const setMauthEnv = () => {
+    process.env.DMOPS_TEST_RAVE_MAUTH_KEY = readFileSync(
+      join(mauthSuite, "signing-params/rsa-key"),
+      "utf8",
+    );
+  };
+
+  it("signs every request — Link pages included — with verifiable V1+V2 headers (ADR-0021)", async () => {
+    setMauthEnv();
+    const publicKey = readFileSync(join(mauthSuite, "signing-params/rsa-key-pub"), "utf8");
+    const inner = fakeRaveFetch();
+    const seen: { url: URL; headers: Record<string, string> }[] = [];
+    const capturing = (async (url: URL | RequestInfo, init?: RequestInit) => {
+      seen.push({
+        url: new URL(url.toString()),
+        headers: { ...((init?.headers ?? {}) as Record<string, string>) },
+      });
+      return inner(url as URL, init);
+    }) as typeof fetch;
+    const mauthAdapter = createRaveAdapter(capturing);
+
+    const result = await mauthAdapter.extract({
+      sourceStudyKey: "Mediflex(Prod)",
+      frames: ["queries"],
+      config: mauthConfig,
+    });
+    // Same tape, same rows: auth mode changes authorization, never data.
+    expect(result.row_counts).toEqual({ queries: 2 });
+    expect(seen).toHaveLength(2); // audit page 1 + followed Link page
+
+    for (const { url, headers } of seen) {
+      expect(headers.authorization).toBeUndefined();
+      const time = headers["X-MWS-Time"] as string;
+      expect(time).toMatch(/^\d+$/);
+      expect(headers["MCC-Time"]).toBe(time);
+      const signInput = {
+        verb: "GET",
+        path: url.pathname,
+        query: url.search.slice(1),
+        appUuid: mauthConfig.mauth.appUuid,
+        privateKey: "", // sts construction does not use the key
+        time,
+      };
+      // V1: public-decrypt of the signature recovers the SHA-512 hexdigest.
+      const v1 = headers["X-MWS-Authentication"] as string;
+      expect(v1).toMatch(new RegExp(`^MWS ${mauthConfig.mauth.appUuid}:`));
+      const v1Sig = Buffer.from(v1.split(":")[1] as string, "base64");
+      expect(
+        publicDecrypt({ key: publicKey, padding: constants.RSA_PKCS1_PADDING }, v1Sig).toString(
+          "utf8",
+        ),
+      ).toBe(createHash("sha512").update(stringToSignV1(signInput)).digest("hex"));
+      // V2: standard RSA-SHA512 verification over the V2 string_to_sign.
+      const v2 = headers["MCC-Authentication"] as string;
+      expect(v2).toMatch(new RegExp(`^MWSV2 ${mauthConfig.mauth.appUuid}:.*;$`));
+      const v2Sig = Buffer.from((v2.split(":")[1] as string).replace(/;$/, ""), "base64");
+      expect(
+        cryptoVerify("sha512", Buffer.from(stringToSignV2(signInput), "utf8"), publicKey, v2Sig),
+      ).toBe(true);
+    }
+  });
+
+  it("capability posture is independent of auth mode (ADR-0021)", () => {
+    expect(adapter.capabilities(mauthConfig)).toEqual(adapter.capabilities(config));
+  });
+
+  it("refuses a config carrying both auth modes, or neither (ADR-0021)", async () => {
+    setEnv();
+    setMauthEnv();
+    await expect(
+      adapter.extract({
+        sourceStudyKey: "Mediflex(Prod)",
+        frames: ["queries"],
+        config: { ...config, mauth: mauthConfig.mauth },
+      }),
+    ).rejects.toThrow(/exactly one auth mode/);
+    await expect(
+      adapter.extract({
+        sourceStudyKey: "Mediflex(Prod)",
+        frames: ["queries"],
+        config: { baseUrl: config.baseUrl, statusMap: config.statusMap },
+      }),
+    ).rejects.toThrow(/no auth mode/);
+  });
+
+  it("fails with an actionable message when the private-key env var is missing", async () => {
+    process.env.DMOPS_TEST_RAVE_MAUTH_KEY = "";
+    await expect(
+      adapter.extract({
+        sourceStudyKey: "Mediflex(Prod)",
+        frames: ["queries"],
+        config: mauthConfig,
+      }),
+    ).rejects.toThrow(/DMOPS_TEST_RAVE_MAUTH_KEY/);
   });
 });
 

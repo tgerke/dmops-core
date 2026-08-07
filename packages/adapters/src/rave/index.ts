@@ -11,6 +11,7 @@ import {
 } from "@dmops/adapter-contract";
 import { XMLParser } from "fast-xml-parser";
 import { z } from "zod";
+import { mauthHeaders } from "./mauth.js";
 
 /**
  * Medidata Rave adapter (ADR-0017): reads Rave Web Services (RWS).
@@ -29,9 +30,15 @@ import { z } from "zod";
  * (techblog.mdsol.com, 2014-12-23). A deployment with Medidata support
  * access should re-verify [NC] items before production use.
  *
- * - Auth: HTTP Basic with a Rave username/password [V-OSS]. MAuth (App
- *   UUID + private key) exists and is preferred by Medidata for long-term
- *   integrations [V-OSS]; it is a named deferral here.
+ * - Auth: HTTP Basic with a Rave username/password [V-OSS], or MAuth
+ *   request signing (ADR-0021): App UUID + RSA private key, both V1 and V2
+ *   headers per the vendor client's default (see rave/mauth.ts for the
+ *   protocol provenance). MAuth credentials attach to a Rave user with no
+ *   password expiry, Medidata's stated preference for long-term
+ *   integrations [V-OSS rwslib docs getting_started.rst @ master,
+ *   consulted 2026-08-07]. Which protocol versions RWS's verifier accepts
+ *   is [NC]; V1 is the publicly evidenced floor (requests-mauth, the
+ *   client rwslib's docs use, signs V1 only), and both are always sent.
  * - queries: RWS has no dedicated queries dataset in any publicly
  *   documented surface; query data rides the audit trail. This adapter
  *   reads GET /RaveWebServices/datasets/ClinicalAuditRecords.odm
@@ -104,9 +111,20 @@ const configSchema = z
   .object({
     /** The deployment's Rave host, e.g. https://{subdomain}.mdsol.com */
     baseUrl: z.string().url(),
-    /** Env indirection — secrets never sit in study_source.config. */
-    usernameEnv: z.string().min(1),
-    passwordEnv: z.string().min(1),
+    /** Basic auth, env indirection — secrets never sit in
+     * study_source.config. Exactly one of Basic or mauth (ADR-0021). */
+    usernameEnv: z.string().min(1).optional(),
+    passwordEnv: z.string().min(1).optional(),
+    /** MAuth request signing (ADR-0021). The App UUID is an identifier,
+     * not a secret, so it sits in config; the PEM private key rides the
+     * usual env indirection. */
+    mauth: z
+      .object({
+        appUuid: z.string().min(1),
+        privateKeyEnv: z.string().min(1),
+      })
+      .strict()
+      .optional(),
     /** Rave subject workflow status → contract status. Study-configured on
      * the Rave side, so it must be mapped explicitly per study (ADR-0017). */
     statusMap: z.record(z.enum(subjectStatuses)),
@@ -124,9 +142,36 @@ const configSchema = z
       .strict()
       .optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((cfg, ctx) => {
+    const basic = cfg.usernameEnv !== undefined || cfg.passwordEnv !== undefined;
+    if (basic && (cfg.usernameEnv === undefined || cfg.passwordEnv === undefined)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "rave config: Basic auth needs both usernameEnv and passwordEnv (ADR-0021)",
+      });
+    }
+    if (basic && cfg.mauth !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "rave config: carries both Basic (usernameEnv/passwordEnv) and mauth — choose exactly one auth mode (ADR-0021)",
+      });
+    }
+    if (!basic && cfg.mauth === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "rave config: no auth mode — set usernameEnv+passwordEnv (Basic) or mauth {appUuid, privateKeyEnv} (ADR-0021)",
+      });
+    }
+  });
 
 type VisitDateItem = NonNullable<z.infer<typeof configSchema>["visitDateItem"]>;
+
+type RaveAuth =
+  | { mode: "basic"; username: string; password: string }
+  | { mode: "mauth"; appUuid: string; privateKey: string };
 
 // English three-letter months are part of the "dd MMM yyyy" format's
 // definition (ADR-0018), not a claim about Rave's locale configuration.
@@ -244,12 +289,23 @@ export function createRaveAdapter(fetchImpl: typeof fetch = fetch): SourceAdapte
       ].includes(name),
   });
 
-  async function get(url: URL, username: string, password: string): Promise<Response> {
-    const res = await fetchImpl(url, {
-      headers: {
-        authorization: `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`,
-      },
-    });
+  async function get(url: URL, auth: RaveAuth): Promise<Response> {
+    // MAuth signs every request individually — followed Link pages included —
+    // with that request's own path, query, and a fresh timestamp (ADR-0021).
+    const headers =
+      auth.mode === "basic"
+        ? {
+            authorization: `Basic ${Buffer.from(`${auth.username}:${auth.password}`).toString("base64")}`,
+          }
+        : mauthHeaders({
+            verb: "GET",
+            path: url.pathname,
+            query: url.search.slice(1),
+            appUuid: auth.appUuid,
+            privateKey: auth.privateKey,
+            time: String(Math.floor(Date.now() / 1000)),
+          });
+    const res = await fetchImpl(url, { headers });
     if (!res.ok) {
       throw new Error(`rave GET ${url.pathname} failed: ${res.status} ${res.statusText}`);
     }
@@ -261,8 +317,7 @@ export function createRaveAdapter(fetchImpl: typeof fetch = fetch): SourceAdapte
     baseUrl: string,
     studyOid: string,
     perPage: number,
-    username: string,
-    password: string,
+    auth: RaveAuth,
   ): Promise<AuditEvent[]> {
     const first = new URL("RaveWebServices/datasets/ClinicalAuditRecords.odm", baseUrl);
     first.searchParams.set("studyoid", studyOid);
@@ -272,7 +327,7 @@ export function createRaveAdapter(fetchImpl: typeof fetch = fetch): SourceAdapte
     const events: AuditEvent[] = [];
     let next: URL | null = first;
     while (next) {
-      const res = await get(next, username, password);
+      const res = await get(next, auth);
       const odm = children(parser.parse(await res.text()) as XmlNode, "ODM")[0] ?? {};
       for (const clinical of children(odm, "ClinicalData")) {
         const subcategory = attr(clinical, "mdsol:AuditSubCategoryName");
@@ -423,8 +478,17 @@ export function createRaveAdapter(fetchImpl: typeof fetch = fetch): SourceAdapte
         }
         return value;
       };
-      const username = env(parsed.usernameEnv);
-      const password = env(parsed.passwordEnv);
+      const auth: RaveAuth = parsed.mauth
+        ? {
+            mode: "mauth",
+            appUuid: parsed.mauth.appUuid,
+            privateKey: env(parsed.mauth.privateKeyEnv),
+          }
+        : {
+            mode: "basic",
+            username: env(parsed.usernameEnv as string),
+            password: env(parsed.passwordEnv as string),
+          };
       const unsupported = frames.filter((f) => !RAVE_FRAMES.includes(f));
       if (unsupported.length > 0) {
         throw new Error(
@@ -442,7 +506,7 @@ export function createRaveAdapter(fetchImpl: typeof fetch = fetch): SourceAdapte
         );
         url.searchParams.set("status", "true");
         url.searchParams.set("subjectKeyType", "SubjectName");
-        const res = await get(url, username, password);
+        const res = await get(url, auth);
         const odm = children(parser.parse(await res.text()) as XmlNode, "ODM")[0] ?? {};
         const rows: SubjectRow[] = [];
         for (const clinical of children(odm, "ClinicalData")) {
@@ -477,13 +541,7 @@ export function createRaveAdapter(fetchImpl: typeof fetch = fetch): SourceAdapte
       const wantsVisits = frames.includes("visits");
       const wantsPages = frames.includes("pages");
       if (wantsQueries || wantsVisits || wantsPages) {
-        const tape = await auditTape(
-          parsed.baseUrl,
-          sourceStudyKey,
-          parsed.auditPerPage,
-          username,
-          password,
-        );
+        const tape = await auditTape(parsed.baseUrl, sourceStudyKey, parsed.auditPerPage, auth);
 
         if (wantsQueries) {
           // Replay the tape per query identity; the tape is chronological.

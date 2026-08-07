@@ -1,7 +1,14 @@
 {
   "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
   "files": {
-    "ignore": ["node_modules", "dist", "docs/validation", "pnpm-lock.yaml", "site/.astro"]
+    "ignore": [
+      "node_modules",
+      "dist",
+      "docs/validation",
+      "pnpm-lock.yaml",
+      "site/.astro",
+      "fixtures/mauth-protocol-test-suite"
+    ]
   },
   "formatter": {
     "enabled": true,
